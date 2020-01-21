@@ -1,5 +1,6 @@
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use crate::auth;
 
 #[derive(Debug)]
 pub struct Conn {
@@ -7,6 +8,7 @@ pub struct Conn {
     stream: UnixStream,
 }
 
+#[derive(Debug)]
 pub enum Error {
     IoError(std::io::Error),
     NameTaken
@@ -22,7 +24,8 @@ type Result<T> = std::result::Result<T, Error>;
 
 impl Conn {
     pub fn connect_to_bus(path: PathBuf) -> Result<Conn> {
-        let stream = UnixStream::connect(&path)?;
+        let mut stream = UnixStream::connect(&path)?;
+        auth::do_auth(&mut stream)?;
 
         Ok(Conn {
             socket_path: path,

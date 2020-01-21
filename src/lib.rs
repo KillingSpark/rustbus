@@ -6,8 +6,10 @@ mod tests {
     }
 }
 
+extern crate nix;
 
 pub mod client_conn;
 pub mod marshal;
 pub mod message;
 pub mod signature;
+pub mod auth;
