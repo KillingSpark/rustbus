@@ -51,11 +51,13 @@ pub fn validate_array(_array: &Vec<message::Param>) -> Result<()> {
 
 pub fn marshal(
     msg: &message::Message,
+    byteorder: ByteOrder,
     serial: u32,
     header_fields: &Vec<HeaderField>,
     buf: &mut Vec<u8>,
 ) -> Result<()> {
-    marshal_header(msg, ByteOrder::BigEndian, serial, header_fields, buf)?;
+    marshal_header(msg, byteorder, serial, header_fields, buf)?;
+    let header_len = buf.len();
     match msg {
         message::Message::Reply => unimplemented!(),
         message::Message::Signal => unimplemented!(),
@@ -65,9 +67,26 @@ pub fn marshal(
             for p in &c.params {
                 marshal_param(p, buf)?;
             }
-            Ok(())
         }
     }
+
+    // set the correct message length
+    let body_len = buf.len() - header_len;
+    match byteorder {
+        ByteOrder::LittleEndian => {
+            buf[4] = (body_len >> 0) as u8;
+            buf[5] = (body_len >> 8) as u8;
+            buf[6] = (body_len >> 16) as u8;
+            buf[7] = (body_len >> 24) as u8;
+        }
+        ByteOrder::BigEndian => {
+            buf[4] = (body_len >> 24) as u8;
+            buf[5] = (body_len >> 16) as u8;
+            buf[6] = (body_len >> 8) as u8;
+            buf[7] = (body_len >> 0) as u8;
+        }
+    }
+    Ok(())
 }
 
 fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
