@@ -1,5 +1,6 @@
 pub enum Message {
     Signal,
+    Error,
     Call(Call),
     Reply,
 }
