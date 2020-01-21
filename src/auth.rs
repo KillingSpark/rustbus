@@ -40,7 +40,7 @@ fn read_message(stream: &mut UnixStream, buf: &mut Vec<u8>) -> std::io::Result<S
     Ok(String::from_utf8(line).unwrap())
 }
 
-fn get_uid_as_hex() -> String{
+fn get_uid_as_hex() -> String {
     let uid = getuid();
     let mut tmp = uid.as_raw();
     let mut numbers = Vec::new();
@@ -68,7 +68,12 @@ fn get_uid_as_hex() -> String{
     hex
 }
 
-pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<()> {
+pub enum AuthResult {
+    Ok,
+    Rejected,
+}
+
+pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
     // send a null byte as the first thing
     stream.write_all(&[0])?;
     write_message(&format!("AUTH EXTERNAL {}", get_uid_as_hex()), stream)?;
@@ -76,5 +81,9 @@ pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<()> {
     let mut read_buf = Vec::new();
     let msg = read_message(stream, &mut read_buf)?;
     println!("Message: {}", msg);
-    Ok(())
+    if msg.starts_with("OK") {
+        Ok(AuthResult::Ok)
+    } else {
+        Ok(AuthResult::Rejected)
+    }
 }
