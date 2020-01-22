@@ -110,12 +110,20 @@ fn marshal_header(
 
     write_u32(serial, byteorder, buf);
 
-    write_u32(3, byteorder, buf);
+
+    write_u32(4, byteorder, buf);
 
     if let Some(int) = &msg.interface {
         marshal_header_fields(
             byteorder,
             &vec![message::HeaderField::Interface(int.clone())],
+            buf,
+        );
+    }
+    if let Some(dest) = &msg.destination {
+        marshal_header_fields(
+            byteorder,
+            &vec![message::HeaderField::Destination(dest.clone())],
             buf,
         );
     }

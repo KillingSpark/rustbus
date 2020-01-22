@@ -44,17 +44,19 @@ pub struct Message {
     pub interface: Option<String>,
     pub member: Option<String>,
     pub object: Option<String>,
+    pub destination: Option<String>,
     pub params: Vec<Param>,
 }
 
 impl Message {
-    pub fn new(typ: MessageType, interface: Option<String>, member: Option<String>, object: Option<String>, params: Vec<Param>) -> Message {
+    pub fn new(typ: MessageType, interface: Option<String>, member: Option<String>, object: Option<String>, destination: Option<String>, params: Vec<Param>) -> Message {
         Message {
             typ,
             interface,
             member,
             params,
-            object
+            object,
+            destination,
         }
     }
 }

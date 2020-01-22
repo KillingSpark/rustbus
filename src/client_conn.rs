@@ -76,7 +76,7 @@ impl Conn {
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
             }
-            self.refill_buffer(unmarshal::HEADER_LEN)?;
+        self.refill_buffer(unmarshal::HEADER_LEN)?;
         };
         println!("Got header: {:?}", header);
         Ok(())
@@ -86,13 +86,11 @@ impl Conn {
         let mut buf = Vec::new();
         marshal::marshal(msg, message::ByteOrder::LittleEndian, 1, &vec![], &mut buf)?;
         
-        println!("Message: {:?}", buf); 
-        let mut clone_msg = buf.clone();
-        let msg_header = unmarshal::unmarshal_header(&mut clone_msg).unwrap();
-
-
-        println!("unmarshaled header: {:?}", msg_header);
-        let msg = unmarshal::unmarshal_next_message(&msg_header, &mut clone_msg).unwrap();
+        //println!("Message: {:?}", buf); 
+        //let mut clone_msg = buf.clone();
+        //let msg_header = unmarshal::unmarshal_header(&mut clone_msg).unwrap();
+        //println!("unmarshaled header: {:?}", msg_header);
+        //let msg = unmarshal::unmarshal_next_message(&msg_header, &mut clone_msg).unwrap();
 
         self.stream.write_all(&buf)?;
         println!("Written {} bytes", buf.len());

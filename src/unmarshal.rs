@@ -82,6 +82,7 @@ pub fn unmarshal_next_message(
         interface: get_interface_from_fields(&fields),
         member: get_member_from_fields(&fields),
         object: get_object_from_fields(&fields),
+        destination: get_destination_from_fields(&fields),
         params: vec![params],
         typ: header.typ,
     })
@@ -424,6 +425,22 @@ fn get_object_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<S
             message::HeaderField::Interface(_) => {}
             message::HeaderField::Member(_) => {}
             message::HeaderField::Path(s) => return Some(s.clone()),
+            message::HeaderField::ReplySerial(_) => {}
+            message::HeaderField::Sender(_) => {}
+            message::HeaderField::Signature(_) => {}
+            message::HeaderField::UnixFds(_) => {}
+        }
+    }
+    None
+}
+fn get_destination_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+    for h in header_fields {
+        match h {
+            message::HeaderField::Destination(s) => return Some(s.clone()),
+            message::HeaderField::ErrorName(_) => {}
+            message::HeaderField::Interface(_) => {}
+            message::HeaderField::Member(_) => {}
+            message::HeaderField::Path(_) => {}
             message::HeaderField::ReplySerial(_) => {}
             message::HeaderField::Sender(_) => {}
             message::HeaderField::Signature(_) => {}
