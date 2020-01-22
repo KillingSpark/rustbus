@@ -210,7 +210,7 @@ fn unmarshal_header_field(
         },
         8 => match sig {
             signature::Type::Base(signature::Base::Signature) => {
-                let sig = unmarshal_string(header, buf)?;
+                let sig = unmarshal_signature(buf)?;
                 Ok(message::HeaderField::Signature(sig))
             }
             _ => Err(Error::WrongSignature),

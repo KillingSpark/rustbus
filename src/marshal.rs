@@ -120,46 +120,64 @@ fn marshal_header_fields(
         match field {
             message::HeaderField::Path(path) => {
                 buf.push(1);
+                buf.push(1);
+                buf.push(b'o');
                 pad_to_align(4, buf);
                 write_string(&path, byteorder, buf);
             }
             message::HeaderField::Interface(int) => {
                 buf.push(2);
+                buf.push(1);
+                buf.push(b's');
                 pad_to_align(4, buf);
                 write_string(&int, byteorder, buf);
             }
             message::HeaderField::Member(mem) => {
                 buf.push(3);
+                buf.push(1);
+                buf.push(b's');
                 pad_to_align(4, buf);
                 write_string(&mem, byteorder, buf);
             }
             message::HeaderField::ErrorName(name) => {
                 buf.push(4);
+                buf.push(1);
+                buf.push(b's');
                 pad_to_align(4, buf);
                 write_string(&name, byteorder, buf);
             }
             message::HeaderField::ReplySerial(rs) => {
-                buf.push(4);
+                buf.push(5);
+                buf.push(1);
+                buf.push(b'u');
                 pad_to_align(4, buf);
                 write_u32(*rs, byteorder, buf);
             }
             message::HeaderField::Destination(dest) => {
-                buf.push(4);
+                buf.push(6);
+                buf.push(1);
+                buf.push(b's');
                 pad_to_align(4, buf);
                 write_string(&dest, byteorder, buf);
             }
             message::HeaderField::Sender(snd) => {
-                buf.push(4);
+                buf.push(7);
+                buf.push(1);
+                buf.push(b's');
                 pad_to_align(4, buf);
                 write_string(&snd, byteorder, buf);
             }
             message::HeaderField::Signature(sig) => {
-                buf.push(4);
+                buf.push(8);
+                buf.push(1);
+                buf.push(b'g');
                 pad_to_align(4, buf);
                 write_string(&sig, byteorder, buf);
             }
             message::HeaderField::UnixFds(fds) => {
-                buf.push(4);
+                buf.push(9);
+                buf.push(1);
+                buf.push(b'u');
                 pad_to_align(4, buf);
                 write_u32(*fds, byteorder, buf);
             }
