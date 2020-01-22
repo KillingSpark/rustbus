@@ -1,6 +1,6 @@
 use crate::signature;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum MessageType {
     Signal,
     Error,
@@ -8,6 +8,7 @@ pub enum MessageType {
     Reply,
 }
 
+#[derive(Debug)]
 pub enum Base {
     Int32(i32),
     Uint32(u32),
@@ -17,6 +18,7 @@ pub enum Base {
     Boolean(bool),
 }
 
+#[derive(Debug)]
 pub enum Container {
     Array(Vec<Param>),
     Struct(Vec<Param>),
@@ -24,30 +26,95 @@ pub enum Container {
     Variant(Box<Variant>),
 }
 
+#[derive(Debug)]
 pub struct Variant {
     pub sig: signature::Type,
     pub value: Param
 }
 
+#[derive(Debug)]
 pub enum Param {
     Base(Base),
     Container(Container),
 }
 
+#[derive(Debug)]
 pub struct Message {
     pub typ: MessageType,
     pub interface: Option<String>,
     pub member: Option<String>,
+    pub object: Option<String>,
     pub params: Vec<Param>,
 }
 
+impl Message {
+    pub fn new(typ: MessageType, interface: Option<String>, member: Option<String>, object: Option<String>, params: Vec<Param>) -> Message {
+        Message {
+            typ,
+            interface,
+            member,
+            params,
+            object
+        }
+    }
+}
+
+impl Param {
+    pub fn make_signature(&self, buf: &mut String) {
+        match self {
+            Param::Base(b) => b.make_signature(buf),
+            Param::Container(c) => c.make_signature(buf),
+        }
+    }
+}
+
+impl Base {
+    pub fn make_signature(&self, buf: &mut String) {
+        match self {
+            Base::Boolean(_) => buf.push('c'),
+            Base::Int32(_) => buf.push('i'),
+            Base::Uint32(_) => buf.push('u'),
+            Base::ObjectPath(_) => buf.push('o'),
+            Base::String(_) => buf.push('s'),
+            Base::Signature(_) => buf.push('g'),
+        }
+    }
+}
+impl Container {
+    pub fn make_signature(&self, buf: &mut String) {
+        match self {
+            Container::Array(elements) => {
+                buf.push('a');
+                elements[0].make_signature(buf);
+            },
+            Container::DictEntry(key, val) => {
+                buf.push('{');
+                key.make_signature(buf);
+                val.make_signature(buf);
+                buf.push('{');
+            }
+            Container::Struct(elements) => {
+                buf.push('(');
+                for el in elements {
+                    el.make_signature(buf);
+                }
+                buf.push(')');
+            }
+            Container::Variant(_) => {
+                buf.push('v');
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Error {
     InvalidObjectPath,
     InvalidSignature,
     InvalidHeaderFields,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ByteOrder {
     LittleEndian,
     BigEndian,
@@ -59,6 +126,7 @@ pub enum HeaderFlags {
     AllowInteractiveAuthorization,
 }
 
+#[derive(Debug)]
 pub enum HeaderField {
     Path(String),
     Interface(String),

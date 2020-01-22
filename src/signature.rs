@@ -1,4 +1,4 @@
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Base {
     Int32,
     Uint32,
@@ -8,7 +8,7 @@ pub enum Base {
     Boolean,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Container {
     Array(Box<Type>),
     Struct(Vec<Type>),
@@ -16,7 +16,7 @@ pub enum Container {
     Variant,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Type {
     Base(Base),
     Container(Container),
@@ -24,6 +24,7 @@ pub enum Type {
 
 pub enum Error {
     InvalidSignature,
+    EmptySignature,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -108,6 +109,9 @@ impl Base {
 impl Type {
     pub fn from_str(sig: &str) -> Result<Type> {
         let mut tokens = make_tokens(sig)?;
+        if tokens.is_empty() {
+            return Err(Error::EmptySignature);
+        }
         Self::parse_next_type(&mut tokens)
     }
 
