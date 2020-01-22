@@ -234,6 +234,8 @@ fn unmarshal_with_sig(
     buf: &mut Vec<u8>,
     original_length: usize,
 ) -> Result<message::Param, Error> {
+    println!("Unmarshal: {:?}", sig);
+    println!("Unmarshal from: {:?}", buf);
     let param = match &sig {
         signature::Type::Base(base) => {
             message::Param::Base(unmarshal_base(header, buf, *base, original_length)?)
@@ -242,6 +244,7 @@ fn unmarshal_with_sig(
             message::Param::Container(unmarshal_container(header, buf, cont, original_length)?)
         }
     };
+    println!("param: {:?}", param);
     Ok(param)
 }
 

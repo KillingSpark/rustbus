@@ -13,7 +13,7 @@ pub fn marshal(
 
     // TODO marshal interface and member
     for p in &msg.params {
-        marshal_param(p, buf)?;
+        marshal_param(p, byteorder, buf)?;
     }
 
     // set the correct message length
@@ -113,20 +113,35 @@ fn marshal_header(
     write_u32(3, byteorder, buf);
 
     if let Some(int) = &msg.interface {
-        marshal_header_fields(byteorder, &vec![message::HeaderField::Interface(int.clone())], buf);
+        marshal_header_fields(
+            byteorder,
+            &vec![message::HeaderField::Interface(int.clone())],
+            buf,
+        );
     }
     if let Some(mem) = &msg.member {
-        marshal_header_fields(byteorder, &vec![message::HeaderField::Member(mem.clone())], buf);
+        marshal_header_fields(
+            byteorder,
+            &vec![message::HeaderField::Member(mem.clone())],
+            buf,
+        );
     }
     if let Some(obj) = &msg.object {
-        marshal_header_fields(byteorder, &vec![message::HeaderField::Path(obj.clone())], buf);
+        marshal_header_fields(
+            byteorder,
+            &vec![message::HeaderField::Path(obj.clone())],
+            buf,
+        );
     }
     let mut sig_str = String::new();
     for param in &msg.params {
         param.make_signature(&mut sig_str);
     }
-    marshal_header_fields(byteorder, &vec![message::HeaderField::Signature(sig_str)], buf);
-    
+    marshal_header_fields(
+        byteorder,
+        &vec![message::HeaderField::Signature(sig_str)],
+        buf,
+    );
     marshal_header_fields(byteorder, header_fields, buf);
 
     Ok(())
@@ -209,46 +224,35 @@ fn marshal_header_fields(
     }
 }
 
-fn marshal_base_param(p: &message::Base, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_base_param(
+    byteorder: message::ByteOrder,
+    p: &message::Base,
+    buf: &mut Vec<u8>,
+) -> message::Result<()> {
     match p {
         message::Base::Boolean(b) => {
             pad_to_align(4, buf);
-            buf.push(0);
-            buf.push(0);
-            buf.push(0);
             if *b {
-                buf.push(0);
+                write_u32(0, byteorder, buf);
             } else {
-                buf.push(1);
+                write_u32(1, byteorder, buf);
             }
             Ok(())
         }
         message::Base::Int32(i) => {
             pad_to_align(4, buf);
-            buf.push((*i >> 0) as u8);
-            buf.push((*i >> 8) as u8);
-            buf.push((*i >> 16) as u8);
-            buf.push((*i >> 24) as u8);
+            write_u32(*i as u32, byteorder, buf);
             Ok(())
         }
         message::Base::Uint32(i) => {
             let raw = *i as u32;
             pad_to_align(4, buf);
-            buf.push((raw >> 0) as u8);
-            buf.push((raw >> 8) as u8);
-            buf.push((raw >> 16) as u8);
-            buf.push((raw >> 24) as u8);
+            write_u32(*i as u32, byteorder, buf);
             Ok(())
         }
         message::Base::String(s) => {
             pad_to_align(4, buf);
-            let len = s.len() as u32;
-            buf.push((len >> 0) as u8);
-            buf.push((len >> 8) as u8);
-            buf.push((len >> 16) as u8);
-            buf.push((len >> 24) as u8);
-            buf.extend(s.bytes());
-            buf.push(0);
+            write_string(&s, byteorder, buf);
             Ok(())
         }
         message::Base::Signature(s) => {
@@ -260,19 +264,17 @@ fn marshal_base_param(p: &message::Base, buf: &mut Vec<u8>) -> message::Result<(
         message::Base::ObjectPath(s) => {
             message::validate_object_path(&s)?;
             pad_to_align(4, buf);
-            let len = s.len() as u32;
-            buf.push((len >> 0) as u8);
-            buf.push((len >> 8) as u8);
-            buf.push((len >> 16) as u8);
-            buf.push((len >> 24) as u8);
-            buf.extend(s.bytes());
-            buf.push(0);
+            write_string(&s, byteorder, buf);
             Ok(())
         }
     }
 }
 
-fn marshal_container_param(p: &message::Container, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_container_param(
+    p: &message::Container,
+    byteorder: message::ByteOrder,
+    buf: &mut Vec<u8>,
+) -> message::Result<()> {
     match p {
         message::Container::Array(params) => {
             message::validate_array(&params)?;
@@ -283,34 +285,38 @@ fn marshal_container_param(p: &message::Container, buf: &mut Vec<u8>) -> message
             buf.push((len >> 16) as u8);
             buf.push((len >> 24) as u8);
             for p in params {
-                marshal_param(&p, buf)?;
+                marshal_param(&p, byteorder, buf)?;
             }
         }
         message::Container::Struct(params) => {
             pad_to_align(8, buf);
             for p in params {
-                marshal_param(&p, buf)?;
+                marshal_param(&p, byteorder, buf)?;
             }
         }
         message::Container::DictEntry(key, value) => {
             pad_to_align(8, buf);
-            marshal_base_param(&key, buf)?;
-            marshal_param(&value, buf)?;
+            marshal_base_param(byteorder, &key, buf)?;
+            marshal_param(&value, byteorder, buf)?;
         }
         message::Container::Variant(variant) => {
             let mut sig_str = String::new();
             variant.sig.to_str(&mut sig_str);
             buf.push(sig_str.len() as u8);
             buf.extend(sig_str.bytes());
-            marshal_param(&variant.value, buf)?;
+            marshal_param(&variant.value, byteorder, buf)?;
         }
     }
     Ok(())
 }
 
-fn marshal_param(p: &message::Param, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_param(
+    p: &message::Param,
+    byteorder: message::ByteOrder,
+    buf: &mut Vec<u8>,
+) -> message::Result<()> {
     match p {
-        message::Param::Base(b) => marshal_base_param(&b, buf),
-        message::Param::Container(c) => marshal_container_param(&c, buf),
+        message::Param::Base(b) => marshal_base_param(byteorder, &b, buf),
+        message::Param::Container(c) => marshal_container_param(&c, byteorder, buf),
     }
 }
