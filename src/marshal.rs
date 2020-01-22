@@ -275,8 +275,12 @@ fn marshal_container_param(p: &message::Container, buf: &mut Vec<u8>) -> message
             marshal_base_param(&key, buf)?;
             marshal_param(&value, buf)?;
         }
-        message::Container::Variant(_) => {
-            unimplemented!();
+        message::Container::Variant(variant) => {
+            let mut sig_str = String::new();
+            variant.sig.to_str(&mut sig_str);
+            buf.push(sig_str.len() as u8);
+            buf.extend(sig_str.bytes());
+            marshal_param(&variant.value, buf)?;
         }
     }
     Ok(())

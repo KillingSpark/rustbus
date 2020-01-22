@@ -13,7 +13,7 @@ pub enum Container {
     Array(Box<Type>),
     Struct(Vec<Type>),
     Dict(Base, Box<Type>),
-    Variant
+    Variant,
 }
 
 #[derive(Clone)]
@@ -65,10 +65,57 @@ fn make_tokens(sig: &str) -> Result<Vec<Token>> {
     Ok(tokens)
 }
 
+impl Container {
+    pub fn to_str(&self, buf: &mut String) {
+        match self {
+            Container::Array(el) => {
+                buf.push('a');
+                el.to_str(buf);
+            }
+            Container::Dict(key, val) => {
+                buf.push('{');
+                key.to_str(buf);
+                val.to_str(buf);
+                buf.push('}');
+            }
+            Container::Struct(types) => {
+                buf.push('(');
+                for t in types {
+                    t.to_str(buf);
+                }
+                buf.push(')');
+            }
+            Container::Variant => {
+                buf.push('v');
+            }
+        }
+    }
+}
+
+impl Base {
+    pub fn to_str(&self, buf: &mut String) {
+        match self {
+            Base::Boolean => buf.push('b'),
+            Base::Int32 => buf.push('i'),
+            Base::Uint32 => buf.push('u'),
+            Base::String => buf.push('s'),
+            Base::ObjectPath => buf.push('o'),
+            Base::Signature => buf.push('g'),
+        }
+    }
+}
+
 impl Type {
     pub fn from_str(sig: &str) -> Result<Type> {
         let mut tokens = make_tokens(sig)?;
         Self::parse_next_type(&mut tokens)
+    }
+
+    pub fn to_str(&self, buf: &mut String) {
+        match self {
+            Type::Container(c) => c.to_str(buf),
+            Type::Base(b) => b.to_str(buf),
+        }
     }
 
     fn parse_next_type(tokens: &mut Vec<Token>) -> Result<Type> {
