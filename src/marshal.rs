@@ -171,7 +171,6 @@ fn marshal_header_fields(
                 buf.push(8);
                 buf.push(1);
                 buf.push(b'g');
-                pad_to_align(4, buf);
                 write_string(&sig, byteorder, buf);
             }
             message::HeaderField::UnixFds(fds) => {
@@ -208,7 +207,7 @@ fn marshal_base_param(p: &message::Base, buf: &mut Vec<u8>) -> message::Result<(
             Ok(())
         }
         message::Base::Uint32(i) => {
-            let raw = *i as u32; 
+            let raw = *i as u32;
             pad_to_align(4, buf);
             buf.push((raw >> 0) as u8);
             buf.push((raw >> 8) as u8);
