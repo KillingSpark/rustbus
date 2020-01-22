@@ -1,17 +1,22 @@
+#[derive(Copy, Clone)]
 pub enum Base {
-    Integer,
+    Int32,
+    Uint32,
     String,
     Signature,
     ObjectPath,
     Boolean,
 }
 
+#[derive(Clone)]
 pub enum Container {
     Array(Box<Type>),
     Struct(Vec<Type>),
     Dict(Base, Box<Type>),
+    Variant
 }
 
+#[derive(Clone)]
 pub enum Type {
     Base(Base),
     Container(Container),
@@ -28,7 +33,8 @@ enum Token {
     Structstart,
     Structend,
     Array,
-    Int,
+    Int32,
+    Uint32,
     String,
     ObjectPath,
     Signature,
@@ -44,7 +50,8 @@ fn make_tokens(sig: &str) -> Result<Vec<Token>> {
             '(' => Token::Structstart,
             ')' => Token::Structend,
             'a' => Token::Array,
-            'i' => Token::Int,
+            'i' => Token::Int32,
+            'u' => Token::Uint32,
             's' => Token::String,
             'o' => Token::ObjectPath,
             'g' => Token::Signature,
@@ -80,7 +87,8 @@ impl Type {
                 Self::parse_next_type(tokens)
             }
 
-            Token::Int => Ok(Type::Base(Base::Integer)),
+            Token::Int32 => Ok(Type::Base(Base::Int32)),
+            Token::Uint32 => Ok(Type::Base(Base::Uint32)),
             Token::String => Ok(Type::Base(Base::String)),
             Token::ObjectPath => Ok(Type::Base(Base::ObjectPath)),
             Token::Signature => Ok(Type::Base(Base::Signature)),
@@ -106,7 +114,8 @@ impl Type {
 
     fn parse_next_base(tokens: &mut Vec<Token>) -> Result<Base> {
         match tokens[0] {
-            Token::Int => Ok(Base::Integer),
+            Token::Int32 => Ok(Base::Int32),
+            Token::Uint32 => Ok(Base::Uint32),
             Token::String => Ok(Base::String),
             Token::ObjectPath => Ok(Base::ObjectPath),
             Token::Signature => Ok(Base::Signature),

@@ -9,16 +9,10 @@ pub fn marshal(
 ) -> message::Result<()> {
     marshal_header(msg, byteorder, serial, header_fields, buf)?;
     let header_len = buf.len();
-    match msg {
-        message::Message::Reply => unimplemented!(),
-        message::Message::Signal => unimplemented!(),
-        message::Message::Error => unimplemented!(),
-        message::Message::Call(c) => {
-            // TODO marshal interface and member
-            for p in &c.params {
-                marshal_param(p, buf)?;
-            }
-        }
+
+    // TODO marshal interface and member
+    for p in &msg.params {
+        marshal_param(p, buf)?;
     }
 
     // set the correct message length
@@ -89,11 +83,11 @@ fn marshal_header(
         }
     }
 
-    let msg_type = match msg {
-        message::Message::Call(_) => 1,
-        message::Message::Reply => 2,
-        message::Message::Error => 3,
-        message::Message::Signal => 4,
+    let msg_type = match msg.typ {
+        message::MessageType::Call => 1,
+        message::MessageType::Reply => 2,
+        message::MessageType::Error => 3,
+        message::MessageType::Signal => 4,
     };
     buf.push(msg_type);
 
@@ -174,7 +168,6 @@ fn marshal_header_fields(
 }
 
 fn marshal_base_param(p: &message::Base, buf: &mut Vec<u8>) -> message::Result<()> {
-    // TODO padding
     match p {
         message::Base::Boolean(b) => {
             pad_to_align(4, buf);
@@ -194,6 +187,15 @@ fn marshal_base_param(p: &message::Base, buf: &mut Vec<u8>) -> message::Result<(
             buf.push((*i >> 8) as u8);
             buf.push((*i >> 16) as u8);
             buf.push((*i >> 24) as u8);
+            Ok(())
+        }
+        message::Base::Uint32(i) => {
+            let raw = *i as u32; 
+            pad_to_align(4, buf);
+            buf.push((raw >> 0) as u8);
+            buf.push((raw >> 8) as u8);
+            buf.push((raw >> 16) as u8);
+            buf.push((raw >> 24) as u8);
             Ok(())
         }
         message::Base::String(s) => {
@@ -255,6 +257,9 @@ fn marshal_container_param(p: &message::Container, buf: &mut Vec<u8>) -> message
             pad_to_align(8, buf);
             marshal_base_param(&key, buf)?;
             marshal_param(&value, buf)?;
+        }
+        message::Container::Variant(_) => {
+            unimplemented!();
         }
     }
     Ok(())

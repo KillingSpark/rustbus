@@ -82,6 +82,7 @@ pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
     let msg = read_message(stream, &mut read_buf)?;
     println!("Message: {}", msg);
     if msg.starts_with("OK") {
+        write_message("BEGIN", stream)?;
         Ok(AuthResult::Ok)
     } else {
         Ok(AuthResult::Rejected)
