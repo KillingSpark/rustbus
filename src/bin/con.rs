@@ -16,7 +16,7 @@ fn main() {
         None,
         Some(member),
         Some(object),
-        Some(dest),
+        None,
         vec![message::Param::Base(message::Base::String(
             ":unique.name".to_owned(),
         ))],

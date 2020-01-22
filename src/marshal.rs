@@ -107,11 +107,15 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
     buf.push(0);
-
+    
     write_u32(serial, byteorder, buf);
-
-
-    write_u32(4, byteorder, buf);
+    
+    let pos = buf.len()-1;
+    // Zero bytes where the length of the header fields will be put
+    buf.push(0);
+    buf.push(0);
+    buf.push(0);
+    buf.push(0);
 
     if let Some(int) = &msg.interface {
         marshal_header_fields(
@@ -151,6 +155,9 @@ fn marshal_header(
         buf,
     );
     marshal_header_fields(byteorder, header_fields, buf);
+    let len = buf.len() - pos;
+    insert_u32(byteorder, len as u32, &mut buf[pos..pos+4]);
+
 
     Ok(())
 }
@@ -278,6 +285,23 @@ fn marshal_base_param(
     }
 }
 
+fn insert_u32(byteorder: message::ByteOrder, val: u32, buf: &mut [u8]) {
+    match byteorder {
+        message::ByteOrder::BigEndian => {
+            buf[0] = ((val >> 0) as u8);
+            buf[1] = ((val >> 8) as u8);
+            buf[2] = ((val >> 16) as u8);
+            buf[3] = ((val >> 24) as u8);
+        }
+        message::ByteOrder::LittleEndian => {
+            buf[0] = ((val >> 24) as u8);
+            buf[1] = ((val >> 16) as u8);
+            buf[2] = ((val >> 8) as u8);
+            buf[3] = ((val >> 0) as u8);
+        }
+    }
+}
+
 fn marshal_container_param(
     p: &message::Container,
     byteorder: message::ByteOrder,
@@ -287,14 +311,14 @@ fn marshal_container_param(
         message::Container::Array(params) => {
             message::validate_array(&params)?;
             pad_to_align(4, buf);
-            let len = params.len() as u32;
-            buf.push((len >> 0) as u8);
-            buf.push((len >> 8) as u8);
-            buf.push((len >> 16) as u8);
-            buf.push((len >> 24) as u8);
+            let pos = buf.len() - 1;
+            buf.push(0);
+
             for p in params {
                 marshal_param(&p, byteorder, buf)?;
             }
+            let len = buf.len() - pos;
+            insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
         }
         message::Container::Struct(params) => {
             pad_to_align(8, buf);
