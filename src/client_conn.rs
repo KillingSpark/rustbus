@@ -12,6 +12,8 @@ pub struct Conn {
     socket_path: PathBuf,
     stream: UnixStream,
 
+    byteorder: message::ByteOrder,
+
     msg_buf_in: Vec<u8>,
     msg_buf_out: Vec<u8>,
 }
@@ -45,7 +47,7 @@ impl std::convert::From<message::Error> for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 impl Conn {
-    pub fn connect_to_bus(path: PathBuf) -> Result<Conn> {
+    pub fn connect_to_bus_with_byteorder(path: PathBuf, byteorder: message::ByteOrder) -> Result<Conn> {
         let mut stream = UnixStream::connect(&path)?;
         match auth::do_auth(&mut stream)? {
             auth::AuthResult::Ok => Ok(Conn {
@@ -53,9 +55,13 @@ impl Conn {
                 stream,
                 msg_buf_in: Vec::new(),
                 msg_buf_out: Vec::new(),
+                byteorder,
             }),
             auth::AuthResult::Rejected => Err(Error::AuthFailed),
         }
+    }
+    pub fn connect_to_bus(path: PathBuf) -> Result<Conn> {
+        Self::connect_to_bus_with_byteorder(path, message::ByteOrder::LittleEndian)
     }
 
     pub fn request_name(&mut self, _name: &str) -> Result<()> {
