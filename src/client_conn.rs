@@ -70,6 +70,10 @@ impl Conn {
     }
 
     pub fn get_next_message(&mut self) -> Result<message::Message> {
+        // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
+        // I think thats necessary so we can later add support for unixfd sending 
+
+
         let header = loop {
             match unmarshal::unmarshal_header(&mut self.msg_buf) {
                 Ok(header) => break header,
