@@ -11,27 +11,21 @@ fn main() {
     let object = "/org/freedesktop/DBus".to_owned();
     let dest = "org.freedesktop.DBus".to_owned();
 
-    let msg = message::Message::new(
-        message::MessageType::Call,
-        Some(interface),
-        Some(member),
-        Some(object),
-        Some(dest),
-        vec![],
-    );
+    let mut hello_msg = message::Message::new(message::MessageType::Call, 1);
+    hello_msg.set_destination(dest);
+    hello_msg.set_object(object);
+    hello_msg.set_interface(interface);
+    hello_msg.set_member(member);
 
-    println!("Send message: {:?}", msg);
-    con.send_message(&msg).unwrap();
-
+    println!("Send message: {:?}", hello_msg);
+    con.send_message(&hello_msg).unwrap();
 
     println!("\n");
     println!("\n");
     println!("\n");
-    
     println!("Wait for incoming messages");
     let msg = con.get_next_message().unwrap();
     println!("Got message: {:?}", msg);
-    
     println!("\n");
     println!("\n");
     println!("\n");
@@ -40,18 +34,15 @@ fn main() {
     let interface = "org.freedesktop.DBus.Peer".to_owned();
     let object = "/org/freedesktop/DBus".to_owned();
 
-    let msg = message::Message::new(
-        message::MessageType::Call,
-        Some(interface),
-        Some(member),
-        Some(object),
-        None,
-        vec![message::Param::Base(message::Base::String(
-            "type='signal'".to_owned(),
-        ))],
-    );
-    println!("Send message: {:?}", msg);
-    con.send_message(&msg).unwrap();
+    let mut ping_msg = message::Message::new(message::MessageType::Call, 1337);
+    ping_msg.set_object(object);
+    ping_msg.set_interface(interface);
+    ping_msg.set_member(member);
+    ping_msg.push_params(vec![message::Param::Base(message::Base::String(
+        "type='signal'".to_owned(),
+    ))]);
+    println!("Send message: {:?}", ping_msg);
+    con.send_message(&ping_msg).unwrap();
 
     loop {
         println!("Wait for incoming messages");

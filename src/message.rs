@@ -22,14 +22,14 @@ pub enum Base {
 pub enum Container {
     Array(Vec<Param>),
     Struct(Vec<Param>),
-    Dict( std::collections::HashMap<Base, Param>),
+    Dict(std::collections::HashMap<Base, Param>),
     Variant(Box<Variant>),
 }
 
 #[derive(Debug)]
 pub struct Variant {
     pub sig: signature::Type,
-    pub value: Param
+    pub value: Param,
 }
 
 #[derive(Debug)]
@@ -46,18 +46,36 @@ pub struct Message {
     pub object: Option<String>,
     pub destination: Option<String>,
     pub params: Vec<Param>,
+    pub serial: u32,
 }
 
 impl Message {
-    pub fn new(typ: MessageType, interface: Option<String>, member: Option<String>, object: Option<String>, destination: Option<String>, params: Vec<Param>) -> Message {
+    pub fn new(typ: MessageType, serial: u32) -> Message {
         Message {
             typ,
-            interface,
-            member,
-            params,
-            object,
-            destination,
+            interface: None,
+            member: None,
+            params: Vec::new(),
+            object: None,
+            destination: None,
+            serial,
         }
+    }
+
+    pub fn set_interface(&mut self, interface: String) {
+        self.interface = Some(interface);
+    }
+    pub fn set_member(&mut self, member: String) {
+        self.member = Some(member);
+    }
+    pub fn set_object(&mut self, object: String) {
+        self.object = Some(object);
+    }
+    pub fn set_destination(&mut self, dest: String) {
+        self.destination = Some(dest);
+    }
+    pub fn push_params(&mut self, params: Vec<Param>) {
+        self.params.extend(params);
     }
 }
 
@@ -88,7 +106,7 @@ impl Container {
             Container::Array(elements) => {
                 buf.push('a');
                 elements[0].make_signature(buf);
-            },
+            }
             Container::Dict(map) => {
                 let key = map.keys().next().unwrap();
                 let val = map.get(key).unwrap();
@@ -238,18 +256,10 @@ pub fn validate_header_fields(
     }
 
     let valid = match msg_type {
-        MessageType::Call => {
-            have_path && have_member
-        }
-        MessageType::Signal => {
-            have_path && have_member && have_interface
-        }
-        MessageType::Reply => {
-            have_replyserial
-        }
-        MessageType::Error => {
-            have_errorname && have_replyserial
-        }
+        MessageType::Call => have_path && have_member,
+        MessageType::Signal => have_path && have_member && have_interface,
+        MessageType::Reply => have_replyserial,
+        MessageType::Error => have_errorname && have_replyserial,
     };
     if valid {
         Ok(())

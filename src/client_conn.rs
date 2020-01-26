@@ -121,7 +121,6 @@ impl Conn {
         marshal::marshal(
             msg,
             message::ByteOrder::LittleEndian,
-            1,
             &vec![],
             &mut self.msg_buf_out,
         )?;

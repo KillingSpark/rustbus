@@ -104,6 +104,7 @@ pub fn unmarshal_next_message(
             destination: get_destination_from_fields(&fields),
             params: vec![],
             typ: header.typ,
+            serial: header.serial,
         })
     }else{
         let sig = match get_sig_from_fields(&fields) {
@@ -133,6 +134,7 @@ pub fn unmarshal_next_message(
             destination: get_destination_from_fields(&fields),
             params: vec![params],
             typ: header.typ,
+            serial: header.serial,
         })
     }
 }

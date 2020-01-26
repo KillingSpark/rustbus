@@ -3,11 +3,10 @@ use crate::message;
 pub fn marshal(
     msg: &message::Message,
     byteorder: message::ByteOrder,
-    serial: u32,
     header_fields: &Vec<message::HeaderField>,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    marshal_header(msg, byteorder, serial, header_fields, buf)?;
+    marshal_header(msg, byteorder, header_fields, buf)?;
     println!("Pad after header");
     pad_to_align(8, buf);
     let header_len = buf.len();
@@ -60,7 +59,6 @@ fn write_signature(val: &str, buf: &mut Vec<u8>) {
 fn marshal_header(
     msg: &message::Message,
     byteorder: message::ByteOrder,
-    serial: u32,
     header_fields: &Vec<message::HeaderField>,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
@@ -94,7 +92,7 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
 
-    write_u32(serial, byteorder, buf);
+    write_u32(msg.serial, byteorder, buf);
 
     // Zero bytes where the length of the header fields will be put
     let pos = buf.len();
