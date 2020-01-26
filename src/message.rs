@@ -1,4 +1,5 @@
 use crate::signature;
+use std::os::unix::io::RawFd;
 
 #[derive(Copy, Clone, Debug)]
 pub enum MessageType {
@@ -53,6 +54,8 @@ pub struct Message {
     pub destination: Option<String>,
     pub params: Vec<Param>,
     pub serial: u32,
+
+    pub raw_fds: Vec<RawFd>,
 }
 
 impl Message {
@@ -65,6 +68,7 @@ impl Message {
             object: None,
             destination: None,
             serial,
+            raw_fds: Vec::new(),
         }
     }
 

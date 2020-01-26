@@ -159,6 +159,7 @@ pub fn unmarshal_next_message(
             params: vec![],
             typ: header.typ,
             serial: header.serial,
+            raw_fds: Vec::new(),
         })
     }else{
         println!("Need a signature");
@@ -195,6 +196,7 @@ pub fn unmarshal_next_message(
             params: params,
             typ: header.typ,
             serial: header.serial,
+            raw_fds: Vec::new(),
         })
     }
 }

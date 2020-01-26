@@ -114,6 +114,7 @@ impl Conn {
     pub fn get_next_message(&mut self) -> Result<message::Message> {
         // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
         // I think thats necessary so we can later add support for unixfd sending
+        let mut cmsgs = Vec::new();
 
         let header = loop {
             match unmarshal::unmarshal_header(&mut self.msg_buf_in) {
@@ -121,7 +122,8 @@ impl Conn {
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
             }
-            self.refill_buffer(unmarshal::HEADER_LEN)?;
+            let new_cmsgs = self.refill_buffer(unmarshal::HEADER_LEN)?;
+            cmsgs.extend(new_cmsgs);
         };
         println!("Got header: {:?}", header);
 
@@ -149,13 +151,26 @@ impl Conn {
             (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
         loop {
             println!("Buf size before read: {}", self.msg_buf_in.len());
-            self.refill_buffer(bytes_needed)?;
+            let new_cmsgs = self.refill_buffer(bytes_needed)?;
+            cmsgs.extend(new_cmsgs);
             println!("Buf size after read: {}", self.msg_buf_in.len());
             if self.msg_buf_in.len() == bytes_needed {
                 break;
             }
         }
-        let msg = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf_in)?;
+        let mut msg = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf_in)?;
+
+        for cmsg in cmsgs {
+            match cmsg {
+                ControlMessageOwned::ScmRights(fds) => {
+                    msg.raw_fds.extend(fds);
+                }
+                _ => {
+                    // TODO what to do?
+                    println!("Cmsg other than ScmRights: {:?}", cmsg);
+                }
+            }
+        }
         Ok(msg)
     }
 
