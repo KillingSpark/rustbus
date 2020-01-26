@@ -32,6 +32,7 @@ pub enum Error {
     UnmarshalError(unmarshal::Error),
     MarshalError(message::Error),
     AuthFailed,
+    UnixFdNegotiationFailed,
     NameTaken,
     AddressTypeNotSupported(String),
     PathDoesNotExist(String),
@@ -69,15 +70,24 @@ impl Conn {
     ) -> Result<Conn> {
         let mut stream = UnixStream::connect(&path)?;
         match auth::do_auth(&mut stream)? {
-            auth::AuthResult::Ok => Ok(Conn {
-                socket_path: path,
-                stream,
-                msg_buf_in: Vec::new(),
-                msg_buf_out: Vec::new(),
-                byteorder,
-            }),
-            auth::AuthResult::Rejected => Err(Error::AuthFailed),
+            auth::AuthResult::Ok => {}
+            auth::AuthResult::Rejected => return Err(Error::AuthFailed),
         }
+
+        match auth::negotiate_unix_fds(&mut stream)? {
+            auth::AuthResult::Ok => {}
+            auth::AuthResult::Rejected => return Err(Error::UnixFdNegotiationFailed),
+        }
+
+        auth::send_begin(&mut stream)?;
+
+        Ok(Conn {
+            socket_path: path,
+            stream,
+            msg_buf_in: Vec::new(),
+            msg_buf_out: Vec::new(),
+            byteorder,
+        })
     }
     pub fn connect_to_bus(path: PathBuf) -> Result<Conn> {
         Self::connect_to_bus_with_byteorder(path, message::ByteOrder::LittleEndian)
