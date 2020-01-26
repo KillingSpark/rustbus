@@ -135,7 +135,8 @@ impl Type {
             }
             Token::Array => {
                 tokens.remove(0);
-                Self::parse_next_type(tokens)
+                let elem_type = Self::parse_next_type(tokens)?;
+                Ok(Type::Container(Container::Array(Box::new(elem_type))))
             }
 
             Token::Int32 => Ok(Type::Base(Base::Int32)),

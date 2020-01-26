@@ -107,6 +107,7 @@ pub fn unmarshal_next_message(
             serial: header.serial,
         })
     }else{
+        println!("Need a signature");
         let sig = match get_sig_from_fields(&fields) {
             Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
             None => {
@@ -114,6 +115,7 @@ pub fn unmarshal_next_message(
                 return Err(Error::InvalidHeaderFields);
             }
         };
+        println!("Found a signature: {:?}", sig);
     
         if buf.len() < header.body_len as usize {
             return Err(Error::NotEnoughBytes);
@@ -417,7 +419,7 @@ fn unmarshal_signature(buf: &mut Vec<u8>) -> Result<String, Error> {
         return Err(Error::NotEnoughBytes);
     }
     let len = buf.remove(0) as usize;
-    if buf.len() < len {
+    if buf.len() < len+1 {
         return Err(Error::NotEnoughBytes);
     }
     let bytes = buf.drain(0..len).collect();
@@ -428,7 +430,7 @@ fn unmarshal_signature(buf: &mut Vec<u8>) -> Result<String, Error> {
 
 fn unmarshal_string(header: &Header, buf: &mut Vec<u8>) -> Result<String, Error> {
     let len = read_u32(buf, header.byteorder)? as usize;
-    if buf.len() < len {
+    if buf.len() < len+1 {
         return Err(Error::NotEnoughBytes);
     }
     let bytes = buf.drain(0..len).collect();

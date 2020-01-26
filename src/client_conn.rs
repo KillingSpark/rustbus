@@ -63,10 +63,11 @@ impl Conn {
     }
 
     fn refill_buffer(&mut self, max_buffer_size: usize) -> Result<()> {
-        let mut tmpbuf = [0u8; 512];
+        const BUFSIZE: usize = 512;
+        let mut tmpbuf = [0u8; BUFSIZE];
 
         let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
-        let bytes = self.stream.read(&mut tmpbuf[..bytes_to_read])?;
+        let bytes = self.stream.read(&mut tmpbuf[.. usize::min(bytes_to_read, BUFSIZE)])?;
         self.msg_buf_in.extend(&mut tmpbuf[..bytes].iter().copied());
         Ok(())
     }
