@@ -63,6 +63,7 @@ impl Conn {
     }
 
     fn refill_buffer(&mut self, max_buffer_size: usize) -> Result<()> {
+        println!("Refill to: {}", max_buffer_size);
         const BUFSIZE: usize = 512;
         let mut tmpbuf = [0u8; BUFSIZE];
 

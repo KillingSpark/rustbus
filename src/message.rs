@@ -10,8 +10,14 @@ pub enum MessageType {
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum Base {
+    Double(u64),
+    Byte(u8),
+    Int16(i16),
+    Uint16(u16),
     Int32(i32),
     Uint32(u32),
+    Int64(i64),
+    Uint64(u64),
     String(String),
     Signature(String),
     ObjectPath(String),
@@ -92,8 +98,14 @@ impl Base {
     pub fn make_signature(&self, buf: &mut String) {
         match self {
             Base::Boolean(_) => buf.push('c'),
+            Base::Double(_) => buf.push('d'),
+            Base::Byte(_) => buf.push('y'),
+            Base::Int16(_) => buf.push('n'),
+            Base::Uint16(_) => buf.push('q'),
             Base::Int32(_) => buf.push('i'),
             Base::Uint32(_) => buf.push('u'),
+            Base::Int64(_) => buf.push('x'),
+            Base::Uint64(_) => buf.push('t'),
             Base::ObjectPath(_) => buf.push('o'),
             Base::String(_) => buf.push('s'),
             Base::Signature(_) => buf.push('g'),

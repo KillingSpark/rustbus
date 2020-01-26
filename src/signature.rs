@@ -1,7 +1,13 @@
 #[derive(Copy, Clone, Debug)]
 pub enum Base {
+    Byte,
+    Int16,
+    Uint16,
     Int32,
     Uint32,
+    Int64,
+    Uint64,
+    Double,
     String,
     Signature,
     ObjectPath,
@@ -29,13 +35,19 @@ pub enum Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 enum Token {
     Structstart,
     Structend,
     Array,
+    Byte,
+    Int16,
+    Uint16,
     Int32,
     Uint32,
+    Int64,
+    Uint64,
+    Double,
     String,
     ObjectPath,
     Signature,
@@ -51,8 +63,14 @@ fn make_tokens(sig: &str) -> Result<Vec<Token>> {
             '(' => Token::Structstart,
             ')' => Token::Structend,
             'a' => Token::Array,
+            'y' => Token::Byte,
+            'n' => Token::Int16,
+            'q' => Token::Uint16,
             'i' => Token::Int32,
             'u' => Token::Uint32,
+            'x' => Token::Int64,
+            't' => Token::Uint64,
+            'd' => Token::Double,
             's' => Token::String,
             'o' => Token::ObjectPath,
             'g' => Token::Signature,
@@ -97,8 +115,14 @@ impl Base {
     pub fn to_str(&self, buf: &mut String) {
         match self {
             Base::Boolean => buf.push('b'),
+            Base::Byte => buf.push('y'),
+            Base::Int16 => buf.push('n'),
+            Base::Uint16 => buf.push('q'),
             Base::Int32 => buf.push('i'),
             Base::Uint32 => buf.push('u'),
+            Base::Int64 => buf.push('x'),
+            Base::Uint64 => buf.push('t'),
+            Base::Double => buf.push('d'),
             Base::String => buf.push('s'),
             Base::ObjectPath => buf.push('o'),
             Base::Signature => buf.push('g'),
@@ -107,12 +131,18 @@ impl Base {
 }
 
 impl Type {
-    pub fn from_str(sig: &str) -> Result<Type> {
+    pub fn from_str(sig: &str) -> Result<Vec<Type>> {
         let mut tokens = make_tokens(sig)?;
         if tokens.is_empty() {
             return Err(Error::EmptySignature);
         }
-        Self::parse_next_type(&mut tokens)
+        let mut types = Vec::new();
+        while !tokens.is_empty() {
+            println!("Get next type from tokens: {:?}", tokens);
+            let t = Self::parse_next_type(&mut tokens)?;
+            types.push(t);
+        }
+        Ok(types)
     }
 
     pub fn to_str(&self, buf: &mut String) {
@@ -139,11 +169,50 @@ impl Type {
                 Ok(Type::Container(Container::Array(Box::new(elem_type))))
             }
 
-            Token::Int32 => Ok(Type::Base(Base::Int32)),
-            Token::Uint32 => Ok(Type::Base(Base::Uint32)),
-            Token::String => Ok(Type::Base(Base::String)),
-            Token::ObjectPath => Ok(Type::Base(Base::ObjectPath)),
-            Token::Signature => Ok(Type::Base(Base::Signature)),
+            Token::Byte => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Byte))
+            }
+            Token::Int16 => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Int16))
+            }
+            Token::Uint16 => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Uint16))
+            }
+            Token::Int32 => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Int32))
+            }
+            Token::Uint32 => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Uint32))
+            }
+            Token::Int64 => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Int64))
+            }
+            Token::Uint64 => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Uint64))
+            }
+            Token::Double => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Double))
+            }
+            Token::String => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::String))
+            }
+            Token::ObjectPath => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::ObjectPath))
+            }
+            Token::Signature => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Signature))
+            }
             Token::DictEntryStart => {
                 tokens.remove(0);
                 let key_type = Self::parse_next_base(tokens)?;

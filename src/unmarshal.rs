@@ -29,6 +29,30 @@ pub enum Error {
 
 pub const HEADER_LEN: usize = 12;
 
+pub fn read_u64(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u64, Error> {
+    if buf.len() < 8 {
+        return Err(Error::NotEnoughBytes);
+    }
+    let number = buf.drain(..8).collect::<Vec<_>>();
+    match byteorder {
+        message::ByteOrder::LittleEndian => Ok((number[0] as u64)
+            + ((number[1] as u64) << 8)
+            + ((number[2] as u64) << 16)
+            + ((number[3] as u64) << 24)
+            + ((number[4] as u64) << 32)
+            + ((number[5] as u64) << 40)
+            + ((number[6] as u64) << 48)
+            + ((number[7] as u64) << 56)),
+        message::ByteOrder::BigEndian => Ok((number[7] as u64)
+            + ((number[6] as u64) << 8)
+            + ((number[5] as u64) << 16)
+            + ((number[4] as u64) << 24)
+            + ((number[3] as u64) << 32)
+            + ((number[2] as u64) << 40)
+            + ((number[1] as u64) << 48)
+            + ((number[0] as u64) << 56)),
+    }
+}
 pub fn read_u32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u32, Error> {
     if buf.len() < 4 {
         return Err(Error::NotEnoughBytes);
@@ -45,13 +69,39 @@ pub fn read_u32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u32,
             + ((number[0] as u32) << 24)),
     }
 }
+pub fn read_u16(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u16, Error> {
+    if buf.len() < 2 {
+        return Err(Error::NotEnoughBytes);
+    }
+    let number = buf.drain(..2).collect::<Vec<_>>();
+    match byteorder {
+        message::ByteOrder::LittleEndian => Ok((number[0] as u16)
+            + ((number[1] as u16) << 8)),
+        message::ByteOrder::BigEndian => Ok((number[1] as u16)
+            + ((number[0] as u16) << 8)),
+    }
+}
 
+fn read_i64(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<i64, Error> {
+    if buf.len() < 8 {
+        return Err(Error::NotEnoughBytes);
+    }
+    let raw = read_u64(buf, byteorder)?;
+    Ok(raw as i64)
+}
 fn read_i32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<i32, Error> {
     if buf.len() < 4 {
         return Err(Error::NotEnoughBytes);
     }
     let raw = read_u32(buf, byteorder)?;
     Ok(raw as i32)
+}
+fn read_i16(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<i16, Error> {
+    if buf.len() < 2 {
+        return Err(Error::NotEnoughBytes);
+    }
+    let raw = read_u16(buf, byteorder)?;
+    Ok(raw as i16)
 }
 
 pub fn unmarshal_header(buf: &mut Vec<u8>) -> Result<Header, Error> {
@@ -112,14 +162,14 @@ pub fn unmarshal_next_message(
         })
     }else{
         println!("Need a signature");
-        let sig = match get_sig_from_fields(&fields) {
+        let sigs = match get_sig_from_fields(&fields) {
             Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
             None => {
                 // TODO this is ok if body_len == 0
                 return Err(Error::InvalidHeaderFields);
             }
         };
-        println!("Found a signature: {:?}", sig);
+        println!("Found a signature: {:?}", sigs);
     
         if buf.len() < header.body_len as usize {
             return Err(Error::NotEnoughBytes);
@@ -127,7 +177,11 @@ pub fn unmarshal_next_message(
     
         println!("Start reading params");
         unpad_to_align(8, buf, original_length)?;
-        let params = unmarshal_with_sig(header, &sig, buf, original_length)?;
+        let mut params = Vec::new();
+        for param_sig in sigs {
+            let new_param = unmarshal_with_sig(header, &param_sig, buf, original_length)?;
+            params.push(new_param);
+        }
     
         if buf.len() != 0 {
             return Err(Error::NotAllBytesUsed);
@@ -138,7 +192,7 @@ pub fn unmarshal_next_message(
             member: get_member_from_fields(&fields),
             object: get_object_from_fields(&fields),
             destination: get_destination_from_fields(&fields),
-            params: vec![params],
+            params: params,
             typ: header.typ,
             serial: header.serial,
         })
@@ -194,7 +248,12 @@ fn unmarshal_header_field(
     println!("TYPE: {}", typ);
     let sig_str = unmarshal_signature(buf)?;
     println!("Field sig: {}", sig_str);
-    let sig = signature::Type::from_str(&sig_str).map_err(|_| Error::InvalidSignature)?;
+    let mut sig = signature::Type::from_str(&sig_str).map_err(|_| Error::InvalidSignature)?;
+    if sig.len() != 1 {
+        // There must be exactly one type in the signature!
+        return Err(Error::InvalidSignature);
+    }
+    let sig = sig.remove(0);
     match typ {
         1 => match sig {
             signature::Type::Base(signature::Base::ObjectPath) => {
@@ -291,7 +350,12 @@ fn unmarshal_variant(
     original_length: usize,
 ) -> Result<message::Variant, Error> {
     let sig_str = unmarshal_signature(buf)?;
-    let sig = signature::Type::from_str(&sig_str).map_err(|_| Error::InvalidSignature)?;
+    let mut sig = signature::Type::from_str(&sig_str).map_err(|_| Error::InvalidSignature)?;
+    if sig.len() != 1 {
+        // There must be exactly one type in the signature!
+        return Err(Error::InvalidSignature);
+    }
+    let sig = sig.remove(0);
     let param = unmarshal_with_sig(header, &sig, buf, original_length)?;
     Ok(message::Variant { sig, value: param })
 }
@@ -357,6 +421,22 @@ fn unmarshal_base(
     original_length: usize,
 ) -> Result<message::Base, Error> {
     match typ {
+        signature::Base::Byte => {
+            if buf.len() < 1 {
+                return Err(Error::NotEnoughBytes);
+            }
+            Ok(message::Base::Byte(buf.remove(0)))
+        }
+        signature::Base::Uint16 => {
+            unpad_to_align(2, buf, original_length)?;
+            let val = read_u16(buf, header.byteorder)?;
+            Ok(message::Base::Uint16(val))
+        }
+        signature::Base::Int16 => {
+            unpad_to_align(2, buf, original_length)?;
+            let val = read_i16(buf, header.byteorder)?;
+            Ok(message::Base::Int16(val))
+        }
         signature::Base::Uint32 => {
             unpad_to_align(4, buf, original_length)?;
             let val = read_u32(buf, header.byteorder)?;
@@ -366,6 +446,21 @@ fn unmarshal_base(
             unpad_to_align(4, buf, original_length)?;
             let val = read_i32(buf, header.byteorder)?;
             Ok(message::Base::Int32(val))
+        }
+        signature::Base::Uint64 => {
+            unpad_to_align(8, buf, original_length)?;
+            let val = read_u64(buf, header.byteorder)?;
+            Ok(message::Base::Uint64(val))
+        }
+        signature::Base::Int64 => {
+            unpad_to_align(8, buf, original_length)?;
+            let val = read_i64(buf, header.byteorder)?;
+            Ok(message::Base::Int64(val))
+        }
+        signature::Base::Double => {
+            unpad_to_align(8, buf, original_length)?;
+            let val = read_u64(buf, header.byteorder)?;
+            Ok(message::Base::Double(val))
         }
         signature::Base::Boolean => {
             unpad_to_align(4, buf, original_length)?;
