@@ -8,7 +8,7 @@ pub enum MessageType {
     Reply,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub enum Base {
     Int32(i32),
     Uint32(u32),
@@ -22,7 +22,7 @@ pub enum Base {
 pub enum Container {
     Array(Vec<Param>),
     Struct(Vec<Param>),
-    DictEntry(Base, Box<Param>),
+    Dict( std::collections::HashMap<Base, Param>),
     Variant(Box<Variant>),
 }
 
@@ -89,7 +89,10 @@ impl Container {
                 buf.push('a');
                 elements[0].make_signature(buf);
             },
-            Container::DictEntry(key, val) => {
+            Container::Dict(map) => {
+                let key = map.keys().next().unwrap();
+                let val = map.get(key).unwrap();
+
                 buf.push('{');
                 key.make_signature(buf);
                 val.make_signature(buf);

@@ -284,9 +284,46 @@ fn unmarshal_container(
     original_length: usize,
 ) -> Result<message::Container, Error> {
     let param = match typ {
-        signature::Container::Array(_) => unimplemented!(),
-        signature::Container::Dict(_, _) => unimplemented!(),
-        signature::Container::Struct(_) => unimplemented!(),
+        signature::Container::Array(elem_sig) => {
+            unpad_to_align(4, buf, original_length)?;
+            let bytes_in_array = read_u32(buf, header.byteorder)?;
+            let mut elements = Vec::new();
+            let bytes_in_buf = buf.len();
+            loop {
+                let bytes_used = bytes_in_buf - buf.len();
+                if bytes_used == bytes_in_array as usize {
+                    break;
+                }
+                let element = unmarshal_with_sig(header, &elem_sig, buf, original_length)?;
+                elements.push(element);
+            }
+            message::Container::Array(elements)
+        }
+        signature::Container::Dict(key_sig, val_sig) => {
+            unpad_to_align(4, buf, original_length)?;
+            let bytes_in_dict = read_u32(buf, header.byteorder)?;
+            let mut elements = std::collections::HashMap::new();
+            let bytes_in_buf = buf.len();
+            loop {
+                let bytes_used = bytes_in_buf - buf.len();
+                if bytes_used == bytes_in_dict as usize {
+                    break;
+                }
+                let key = unmarshal_base(header, buf, *key_sig, original_length)?;
+                let val = unmarshal_with_sig(header, val_sig, buf, original_length)?;
+                elements.insert(key, val);
+            }
+            message::Container::Dict(elements)
+        }
+        signature::Container::Struct(sigs) => {
+            unpad_to_align(8, buf, original_length)?;
+            let mut fields = Vec::new();
+            for field_sig in sigs {
+                let field = unmarshal_with_sig(header, field_sig, buf, original_length)?;
+                fields.push(field);
+            }
+            message::Container::Struct(fields)
+        }
         signature::Container::Variant => {
             message::Container::Variant(Box::new(unmarshal_variant(header, buf, original_length)?))
         }

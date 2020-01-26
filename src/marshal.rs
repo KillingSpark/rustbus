@@ -325,10 +325,20 @@ fn marshal_container_param(
                 marshal_param(&p, byteorder, buf)?;
             }
         }
-        message::Container::DictEntry(key, value) => {
-            pad_to_align(8, buf);
-            marshal_base_param(byteorder, &key, buf)?;
-            marshal_param(&value, byteorder, buf)?;
+        message::Container::Dict(params) => {
+            pad_to_align(4, buf);
+            pad_to_align(4, buf);
+            let pos = buf.len();
+            buf.push(0);
+            buf.push(0);
+            buf.push(0);
+            buf.push(0);
+            for (key, value) in params {
+                marshal_base_param(byteorder, &key, buf)?;
+                marshal_param(&value, byteorder, buf)?;
+            }
+            let len = buf.len() - pos;
+            insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
         }
         message::Container::Variant(variant) => {
             let mut sig_str = String::new();
