@@ -3,20 +3,13 @@ use rustbus::message;
 
 fn main() {
     let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
-    let mut con =
-        rustbus::client_conn::Conn::connect_to_bus(session_path)
-            .unwrap();
-
-    let interface = "org.freedesktop.DBus".to_owned();
-    let member = "Hello".to_owned();
-    let object = "/org/freedesktop/DBus".to_owned();
-    let dest = "org.freedesktop.DBus".to_owned();
+    let mut con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
 
     let mut hello_msg = message::Message::new(message::MessageType::Call, 1);
-    hello_msg.set_destination(dest);
-    hello_msg.set_object(object);
-    hello_msg.set_interface(interface);
-    hello_msg.set_member(member);
+    hello_msg.set_destination("org.freedesktop.DBus".to_owned());
+    hello_msg.set_object("/org/freedesktop/DBus".to_owned());
+    hello_msg.set_interface("org.freedesktop.DBus".to_owned());
+    hello_msg.set_member("Hello".to_owned());
 
     println!("Send message: {:?}", hello_msg);
     con.send_message(&hello_msg).unwrap();
@@ -41,7 +34,6 @@ fn main() {
     //println!("Send message: {:?}", ping_msg);
     //con.send_message(&ping_msg).unwrap();
 
-
     //let member = "ListNames".to_owned();
     //let interface = "org.freedesktop.DBus".to_owned();
     //let object = "/org/freedesktop/DBus".to_owned();
@@ -53,22 +45,17 @@ fn main() {
     //list_msg.set_destination(dest);
     //println!("Send message: {:?}", list_msg);
     //con.send_message(&list_msg).unwrap();
-
-    let member = "AddMatch".to_owned();
-    let interface = "org.freedesktop.DBus".to_owned();
-    let object = "/org/freedesktop/DBus".to_owned();
-    let dest = "org.freedesktop.DBus".to_owned();
+    
     let mut sig_listen_msg = message::Message::new(message::MessageType::Call, 1339);
-    sig_listen_msg.set_object(object);
-    sig_listen_msg.set_interface(interface);
-    sig_listen_msg.set_member(member);
-    sig_listen_msg.set_destination(dest);
+    sig_listen_msg.set_object("/org/freedesktop/DBus".to_owned());
+    sig_listen_msg.set_interface("org.freedesktop.DBus".to_owned());
+    sig_listen_msg.set_member("AddMatch".to_owned());
+    sig_listen_msg.set_destination("org.freedesktop.DBus".to_owned());
     sig_listen_msg.push_params(vec![message::Param::Base(message::Base::String(
         "type='signal'".to_owned(),
     ))]);
     println!("Send message: {:?}", sig_listen_msg);
     con.send_message(&sig_listen_msg).unwrap();
-
 
     loop {
         println!("Wait for incoming messages");

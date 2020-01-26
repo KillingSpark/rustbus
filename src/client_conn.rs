@@ -67,6 +67,7 @@ impl Conn {
     pub fn connect_to_bus_with_byteorder(
         path: PathBuf,
         byteorder: message::ByteOrder,
+        with_unix_fd: bool,
     ) -> Result<Conn> {
         let mut stream = UnixStream::connect(&path)?;
         match auth::do_auth(&mut stream)? {
@@ -74,9 +75,11 @@ impl Conn {
             auth::AuthResult::Rejected => return Err(Error::AuthFailed),
         }
 
-        match auth::negotiate_unix_fds(&mut stream)? {
-            auth::AuthResult::Ok => {}
-            auth::AuthResult::Rejected => return Err(Error::UnixFdNegotiationFailed),
+        if with_unix_fd {
+            match auth::negotiate_unix_fds(&mut stream)? {
+                auth::AuthResult::Ok => {}
+                auth::AuthResult::Rejected => return Err(Error::UnixFdNegotiationFailed),
+            }
         }
 
         auth::send_begin(&mut stream)?;
@@ -89,8 +92,8 @@ impl Conn {
             byteorder,
         })
     }
-    pub fn connect_to_bus(path: PathBuf) -> Result<Conn> {
-        Self::connect_to_bus_with_byteorder(path, message::ByteOrder::LittleEndian)
+    pub fn connect_to_bus(path: PathBuf, with_unix_fd: bool) -> Result<Conn> {
+        Self::connect_to_bus_with_byteorder(path, message::ByteOrder::LittleEndian, with_unix_fd)
     }
 
     pub fn request_name(&mut self, _name: &str) -> Result<()> {
