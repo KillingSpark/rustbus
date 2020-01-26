@@ -8,54 +8,39 @@ pub fn marshal(
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     marshal_header(msg, byteorder, serial, header_fields, buf)?;
+    println!("Pad after header");
     pad_to_align(8, buf);
     let header_len = buf.len();
 
     // TODO marshal interface and member
     for p in &msg.params {
+        let pos_before = buf.len();
         marshal_param(p, byteorder, buf)?;
+        println!("Param: {:?}: {:?}", p, &buf[pos_before..]);
     }
 
     // set the correct message length
     let body_len = buf.len() - header_len;
-    match byteorder {
-        message::ByteOrder::BigEndian => {
-            buf[4] = (body_len >> 0) as u8;
-            buf[5] = (body_len >> 8) as u8;
-            buf[6] = (body_len >> 16) as u8;
-            buf[7] = (body_len >> 24) as u8;
-        }
-        message::ByteOrder::LittleEndian => {
-            buf[4] = (body_len >> 24) as u8;
-            buf[5] = (body_len >> 16) as u8;
-            buf[6] = (body_len >> 8) as u8;
-            buf[7] = (body_len >> 0) as u8;
-        }
-    }
+    insert_u32(byteorder, body_len as u32, &mut buf[4..8]);
     Ok(())
 }
 
 fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
-    let padding_needed = buf.len() % align_to;
-    println!("Pad {}", padding_needed);
-    buf.resize(buf.len() + padding_needed, 0);
+    let padding_needed = align_to - (buf.len() % align_to);
+    if padding_needed != align_to {
+        println!("Pad {}", padding_needed);
+        buf.resize(buf.len() + padding_needed, 0);
+        assert!(buf.len() % align_to == 0);
+    }
 }
 
 fn write_u32(val: u32, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
-    match byteorder {
-        message::ByteOrder::BigEndian => {
-            buf.push((val >> 0) as u8);
-            buf.push((val >> 8) as u8);
-            buf.push((val >> 16) as u8);
-            buf.push((val >> 24) as u8);
-        }
-        message::ByteOrder::LittleEndian => {
-            buf.push((val >> 24) as u8);
-            buf.push((val >> 16) as u8);
-            buf.push((val >> 8) as u8);
-            buf.push((val >> 0) as u8);
-        }
-    }
+    let pos = buf.len();
+    buf.push(0);
+    buf.push(0);
+    buf.push(0);
+    buf.push(0);
+    insert_u32(byteorder, val, &mut buf[pos..]);
 }
 
 fn write_string(val: &str, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
@@ -102,16 +87,17 @@ fn marshal_header(
 
     // Version
     buf.push(1);
+
     // Zero bytes where the length of the message will be put
     buf.push(0);
     buf.push(0);
     buf.push(0);
     buf.push(0);
-    
+
     write_u32(serial, byteorder, buf);
-    
-    let pos = buf.len()-1;
+
     // Zero bytes where the length of the header fields will be put
+    let pos = buf.len();
     buf.push(0);
     buf.push(0);
     buf.push(0);
@@ -145,19 +131,20 @@ fn marshal_header(
             buf,
         );
     }
-    let mut sig_str = String::new();
-    for param in &msg.params {
-        param.make_signature(&mut sig_str);
+    if msg.params.len() > 0{
+        let mut sig_str = String::new();
+        for param in &msg.params {
+            param.make_signature(&mut sig_str);
+        }
+        marshal_header_fields(
+            byteorder,
+            &vec![message::HeaderField::Signature(sig_str)],
+            buf,
+        );
     }
-    marshal_header_fields(
-        byteorder,
-        &vec![message::HeaderField::Signature(sig_str)],
-        buf,
-    );
     marshal_header_fields(byteorder, header_fields, buf);
-    let len = buf.len() - pos;
-    insert_u32(byteorder, len as u32, &mut buf[pos..pos+4]);
-
+    let len = buf.len() - pos - 4; // -4 the bytes for the length indicator do not count
+    insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
 
     Ok(())
 }
@@ -176,6 +163,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b'o');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_string(&path, byteorder, buf);
             }
             message::HeaderField::Interface(int) => {
@@ -183,6 +171,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b's');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_string(&int, byteorder, buf);
             }
             message::HeaderField::Member(mem) => {
@@ -190,6 +179,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b's');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_string(&mem, byteorder, buf);
             }
             message::HeaderField::ErrorName(name) => {
@@ -197,6 +187,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b's');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_string(&name, byteorder, buf);
             }
             message::HeaderField::ReplySerial(rs) => {
@@ -204,6 +195,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b'u');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_u32(*rs, byteorder, buf);
             }
             message::HeaderField::Destination(dest) => {
@@ -211,6 +203,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b's');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_string(&dest, byteorder, buf);
             }
             message::HeaderField::Sender(snd) => {
@@ -218,6 +211,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b's');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_string(&snd, byteorder, buf);
             }
             message::HeaderField::Signature(sig) => {
@@ -225,6 +219,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b'g');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_signature(&sig, buf);
             }
             message::HeaderField::UnixFds(fds) => {
@@ -232,6 +227,7 @@ fn marshal_header_fields(
                 buf.push(1);
                 buf.push(b'u');
                 buf.push(0);
+                pad_to_align(4, buf);
                 write_u32(*fds, byteorder, buf);
             }
         }
@@ -262,7 +258,7 @@ fn marshal_base_param(
         message::Base::Uint32(i) => {
             let raw = *i as u32;
             pad_to_align(4, buf);
-            write_u32(*i as u32, byteorder, buf);
+            write_u32(raw, byteorder, buf);
             Ok(())
         }
         message::Base::String(s) => {
@@ -287,17 +283,17 @@ fn marshal_base_param(
 
 fn insert_u32(byteorder: message::ByteOrder, val: u32, buf: &mut [u8]) {
     match byteorder {
-        message::ByteOrder::BigEndian => {
-            buf[0] = ((val >> 0) as u8);
-            buf[1] = ((val >> 8) as u8);
-            buf[2] = ((val >> 16) as u8);
-            buf[3] = ((val >> 24) as u8);
-        }
         message::ByteOrder::LittleEndian => {
-            buf[0] = ((val >> 24) as u8);
-            buf[1] = ((val >> 16) as u8);
-            buf[2] = ((val >> 8) as u8);
-            buf[3] = ((val >> 0) as u8);
+            buf[0] = (val >> 0) as u8;
+            buf[1] = (val >> 8) as u8;
+            buf[2] = (val >> 16) as u8;
+            buf[3] = (val >> 24) as u8;
+        }
+        message::ByteOrder::BigEndian => {
+            buf[0] = (val >> 24) as u8;
+            buf[1] = (val >> 16) as u8;
+            buf[2] = (val >> 8) as u8;
+            buf[3] = (val >> 0) as u8;
         }
     }
 }
@@ -311,7 +307,10 @@ fn marshal_container_param(
         message::Container::Array(params) => {
             message::validate_array(&params)?;
             pad_to_align(4, buf);
-            let pos = buf.len() - 1;
+            let pos = buf.len();
+            buf.push(0);
+            buf.push(0);
+            buf.push(0);
             buf.push(0);
 
             for p in params {

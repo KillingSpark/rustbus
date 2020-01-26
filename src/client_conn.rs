@@ -85,8 +85,8 @@ impl Conn {
     pub fn send_message(&mut self, msg: &message::Message) -> Result<()> {
         let mut buf = Vec::new();
         marshal::marshal(msg, message::ByteOrder::LittleEndian, 1, &vec![], &mut buf)?;
+        println!("Message: {:?}", buf); 
         
-        //println!("Message: {:?}", buf); 
         //let mut clone_msg = buf.clone();
         //let msg_header = unmarshal::unmarshal_header(&mut clone_msg).unwrap();
         //println!("unmarshaled header: {:?}", msg_header);
