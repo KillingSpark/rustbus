@@ -155,6 +155,10 @@ impl Container {
 pub enum Error {
     InvalidObjectPath,
     InvalidSignature,
+    InvalidBusname,
+    InvalidErrorname,
+    InvalidMembername,
+    InvalidInterface,
     InvalidHeaderFields,
     DuplicatedHeaderFields,
     NoSerial,
@@ -188,10 +192,115 @@ pub enum HeaderField {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub fn validate_object_path(_op: &str) -> Result<()> {
-    // TODO
+pub fn validate_object_path(op: &str) -> Result<()> {
+    if op.is_empty() {
+        return Err(Error::InvalidObjectPath);
+    }
+    if !op.starts_with('/') {
+        return Err(Error::InvalidObjectPath);
+    }
+    if op.len() > 1 {
+        let split = op.split('/').collect::<Vec<_>>();
+        if split.len() < 2 {
+            return Err(Error::InvalidObjectPath);
+        }
+        for element in &split[1..] {
+            if element.is_empty() {
+                return Err(Error::InvalidObjectPath);
+            }
+            if element.chars().nth(0).unwrap().is_numeric() {
+                return Err(Error::InvalidObjectPath);
+            }
+            let alphanum_or_underscore = element
+                .chars()
+                .fold(true, |acc, c| acc && (c.is_alphanumeric() || c == '_'));
+            if !alphanum_or_underscore {
+                return Err(Error::InvalidObjectPath);
+            }
+        }
+    }
     Ok(())
 }
+pub fn validate_interface(int: &str) -> Result<()> {
+    if int.len() < 3 {
+        return Err(Error::InvalidInterface);
+    }
+    if !int.contains('.') {
+        return Err(Error::InvalidInterface);
+    }
+
+    let split = int.split('.').collect::<Vec<_>>();
+    if split.len() < 2 {
+        return Err(Error::InvalidInterface);
+    }
+    for element in split {
+        if element.is_empty() {
+            return Err(Error::InvalidInterface);
+        }
+        if element.chars().nth(0).unwrap().is_numeric() {
+            return Err(Error::InvalidInterface);
+        }
+        let alphanum_or_underscore = element
+            .chars()
+            .fold(true, |acc, c| acc && (c.is_alphanumeric() || c == '_'));
+        if !alphanum_or_underscore {
+            return Err(Error::InvalidInterface);
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_errorname(en: &str) -> Result<()> {
+    validate_interface(en).map_err(|_| Error::InvalidErrorname)
+}
+
+pub fn validate_busname(bn: &str) -> Result<()> {
+    if bn.len() < 3 {
+        return Err(Error::InvalidBusname);
+    }
+    if !bn.contains('.') {
+        return Err(Error::InvalidBusname);
+    }
+
+    let split = bn.split('.').collect::<Vec<_>>();
+    if split.len() < 2 {
+        return Err(Error::InvalidBusname);
+    }
+    for idx in 0..split.len() {
+        let element = split[idx];
+        if element.is_empty() {
+            return Err(Error::InvalidBusname);
+        }
+        if element.chars().nth(0).unwrap().is_numeric() {
+            return Err(Error::InvalidBusname);
+        }
+        let alphanum_or_underscore_or_dash = element.chars().fold(true, |acc, c| {
+            acc && (c.is_alphanumeric() || c == '_' || c == '-' || (idx == 0 && c == ':'))
+        });
+        if !alphanum_or_underscore_or_dash {
+            return Err(Error::InvalidBusname);
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_membername(mem: &str) -> Result<()> {
+    if mem.is_empty() {
+        return Err(Error::InvalidBusname);
+    }
+
+    let alphanum_or_underscore = mem
+        .chars()
+        .fold(true, |acc, c| acc && (c.is_alphanumeric() || c == '_'));
+    if !alphanum_or_underscore {
+        return Err(Error::InvalidMembername);
+    }
+
+    Ok(())
+}
+
 pub fn validate_signature(sig: &str) -> Result<()> {
     if signature::Type::from_str(sig).is_err() {
         Err(Error::InvalidSignature)
