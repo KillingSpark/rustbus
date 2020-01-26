@@ -45,7 +45,7 @@ fn main() {
     //list_msg.set_destination(dest);
     //println!("Send message: {:?}", list_msg);
     //con.send_message(&list_msg).unwrap();
-    
+
     let mut sig_listen_msg = message::Message::new(message::MessageType::Call, 1339);
     sig_listen_msg.set_object("/org/freedesktop/DBus".to_owned());
     sig_listen_msg.set_interface("org.freedesktop.DBus".to_owned());

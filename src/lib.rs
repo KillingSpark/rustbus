@@ -9,9 +9,9 @@ mod tests {
 #[macro_use]
 extern crate nix;
 
+pub mod auth;
 pub mod client_conn;
 pub mod marshal;
-pub mod unmarshal;
 pub mod message;
 pub mod signature;
-pub mod auth;
+pub mod unmarshal;

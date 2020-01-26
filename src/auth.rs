@@ -88,7 +88,7 @@ pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
     }
 }
 
-pub fn negotiate_unix_fds(stream: &mut UnixStream)  -> std::io::Result<AuthResult> {
+pub fn negotiate_unix_fds(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
     write_message("NEGOTIATE_UNIX_FD", stream)?;
 
     let mut read_buf = Vec::new();
