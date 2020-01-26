@@ -96,34 +96,45 @@ pub fn unmarshal_next_message(
     println!("Finished reading header fields");
 
     // TODO find in fields
-    let sig = match get_sig_from_fields(&fields) {
-        Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
-        None => {
-            // TODO this is ok if body_len == 0
-            return Err(Error::InvalidHeaderFields);
+    if header.body_len == 0 {
+        Ok(message::Message {
+            interface: get_interface_from_fields(&fields),
+            member: get_member_from_fields(&fields),
+            object: get_object_from_fields(&fields),
+            destination: get_destination_from_fields(&fields),
+            params: vec![],
+            typ: header.typ,
+        })
+    }else{
+        let sig = match get_sig_from_fields(&fields) {
+            Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
+            None => {
+                // TODO this is ok if body_len == 0
+                return Err(Error::InvalidHeaderFields);
+            }
+        };
+    
+        if buf.len() < header.body_len as usize {
+            return Err(Error::NotEnoughBytes);
         }
-    };
-
-    if buf.len() < header.body_len as usize {
-        return Err(Error::NotEnoughBytes);
+    
+        println!("Start reading params");
+        unpad_to_align(8, buf, original_length)?;
+        let params = unmarshal_with_sig(header, &sig, buf, original_length)?;
+    
+        if buf.len() != 0 {
+            return Err(Error::NotAllBytesUsed);
+        }
+    
+        Ok(message::Message {
+            interface: get_interface_from_fields(&fields),
+            member: get_member_from_fields(&fields),
+            object: get_object_from_fields(&fields),
+            destination: get_destination_from_fields(&fields),
+            params: vec![params],
+            typ: header.typ,
+        })
     }
-
-    println!("Start reading params");
-    unpad_to_align(8, buf, original_length)?;
-    let params = unmarshal_with_sig(header, &sig, buf, original_length)?;
-
-    if buf.len() != 0 {
-        return Err(Error::NotAllBytesUsed);
-    }
-
-    Ok(message::Message {
-        interface: get_interface_from_fields(&fields),
-        member: get_member_from_fields(&fields),
-        object: get_object_from_fields(&fields),
-        destination: get_destination_from_fields(&fields),
-        params: vec![params],
-        typ: header.typ,
-    })
 }
 
 fn unmarshal_header_fields(

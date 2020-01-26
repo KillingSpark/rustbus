@@ -117,6 +117,7 @@ pub enum Error {
     InvalidObjectPath,
     InvalidSignature,
     InvalidHeaderFields,
+    DuplicatedHeaderFields,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -181,55 +182,55 @@ pub fn validate_header_fields(
         match h {
             HeaderField::Destination(_) => {
                 if have_destination {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_destination = true;
             }
             HeaderField::ErrorName(_) => {
                 if have_errorname {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_errorname = true;
             }
             HeaderField::Interface(_) => {
                 if have_interface {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_interface = true;
             }
             HeaderField::Member(_) => {
                 if have_member {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_member = true;
             }
             HeaderField::Path(_) => {
                 if have_path {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_path = true;
             }
             HeaderField::ReplySerial(_) => {
                 if have_replyserial {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_replyserial = true;
             }
             HeaderField::Sender(_) => {
                 if have_sender {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_sender = true;
             }
             HeaderField::Signature(_) => {
                 if have_signature {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_signature = true;
             }
             HeaderField::UnixFds(_) => {
                 if have_unixfds {
-                    return Err(Error::InvalidHeaderFields);
+                    return Err(Error::DuplicatedHeaderFields);
                 }
                 have_unixfds = true;
             }

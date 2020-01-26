@@ -27,18 +27,22 @@ fn main() {
     println!("\n");
     println!("\n");
     println!("\n");
-
+    
     println!("Wait for incoming messages");
     let msg = con.get_next_message().unwrap();
     println!("Got message: {:?}", msg);
     
+    println!("\n");
+    println!("\n");
+    println!("\n");
 
-    /*let member = "org.freedesktop.DBus.Peer.Ping".to_owned();
+    let member = "Ping".to_owned();
+    let interface = "org.freedesktop.DBus.Peer".to_owned();
     let object = "/org/freedesktop/DBus".to_owned();
 
     let msg = message::Message::new(
         message::MessageType::Call,
-        None,
+        Some(interface),
         Some(member),
         Some(object),
         None,
@@ -47,5 +51,11 @@ fn main() {
         ))],
     );
     println!("Send message: {:?}", msg);
-    con.send_message(&msg).unwrap();*/
+    con.send_message(&msg).unwrap();
+
+    loop {
+        println!("Wait for incoming messages");
+        let msg = con.get_next_message().unwrap();
+        println!("Got message: {:?}", msg);
+    }
 }

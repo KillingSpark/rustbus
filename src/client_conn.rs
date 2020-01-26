@@ -73,8 +73,7 @@ impl Conn {
 
     pub fn get_next_message(&mut self) -> Result<message::Message> {
         // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
-        // I think thats necessary so we can later add support for unixfd sending 
-
+        // I think thats necessary so we can later add support for unixfd sending
 
         let header = loop {
             match unmarshal::unmarshal_header(&mut self.msg_buf_in) {
@@ -82,22 +81,29 @@ impl Conn {
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
             }
-        self.refill_buffer(unmarshal::HEADER_LEN)?;
+            self.refill_buffer(unmarshal::HEADER_LEN)?;
         };
         println!("Got header: {:?}", header);
 
-        let mut header_fields_len = [0u8;4];
+        let mut header_fields_len = [0u8; 4];
         self.stream.read_exact(&mut header_fields_len[..])?;
-        let header_fields_len = unmarshal::read_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
+        let header_fields_len =
+            unmarshal::read_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
         println!("Header fields bytes: {}", header_fields_len);
         marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
 
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
 
         let padding_between_header_and_body = 8 - ((complete_header_size) % 8);
+        let padding_between_header_and_body = if padding_between_header_and_body == 8 {
+            0
+        } else {
+            padding_between_header_and_body
+        };
         println!("Bytes padding {}", padding_between_header_and_body);
 
-        let bytes_needed = (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
+        let bytes_needed =
+            (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
         loop {
             println!("Buf size before read: {}", self.msg_buf_in.len());
             self.refill_buffer(bytes_needed)?;
@@ -112,9 +118,14 @@ impl Conn {
 
     pub fn send_message(&mut self, msg: &message::Message) -> Result<()> {
         self.msg_buf_out.clear();
-        marshal::marshal(msg, message::ByteOrder::LittleEndian, 1, &vec![], &mut self.msg_buf_out)?;
-        println!("Message: {:?}", self.msg_buf_out); 
-        
+        marshal::marshal(
+            msg,
+            message::ByteOrder::LittleEndian,
+            1,
+            &vec![],
+            &mut self.msg_buf_out,
+        )?;
+        println!("Message: {:?}", self.msg_buf_out);
         //let mut clone_msg = buf.clone();
         //let msg_header = unmarshal::unmarshal_header(&mut clone_msg).unwrap();
         //println!("unmarshaled header: {:?}", msg_header);
