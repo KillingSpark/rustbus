@@ -292,6 +292,12 @@ fn marshal_base_param(
             write_u32(raw, byteorder, buf);
             Ok(())
         }
+        message::Base::UnixFd(i) => {
+            let raw = *i as u32;
+            pad_to_align(4, buf);
+            write_u32(raw, byteorder, buf);
+            Ok(())
+        }
         message::Base::Int64(i) => {
             pad_to_align(8, buf);
             write_u64(*i as u64, byteorder, buf);

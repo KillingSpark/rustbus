@@ -444,6 +444,11 @@ fn unmarshal_base(
             let val = read_u32(buf, header.byteorder)?;
             Ok(message::Base::Uint32(val))
         }
+        signature::Base::UnixFd => {
+            unpad_to_align(4, buf, original_length)?;
+            let val = read_u32(buf, header.byteorder)?;
+            Ok(message::Base::UnixFd(val))
+        }
         signature::Base::Int32 => {
             unpad_to_align(4, buf, original_length)?;
             let val = read_i32(buf, header.byteorder)?;
