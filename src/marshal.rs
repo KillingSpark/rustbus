@@ -34,7 +34,7 @@ fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
     }
 }
 
-fn write_u32(val: u32, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
+pub fn write_u32(val: u32, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
     let pos = buf.len();
     buf.push(0);
     buf.push(0);

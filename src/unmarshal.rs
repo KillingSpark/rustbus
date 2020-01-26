@@ -14,6 +14,7 @@ pub struct Header {
 #[derive(Debug)]
 pub enum Error {
     NotEnoughBytes,
+    NotAllBytesUsed,
     InvalidByteOrder,
     InvalidType,
     InvalidSignature,
@@ -28,17 +29,17 @@ pub enum Error {
 
 pub const HEADER_LEN: usize = 12;
 
-fn read_u32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u32, Error> {
+pub fn read_u32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u32, Error> {
     if buf.len() < 4 {
         return Err(Error::NotEnoughBytes);
     }
     let number = buf.drain(..4).collect::<Vec<_>>();
     match byteorder {
-        message::ByteOrder::BigEndian => Ok((number[0] as u32)
+        message::ByteOrder::LittleEndian => Ok((number[0] as u32)
             + ((number[1] as u32) << 8)
             + ((number[2] as u32) << 16)
             + ((number[3] as u32) << 24)),
-        message::ByteOrder::LittleEndian => Ok((number[3] as u32)
+        message::ByteOrder::BigEndian => Ok((number[3] as u32)
             + ((number[2] as u32) << 8)
             + ((number[1] as u32) << 16)
             + ((number[0] as u32) << 24)),
@@ -51,41 +52,6 @@ fn read_i32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<i32, Err
     }
     let raw = read_u32(buf, byteorder)?;
     Ok(raw as i32)
-}
-
-pub fn unmarshal_next_message(
-    header: &Header,
-    buf: &mut Vec<u8>,
-) -> Result<message::Message, Error> {
-    let original_length = buf.len() + 12;
-
-    let fields = unmarshal_header_fields(header, buf, original_length)?;
-
-    // TODO find in fields
-    let sig = match get_sig_from_fields(&fields) {
-        Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
-        None => {
-            // TODO this is ok if body_len == 0
-            return Err(Error::InvalidHeaderFields);
-        }
-    };
-
-    if buf.len() < header.body_len as usize {
-        return Err(Error::NotEnoughBytes);
-    }
-
-    println!("Start reading params");
-    unpad_to_align(8, buf, original_length)?;
-    let params = unmarshal_with_sig(header, &sig, buf, original_length)?;
-
-    Ok(message::Message {
-        interface: get_interface_from_fields(&fields),
-        member: get_member_from_fields(&fields),
-        object: get_object_from_fields(&fields),
-        destination: get_destination_from_fields(&fields),
-        params: vec![params],
-        typ: header.typ,
-    })
 }
 
 pub fn unmarshal_header(buf: &mut Vec<u8>) -> Result<Header, Error> {
@@ -119,15 +85,66 @@ pub fn unmarshal_header(buf: &mut Vec<u8>) -> Result<Header, Error> {
     })
 }
 
+pub fn unmarshal_next_message(
+    header: &Header,
+    buf: &mut Vec<u8>,
+) -> Result<message::Message, Error> {
+    let original_length = buf.len() + 12;
+
+    println!("Start reading header fields");
+    let fields = unmarshal_header_fields(header, buf, original_length)?;
+    println!("Finished reading header fields");
+
+    // TODO find in fields
+    let sig = match get_sig_from_fields(&fields) {
+        Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
+        None => {
+            // TODO this is ok if body_len == 0
+            return Err(Error::InvalidHeaderFields);
+        }
+    };
+
+    if buf.len() < header.body_len as usize {
+        return Err(Error::NotEnoughBytes);
+    }
+
+    println!("Start reading params");
+    unpad_to_align(8, buf, original_length)?;
+    let params = unmarshal_with_sig(header, &sig, buf, original_length)?;
+
+    if buf.len() != 0 {
+        return Err(Error::NotAllBytesUsed);
+    }
+
+    Ok(message::Message {
+        interface: get_interface_from_fields(&fields),
+        member: get_member_from_fields(&fields),
+        object: get_object_from_fields(&fields),
+        destination: get_destination_from_fields(&fields),
+        params: vec![params],
+        typ: header.typ,
+    })
+}
+
 fn unmarshal_header_fields(
     header: &Header,
     buf: &mut Vec<u8>,
     original_length: usize,
 ) -> Result<Vec<message::HeaderField>, Error> {
-    let num_fields = read_u32(buf, header.byteorder)?;
-    let mut fields = Vec::with_capacity(num_fields as usize);
+    let header_fields_bytes = read_u32(buf, header.byteorder)?;
+    let mut fields = Vec::new();
 
-    for _ in 0..num_fields {
+    let bytes_in_buf = buf.len();
+    loop {
+        let bytes_used = bytes_in_buf - buf.len();
+        println!(
+            "Bytes used: {} bytes in header fields: {}",
+            bytes_used, header_fields_bytes
+        );
+        if bytes_used == header_fields_bytes as usize {
+            break;
+        }
+
         match unmarshal_header_field(header, buf, original_length) {
             Ok(field) => {
                 println!("Field: {:?}", field);
@@ -324,7 +341,12 @@ fn unmarshal_base(
 
 fn unpad_to_align(align_to: usize, buf: &mut Vec<u8>, original_length: usize) -> Result<(), Error> {
     let bytes_read = original_length - buf.len();
-    let padding_delete = bytes_read % align_to;
+    let padding_delete = align_to - (bytes_read % align_to);
+    let padding_delete = if padding_delete == align_to {
+        0
+    } else {
+        padding_delete
+    };
 
     println!("Unpad: {}", padding_delete);
 
@@ -351,7 +373,6 @@ fn unmarshal_signature(buf: &mut Vec<u8>) -> Result<String, Error> {
     let bytes = buf.drain(0..len).collect();
     // drop \0
     buf.remove(0);
-    
     String::from_utf8(bytes).map_err(|_| Error::InvalidUtf8)
 }
 
@@ -360,7 +381,6 @@ fn unmarshal_string(header: &Header, buf: &mut Vec<u8>) -> Result<String, Error>
     if buf.len() < len {
         return Err(Error::NotEnoughBytes);
     }
-    
     let bytes = buf.drain(0..len).collect();
     // drop \0
     buf.remove(0);

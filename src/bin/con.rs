@@ -27,6 +27,10 @@ fn main() {
     println!("\n");
     println!("\n");
     println!("\n");
+
+    println!("Wait for incoming messages");
+    let msg = con.get_next_message().unwrap();
+    println!("Got message: {:?}", msg);
     
 
     /*let member = "org.freedesktop.DBus.Peer.Ping".to_owned();
@@ -44,7 +48,4 @@ fn main() {
     );
     println!("Send message: {:?}", msg);
     con.send_message(&msg).unwrap();*/
-    
-    println!("Wait for incoming messages");
-    con.get_next_message().unwrap();
 }

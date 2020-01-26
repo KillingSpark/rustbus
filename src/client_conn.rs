@@ -69,7 +69,7 @@ impl Conn {
         Ok(())
     }
 
-    pub fn get_next_message(&mut self) -> Result<()> {
+    pub fn get_next_message(&mut self) -> Result<message::Message> {
         let header = loop {
             match unmarshal::unmarshal_header(&mut self.msg_buf) {
                 Ok(header) => break header,
@@ -79,7 +79,29 @@ impl Conn {
         self.refill_buffer(unmarshal::HEADER_LEN)?;
         };
         println!("Got header: {:?}", header);
-        Ok(())
+
+        let mut header_fields_len = [0u8;4];
+        self.stream.read_exact(&mut header_fields_len[..])?;
+        let header_fields_len = unmarshal::read_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
+        println!("Header fields bytes: {}", header_fields_len);
+        marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf);
+
+        let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
+
+        let padding_between_header_and_body = 8 - ((complete_header_size) % 8);
+        println!("Bytes padding {}", padding_between_header_and_body);
+
+        let bytes_needed = (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
+        loop {
+            println!("Buf size before read: {}", self.msg_buf.len());
+            self.refill_buffer(bytes_needed)?;
+            println!("Buf size after read: {}", self.msg_buf.len());
+            if self.msg_buf.len() == bytes_needed {
+                break;
+            }
+        }
+        let msg = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf)?;
+        Ok(msg)
     }
 
     pub fn send_message(&mut self, msg: &message::Message) -> Result<()> {
