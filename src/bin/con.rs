@@ -30,37 +30,51 @@ fn main() {
     println!("\n");
     println!("\n");
 
-    let member = "Ping".to_owned();
-    let interface = "org.freedesktop.DBus.Peer".to_owned();
-    let object = "/org/freedesktop/DBus".to_owned();
-
-    let mut ping_msg = message::Message::new(message::MessageType::Call, 1337);
-    ping_msg.set_object(object);
-    ping_msg.set_interface(interface);
-    ping_msg.set_member(member);
-    ping_msg.push_params(vec![message::Param::Base(message::Base::String(
-        "type='signal'".to_owned(),
-    ))]);
-    println!("Send message: {:?}", ping_msg);
-    con.send_message(&ping_msg).unwrap();
+    //let member = "Ping".to_owned();
+    //let interface = "org.freedesktop.DBus.Peer".to_owned();
+    //let object = "/org/freedesktop/DBus".to_owned();
+    //let mut ping_msg = message::Message::new(message::MessageType::Call, 1337);
+    //ping_msg.set_object(object);
+    //ping_msg.set_interface(interface);
+    //ping_msg.set_member(member);
+    //println!("Send message: {:?}", ping_msg);
+    //con.send_message(&ping_msg).unwrap();
 
 
-    let member = "ListNames".to_owned();
+    //let member = "ListNames".to_owned();
+    //let interface = "org.freedesktop.DBus".to_owned();
+    //let object = "/org/freedesktop/DBus".to_owned();
+    //let dest = "org.freedesktop.DBus".to_owned();
+    //let mut list_msg = message::Message::new(message::MessageType::Call, 1338);
+    //list_msg.set_object(object);
+    //list_msg.set_interface(interface);
+    //list_msg.set_member(member);
+    //list_msg.set_destination(dest);
+    //println!("Send message: {:?}", list_msg);
+    //con.send_message(&list_msg).unwrap();
+
+    let member = "AddMatch".to_owned();
     let interface = "org.freedesktop.DBus".to_owned();
     let object = "/org/freedesktop/DBus".to_owned();
     let dest = "org.freedesktop.DBus".to_owned();
+    let mut sig_listen_msg = message::Message::new(message::MessageType::Call, 1339);
+    sig_listen_msg.set_object(object);
+    sig_listen_msg.set_interface(interface);
+    sig_listen_msg.set_member(member);
+    sig_listen_msg.set_destination(dest);
+    sig_listen_msg.push_params(vec![message::Param::Base(message::Base::String(
+        "type='signal'".to_owned(),
+    ))]);
+    println!("Send message: {:?}", sig_listen_msg);
+    con.send_message(&sig_listen_msg).unwrap();
 
-    let mut list_msg = message::Message::new(message::MessageType::Call, 1338);
-    list_msg.set_object(object);
-    list_msg.set_interface(interface);
-    list_msg.set_member(member);
-    list_msg.set_destination(dest);
-    println!("Send message: {:?}", list_msg);
-    con.send_message(&list_msg).unwrap();
 
     loop {
         println!("Wait for incoming messages");
         let msg = con.get_next_message().unwrap();
         println!("Got message: {:?}", msg);
+        println!("\n");
+        println!("\n");
+        println!("\n");
     }
 }

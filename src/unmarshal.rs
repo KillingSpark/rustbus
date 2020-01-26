@@ -97,6 +97,10 @@ pub fn unmarshal_next_message(
 
     // TODO find in fields
     if header.body_len == 0 {
+        unpad_to_align(8, buf, original_length)?;
+        if !buf.is_empty() {
+            return Err(Error::NotAllBytesUsed);
+        }
         Ok(message::Message {
             interface: get_interface_from_fields(&fields),
             member: get_member_from_fields(&fields),

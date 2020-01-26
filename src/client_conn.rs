@@ -101,7 +101,7 @@ impl Conn {
         } else {
             padding_between_header_and_body
         };
-        println!("Bytes padding {}", padding_between_header_and_body);
+        println!("Bytes padding header <-> body {}, (because complete header size is: {})", padding_between_header_and_body, complete_header_size);
 
         let bytes_needed =
             (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
