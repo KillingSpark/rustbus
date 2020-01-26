@@ -25,6 +25,9 @@ pub enum Error {
     MarshalError(message::Error),
     AuthFailed,
     NameTaken,
+    AddressTypeNotSupported(String),
+    PathDoesNotExist(String),
+    NoAdressFound,
 }
 
 impl std::convert::From<std::io::Error> for Error {
@@ -47,7 +50,10 @@ impl std::convert::From<message::Error> for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 impl Conn {
-    pub fn connect_to_bus_with_byteorder(path: PathBuf, byteorder: message::ByteOrder) -> Result<Conn> {
+    pub fn connect_to_bus_with_byteorder(
+        path: PathBuf,
+        byteorder: message::ByteOrder,
+    ) -> Result<Conn> {
         let mut stream = UnixStream::connect(&path)?;
         match auth::do_auth(&mut stream)? {
             auth::AuthResult::Ok => Ok(Conn {
@@ -74,7 +80,9 @@ impl Conn {
         let mut tmpbuf = [0u8; BUFSIZE];
 
         let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
-        let bytes = self.stream.read(&mut tmpbuf[.. usize::min(bytes_to_read, BUFSIZE)])?;
+        let bytes = self
+            .stream
+            .read(&mut tmpbuf[..usize::min(bytes_to_read, BUFSIZE)])?;
         self.msg_buf_in.extend(&mut tmpbuf[..bytes].iter().copied());
         Ok(())
     }
@@ -108,7 +116,10 @@ impl Conn {
         } else {
             padding_between_header_and_body
         };
-        println!("Bytes padding header <-> body {}, (because complete header size is: {})", padding_between_header_and_body, complete_header_size);
+        println!(
+            "Bytes padding header <-> body {}, (because complete header size is: {})",
+            padding_between_header_and_body, complete_header_size
+        );
 
         let bytes_needed =
             (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
@@ -141,5 +152,32 @@ impl Conn {
         self.stream.write_all(&self.msg_buf_out)?;
         println!("Written {} bytes", self.msg_buf_out.len());
         Ok(())
+    }
+}
+
+pub fn get_session_bus_path() -> Result<PathBuf> {
+    if let Ok(envvar) = std::env::var("DBUS_SESSION_BUS_ADDRESS") {
+        if envvar.starts_with("unix:path=") {
+            let ps = envvar.trim_start_matches("unix:path=");
+            let p = PathBuf::from(&ps);
+            if p.exists() {
+                Ok(p)
+            } else {
+                Err(Error::PathDoesNotExist(ps.to_owned()))
+            }
+        } else {
+            Err(Error::AddressTypeNotSupported(envvar))
+        }
+    } else {
+        Err(Error::NoAdressFound)
+    }
+}
+pub fn get_system_bus_path() -> Result<PathBuf> {
+    let ps = "/run/dbus/system_bus_socket";
+    let p = PathBuf::from(&ps);
+    if p.exists() {
+        Ok(p)
+    } else {
+        Err(Error::PathDoesNotExist(ps.to_owned()))
     }
 }

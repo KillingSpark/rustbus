@@ -2,8 +2,9 @@ extern crate rustbus;
 use rustbus::message;
 
 fn main() {
+    let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
     let mut con =
-        rustbus::client_conn::Conn::connect_to_bus(std::path::PathBuf::from("/run/user/1000/bus"))
+        rustbus::client_conn::Conn::connect_to_bus(session_path)
             .unwrap();
 
     let interface = "org.freedesktop.DBus".to_owned();
