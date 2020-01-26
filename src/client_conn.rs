@@ -12,7 +12,8 @@ pub struct Conn {
     socket_path: PathBuf,
     stream: UnixStream,
 
-    msg_buf: Vec<u8>,
+    msg_buf_in: Vec<u8>,
+    msg_buf_out: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -50,7 +51,8 @@ impl Conn {
             auth::AuthResult::Ok => Ok(Conn {
                 socket_path: path,
                 stream,
-                msg_buf: Vec::new(),
+                msg_buf_in: Vec::new(),
+                msg_buf_out: Vec::new(),
             }),
             auth::AuthResult::Rejected => Err(Error::AuthFailed),
         }
@@ -63,9 +65,9 @@ impl Conn {
     fn refill_buffer(&mut self, max_buffer_size: usize) -> Result<()> {
         let mut tmpbuf = [0u8; 512];
 
-        let bytes_to_read = max_buffer_size - self.msg_buf.len();
+        let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
         let bytes = self.stream.read(&mut tmpbuf[..bytes_to_read])?;
-        self.msg_buf.extend(&mut tmpbuf[..bytes].iter().copied());
+        self.msg_buf_in.extend(&mut tmpbuf[..bytes].iter().copied());
         Ok(())
     }
 
@@ -75,7 +77,7 @@ impl Conn {
 
 
         let header = loop {
-            match unmarshal::unmarshal_header(&mut self.msg_buf) {
+            match unmarshal::unmarshal_header(&mut self.msg_buf_in) {
                 Ok(header) => break header,
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
@@ -88,7 +90,7 @@ impl Conn {
         self.stream.read_exact(&mut header_fields_len[..])?;
         let header_fields_len = unmarshal::read_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
         println!("Header fields bytes: {}", header_fields_len);
-        marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf);
+        marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
 
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
 
@@ -97,29 +99,29 @@ impl Conn {
 
         let bytes_needed = (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
         loop {
-            println!("Buf size before read: {}", self.msg_buf.len());
+            println!("Buf size before read: {}", self.msg_buf_in.len());
             self.refill_buffer(bytes_needed)?;
-            println!("Buf size after read: {}", self.msg_buf.len());
-            if self.msg_buf.len() == bytes_needed {
+            println!("Buf size after read: {}", self.msg_buf_in.len());
+            if self.msg_buf_in.len() == bytes_needed {
                 break;
             }
         }
-        let msg = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf)?;
+        let msg = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf_in)?;
         Ok(msg)
     }
 
     pub fn send_message(&mut self, msg: &message::Message) -> Result<()> {
-        let mut buf = Vec::new();
-        marshal::marshal(msg, message::ByteOrder::LittleEndian, 1, &vec![], &mut buf)?;
-        println!("Message: {:?}", buf); 
+        self.msg_buf_out.clear();
+        marshal::marshal(msg, message::ByteOrder::LittleEndian, 1, &vec![], &mut self.msg_buf_out)?;
+        println!("Message: {:?}", self.msg_buf_out); 
         
         //let mut clone_msg = buf.clone();
         //let msg_header = unmarshal::unmarshal_header(&mut clone_msg).unwrap();
         //println!("unmarshaled header: {:?}", msg_header);
         //let msg = unmarshal::unmarshal_next_message(&msg_header, &mut clone_msg).unwrap();
 
-        self.stream.write_all(&buf)?;
-        println!("Written {} bytes", buf.len());
+        self.stream.write_all(&self.msg_buf_out)?;
+        println!("Written {} bytes", self.msg_buf_out.len());
         Ok(())
     }
 }
