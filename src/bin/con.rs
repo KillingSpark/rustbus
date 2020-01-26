@@ -1,18 +1,20 @@
 extern crate rustbus;
 use rustbus::message;
+use rustbus::message_builder::MessageBuilder;
 
 fn main() {
     let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
     let mut con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
 
-    let mut hello_msg = message::Message::new(message::MessageType::Call, 1);
-    hello_msg.set_destination("org.freedesktop.DBus".to_owned());
-    hello_msg.set_object("/org/freedesktop/DBus".to_owned());
-    hello_msg.set_interface("org.freedesktop.DBus".to_owned());
-    hello_msg.set_member("Hello".to_owned());
+    let hello_msg = MessageBuilder::new()
+        .call("Hello".into())
+        .on("/org/freedesktop/DBus".into())
+        .with_interface("org.freedesktop.DBus".into())
+        .at("org.freedesktop.DBus".into())
+        .build();
 
     println!("Send message: {:?}", hello_msg);
-    con.send_message(&hello_msg).unwrap();
+    con.send_message(hello_msg).unwrap();
 
     println!("\n");
     println!("\n");
@@ -46,16 +48,18 @@ fn main() {
     //println!("Send message: {:?}", list_msg);
     //con.send_message(&list_msg).unwrap();
 
-    let mut sig_listen_msg = message::Message::new(message::MessageType::Call, 1339);
-    sig_listen_msg.set_object("/org/freedesktop/DBus".to_owned());
-    sig_listen_msg.set_interface("org.freedesktop.DBus".to_owned());
-    sig_listen_msg.set_member("AddMatch".to_owned());
-    sig_listen_msg.set_destination("org.freedesktop.DBus".to_owned());
-    sig_listen_msg.push_params(vec![message::Param::Base(message::Base::String(
-        "type='signal'".to_owned(),
-    ))]);
+    let sig_listen_msg = MessageBuilder::new()
+        .call("AddMatch".into())
+        .on("/org/freedesktop/DBus".into())
+        .with_interface("org.freedesktop.DBus".into())
+        .with_params(vec![message::Param::Base(message::Base::String(
+            "type='signal'".to_owned(),
+        ))])
+        .at("org.freedesktop.DBus".into())
+        .build();
+
     println!("Send message: {:?}", sig_listen_msg);
-    con.send_message(&sig_listen_msg).unwrap();
+    con.send_message(sig_listen_msg).unwrap();
 
     loop {
         println!("Wait for incoming messages");

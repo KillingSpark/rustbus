@@ -156,7 +156,7 @@ pub fn unmarshal_next_message(
             destination: get_destination_from_fields(&fields),
             params: vec![],
             typ: header.typ,
-            serial: header.serial,
+            serial: Some(header.serial),
             raw_fds: Vec::new(),
             num_fds: get_unixfds_from_fields(&fields),
         })
@@ -190,7 +190,7 @@ pub fn unmarshal_next_message(
             destination: get_destination_from_fields(&fields),
             params: params,
             typ: header.typ,
-            serial: header.serial,
+            serial: Some(header.serial),
             raw_fds: Vec::new(),
             num_fds: get_unixfds_from_fields(&fields),
         })

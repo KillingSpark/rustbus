@@ -23,6 +23,8 @@ pub struct Conn {
 
     msg_buf_in: Vec<u8>,
     msg_buf_out: Vec<u8>,
+
+    serial_counter: u32,
 }
 
 #[derive(Debug)]
@@ -90,6 +92,8 @@ impl Conn {
             msg_buf_in: Vec::new(),
             msg_buf_out: Vec::new(),
             byteorder,
+
+            serial_counter: 1,
         })
     }
     pub fn connect_to_bus(path: PathBuf, with_unix_fd: bool) -> Result<Conn> {
@@ -187,10 +191,14 @@ impl Conn {
         Ok(msg)
     }
 
-    pub fn send_message(&mut self, msg: &message::Message) -> Result<()> {
+    pub fn send_message(&mut self, mut msg: message::Message) -> Result<message::Message> {
         self.msg_buf_out.clear();
+        if msg.serial.is_none() {
+            msg.serial = Some(self.serial_counter);
+            self.serial_counter += 1;
+        }
         marshal::marshal(
-            msg,
+            &msg,
             message::ByteOrder::LittleEndian,
             &vec![],
             &mut self.msg_buf_out,
@@ -203,7 +211,7 @@ impl Conn {
 
         self.stream.write_all(&self.msg_buf_out)?;
         println!("Written {} bytes", self.msg_buf_out.len());
-        Ok(())
+        Ok(msg)
     }
 }
 

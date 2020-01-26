@@ -7,6 +7,7 @@ pub enum MessageType {
     Error,
     Call,
     Reply,
+    Invalid,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -54,22 +55,22 @@ pub struct Message {
     pub object: Option<String>,
     pub destination: Option<String>,
     pub params: Vec<Param>,
-    pub serial: u32,
+    pub serial: Option<u32>,
 
     pub num_fds: Option<u32>,
     pub raw_fds: Vec<RawFd>,
 }
 
 impl Message {
-    pub fn new(typ: MessageType, serial: u32) -> Message {
+    pub fn new() -> Message {
         Message {
-            typ,
+            typ: MessageType::Invalid,
             interface: None,
             member: None,
             params: Vec::new(),
             object: None,
             destination: None,
-            serial,
+            serial: None,
             raw_fds: Vec::new(),
             num_fds: None,
         }
@@ -156,6 +157,8 @@ pub enum Error {
     InvalidSignature,
     InvalidHeaderFields,
     DuplicatedHeaderFields,
+    NoSerial,
+    InvalidType,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -276,6 +279,7 @@ pub fn validate_header_fields(
     }
 
     let valid = match msg_type {
+        MessageType::Invalid => false,
         MessageType::Call => have_path && have_member,
         MessageType::Signal => have_path && have_member && have_interface,
         MessageType::Reply => have_replyserial,

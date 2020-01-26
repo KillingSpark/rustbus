@@ -97,6 +97,7 @@ fn marshal_header(
     }
 
     let msg_type = match msg.typ {
+        message::MessageType::Invalid => return Err(message::Error::InvalidType),
         message::MessageType::Call => 1,
         message::MessageType::Reply => 2,
         message::MessageType::Error => 3,
@@ -117,7 +118,10 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
 
-    write_u32(msg.serial, byteorder, buf);
+    match msg.serial {
+        Some(serial) => write_u32(serial, byteorder, buf),
+        None => return Err(message::Error::NoSerial),
+    }
 
     // Zero bytes where the length of the header fields will be put
     let pos = buf.len();

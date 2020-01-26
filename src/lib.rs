@@ -13,5 +13,6 @@ pub mod auth;
 pub mod client_conn;
 pub mod marshal;
 pub mod message;
+pub mod message_builder;
 pub mod signature;
 pub mod unmarshal;
