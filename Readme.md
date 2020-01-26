@@ -12,5 +12,7 @@ a simple auth package that only supports the external authentication (which is e
 
 Dbus does technically work over any transport but this currently only supports unix streaming sockets. Support for other transports should be rather simple.
 
+Receiving filedescriptors is implemented but untested.
+
 ## State of this project
 Working for simple cases but there are probably bugs lingering. Need to setup fuzzing and unit tests.
