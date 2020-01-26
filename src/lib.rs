@@ -6,6 +6,7 @@ mod tests {
     }
 }
 
+#[macro_use]
 extern crate nix;
 
 pub mod client_conn;
