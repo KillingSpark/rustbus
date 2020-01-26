@@ -75,10 +75,8 @@ pub fn read_u16(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u16,
     }
     let number = buf.drain(..2).collect::<Vec<_>>();
     match byteorder {
-        message::ByteOrder::LittleEndian => Ok((number[0] as u16)
-            + ((number[1] as u16) << 8)),
-        message::ByteOrder::BigEndian => Ok((number[1] as u16)
-            + ((number[0] as u16) << 8)),
+        message::ByteOrder::LittleEndian => Ok((number[0] as u16) + ((number[1] as u16) << 8)),
+        message::ByteOrder::BigEndian => Ok((number[1] as u16) + ((number[0] as u16) << 8)),
     }
 }
 
@@ -160,8 +158,9 @@ pub fn unmarshal_next_message(
             typ: header.typ,
             serial: header.serial,
             raw_fds: Vec::new(),
+            num_fds: get_unixfds_from_fields(&fields),
         })
-    }else{
+    } else {
         println!("Need a signature");
         let sigs = match get_sig_from_fields(&fields) {
             Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
@@ -171,11 +170,9 @@ pub fn unmarshal_next_message(
             }
         };
         println!("Found a signature: {:?}", sigs);
-    
         if buf.len() < header.body_len as usize {
             return Err(Error::NotEnoughBytes);
         }
-    
         println!("Start reading params");
         unpad_to_align(8, buf, original_length)?;
         let mut params = Vec::new();
@@ -183,11 +180,9 @@ pub fn unmarshal_next_message(
             let new_param = unmarshal_with_sig(header, &param_sig, buf, original_length)?;
             params.push(new_param);
         }
-    
         if buf.len() != 0 {
             return Err(Error::NotAllBytesUsed);
         }
-    
         Ok(message::Message {
             interface: get_interface_from_fields(&fields),
             member: get_member_from_fields(&fields),
@@ -197,6 +192,7 @@ pub fn unmarshal_next_message(
             typ: header.typ,
             serial: header.serial,
             raw_fds: Vec::new(),
+            num_fds: get_unixfds_from_fields(&fields),
         })
     }
 }
@@ -525,7 +521,7 @@ fn unmarshal_signature(buf: &mut Vec<u8>) -> Result<String, Error> {
         return Err(Error::NotEnoughBytes);
     }
     let len = buf.remove(0) as usize;
-    if buf.len() < len+1 {
+    if buf.len() < len + 1 {
         return Err(Error::NotEnoughBytes);
     }
     let bytes = buf.drain(0..len).collect();
@@ -536,7 +532,7 @@ fn unmarshal_signature(buf: &mut Vec<u8>) -> Result<String, Error> {
 
 fn unmarshal_string(header: &Header, buf: &mut Vec<u8>) -> Result<String, Error> {
     let len = read_u32(buf, header.byteorder)? as usize;
-    if buf.len() < len+1 {
+    if buf.len() < len + 1 {
         return Err(Error::NotEnoughBytes);
     }
     let bytes = buf.drain(0..len).collect();
@@ -574,6 +570,23 @@ fn get_interface_from_fields(header_fields: &Vec<message::HeaderField>) -> Optio
             message::HeaderField::Sender(_) => {}
             message::HeaderField::Signature(_) => {}
             message::HeaderField::UnixFds(_) => {}
+        }
+    }
+    None
+}
+
+fn get_unixfds_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<u32> {
+    for h in header_fields {
+        match h {
+            message::HeaderField::Destination(_) => {}
+            message::HeaderField::ErrorName(_) => {}
+            message::HeaderField::Interface(_) => {}
+            message::HeaderField::Member(_) => {}
+            message::HeaderField::Path(_) => {}
+            message::HeaderField::ReplySerial(_) => {}
+            message::HeaderField::Sender(_) => {}
+            message::HeaderField::Signature(_) => {}
+            message::HeaderField::UnixFds(num_fds) => return Some(*num_fds),
         }
     }
     None
