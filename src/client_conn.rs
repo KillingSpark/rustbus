@@ -134,8 +134,8 @@ impl Conn {
         let mut cmsgs = Vec::new();
 
         let header = loop {
-            match unmarshal::unmarshal_header(&mut self.msg_buf_in) {
-                Ok(header) => break header,
+            match unmarshal::unmarshal_header(&mut self.msg_buf_in, 0) {
+                Ok((_,header)) => break header,
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
             }
@@ -164,8 +164,7 @@ impl Conn {
             padding_between_header_and_body, complete_header_size
         );
 
-        let bytes_needed =
-            (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
+        let bytes_needed = unmarshal::HEADER_LEN + (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
         loop {
             println!("Buf size before read: {}", self.msg_buf_in.len());
             let new_cmsgs = self.refill_buffer(bytes_needed)?;
@@ -175,7 +174,11 @@ impl Conn {
                 break;
             }
         }
-        let mut msg = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf_in)?;
+        let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf_in, unmarshal::HEADER_LEN)?;
+        if bytes_used != bytes_needed {
+            println!("Bytes used: {}, bytes needed: {}", bytes_used, bytes_needed);
+        }
+        self.msg_buf_in.clear();
 
         for cmsg in cmsgs {
             match cmsg {
