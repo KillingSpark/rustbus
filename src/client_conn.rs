@@ -18,6 +18,7 @@ use nix::sys::uio::IoVec;
 
 pub struct RpcConn {
     signals: VecDeque<message::Message>,
+    calls: VecDeque<message::Message>,
     responses: HashMap<u32, message::Message>,
     conn: Conn,
 }
@@ -26,6 +27,7 @@ impl RpcConn {
     pub fn new(conn: Conn) -> Self {
         RpcConn {
             signals: VecDeque::new(),
+            calls: VecDeque::new(),
             responses: HashMap::new(),
             conn,
         }
@@ -42,6 +44,9 @@ impl RpcConn {
             self.refill()?;
         }
     }
+    pub fn try_get_signal(&mut self) -> Option<message::Message> {
+        self.signals.pop_front()
+    }
 
     pub fn wait_signal(&mut self) -> Result<message::Message> {
         loop {
@@ -52,18 +57,29 @@ impl RpcConn {
         }
     }
 
-    pub fn send_message(&mut self, msg: message::Message) -> Result<message::Message> {
-        self.conn.send_message(msg)
+    pub fn try_get_call(&mut self) -> Option<message::Message> {
+        self.calls.pop_front()
     }
 
-    pub fn try_get_signal(&mut self) -> Option<message::Message> {
-        self.signals.pop_front()
+    pub fn wait_call(&mut self) -> Result<message::Message> {
+        loop {
+            if let Some(msg) = self.try_get_call() {
+                return Ok(msg);
+            }
+            self.refill()?;
+        }
+    }
+
+    pub fn send_message(&mut self, msg: message::Message) -> Result<message::Message> {
+        self.conn.send_message(msg)
     }
 
     fn refill(&mut self) -> Result<()> {
         let msg = self.conn.get_next_message()?;
         match msg.typ {
-            message::MessageType::Call => return Err(Error::UnexpectedTypeReceived),
+            message::MessageType::Call => {
+                self.calls.push_back(msg);
+            }
             message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
             message::MessageType::Error => {
                 self.responses.insert(msg.response_serial.unwrap(), msg);
