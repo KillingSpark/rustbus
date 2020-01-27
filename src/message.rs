@@ -57,6 +57,8 @@ pub struct Message {
     pub params: Vec<Param>,
     pub serial: Option<u32>,
     pub response_serial: Option<u32>,
+    pub sender: Option<String>,
+    pub error_name: Option<String>,
 
     pub num_fds: Option<u32>,
     pub raw_fds: Vec<RawFd>,
@@ -75,6 +77,8 @@ impl Message {
             raw_fds: Vec::new(),
             num_fds: None,
             response_serial: None,
+            sender: None,
+            error_name: None,
         }
     }
 
@@ -92,6 +96,39 @@ impl Message {
     }
     pub fn push_params(&mut self, params: Vec<Param>) {
         self.params.extend(params);
+    }
+
+    pub fn make_response(&self) -> Message {
+        Message {
+            typ: MessageType::Reply,
+            interface: None,
+            member: None,
+            params: Vec::new(),
+            object: None,
+            destination: self.sender.clone(),
+            serial: None,
+            raw_fds: Vec::new(),
+            num_fds: None,
+            sender: None,
+            response_serial: self.serial.clone(),
+            error_name: None,
+        }
+    }
+    pub fn make_error_response(&self, error_name: String) -> Message {
+        Message {
+            typ: MessageType::Reply,
+            interface: None,
+            member: None,
+            params: Vec::new(),
+            object: None,
+            destination: self.sender.clone(),
+            serial: None,
+            raw_fds: Vec::new(),
+            num_fds: None,
+            sender: None,
+            response_serial: self.serial.clone(),
+            error_name: Some(error_name),
+        }
     }
 }
 

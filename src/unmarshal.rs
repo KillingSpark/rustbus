@@ -115,28 +115,6 @@ pub fn read_u16(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u16,
     Ok(parse_u16(&number, byteorder)?.1)
 }
 
-fn read_i64(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<i64, Error> {
-    if buf.len() < 8 {
-        return Err(Error::NotEnoughBytes);
-    }
-    let raw = read_u64(buf, byteorder)?;
-    Ok(raw as i64)
-}
-fn read_i32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<i32, Error> {
-    if buf.len() < 4 {
-        return Err(Error::NotEnoughBytes);
-    }
-    let raw = read_u32(buf, byteorder)?;
-    Ok(raw as i32)
-}
-fn read_i16(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<i16, Error> {
-    if buf.len() < 2 {
-        return Err(Error::NotEnoughBytes);
-    }
-    let raw = read_u16(buf, byteorder)?;
-    Ok(raw as i16)
-}
-
 type UnmarshalResult<T> = std::result::Result<(usize, T), Error>;
 
 pub fn unmarshal_header(buf: &Vec<u8>, offset: usize) -> UnmarshalResult<Header> {
@@ -183,7 +161,10 @@ pub fn unmarshal_next_message(
 ) -> UnmarshalResult<message::Message> {
     println!("Start reading header fields");
     let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
-    println!("Finished reading header fields: {} bytes", fields_bytes_used);
+    println!(
+        "Finished reading header fields: {} bytes",
+        fields_bytes_used
+    );
     let offset = offset + fields_bytes_used;
 
     // TODO find in fields
@@ -197,6 +178,8 @@ pub fn unmarshal_next_message(
                 object: get_object_from_fields(&fields),
                 destination: get_destination_from_fields(&fields),
                 response_serial: get_resp_serial_from_fields(&fields),
+                sender: get_sender_from_fields(&fields),
+                error_name: get_errorname_from_fields(&fields),
                 params: vec![],
                 typ: header.typ,
                 serial: Some(header.serial),
@@ -215,13 +198,11 @@ pub fn unmarshal_next_message(
         };
         println!("Found a signature: {:?}", sigs);
 
-        
         println!("Unmarshal body: {:?}", &buf[offset..]);
         let padding = align_offset(8, buf, offset)?;
         let offset = offset + padding;
-        
-        if buf[offset..].len() < (header.body_len as usize)  {
 
+        if buf[offset..].len() < (header.body_len as usize) {
             return Err(Error::NotEnoughBytes);
         }
         println!("Start reading params");
@@ -240,6 +221,8 @@ pub fn unmarshal_next_message(
                 object: get_object_from_fields(&fields),
                 destination: get_destination_from_fields(&fields),
                 response_serial: get_resp_serial_from_fields(&fields),
+                sender: get_sender_from_fields(&fields),
+                error_name: get_errorname_from_fields(&fields),
                 params: params,
                 typ: header.typ,
                 serial: Some(header.serial),
@@ -745,13 +728,45 @@ fn get_destination_from_fields(header_fields: &Vec<message::HeaderField>) -> Opt
 fn get_resp_serial_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<u32> {
     for h in header_fields {
         match h {
-            message::HeaderField::Destination(_) => {},
+            message::HeaderField::Destination(_) => {}
             message::HeaderField::ErrorName(_) => {}
             message::HeaderField::Interface(_) => {}
             message::HeaderField::Member(_) => {}
             message::HeaderField::Path(_) => {}
             message::HeaderField::ReplySerial(u) => return Some(*u),
             message::HeaderField::Sender(_) => {}
+            message::HeaderField::Signature(_) => {}
+            message::HeaderField::UnixFds(_) => {}
+        }
+    }
+    None
+}
+fn get_sender_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+    for h in header_fields {
+        match h {
+            message::HeaderField::Destination(_) => {}
+            message::HeaderField::ErrorName(_) => {}
+            message::HeaderField::Interface(_) => {}
+            message::HeaderField::Member(_) => {}
+            message::HeaderField::Path(_) => {}
+            message::HeaderField::ReplySerial(_) => {}
+            message::HeaderField::Sender(s) => return Some(s.clone()),
+            message::HeaderField::Signature(_) => {}
+            message::HeaderField::UnixFds(_) => {}
+        }
+    }
+    None
+}
+fn get_errorname_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+    for h in header_fields {
+        match h {
+            message::HeaderField::Destination(_) => {}
+            message::HeaderField::ErrorName(s) => return Some(s.clone()),
+            message::HeaderField::Interface(_) => {}
+            message::HeaderField::Member(_) => {}
+            message::HeaderField::Path(_) => {}
+            message::HeaderField::ReplySerial(_) => {}
+            message::HeaderField::Sender(_) => {},
             message::HeaderField::Signature(_) => {}
             message::HeaderField::UnixFds(_) => {}
         }
