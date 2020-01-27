@@ -196,6 +196,7 @@ pub fn unmarshal_next_message(
                 member: get_member_from_fields(&fields),
                 object: get_object_from_fields(&fields),
                 destination: get_destination_from_fields(&fields),
+                response_serial: get_resp_serial_from_fields(&fields),
                 params: vec![],
                 typ: header.typ,
                 serial: Some(header.serial),
@@ -238,6 +239,7 @@ pub fn unmarshal_next_message(
                 member: get_member_from_fields(&fields),
                 object: get_object_from_fields(&fields),
                 destination: get_destination_from_fields(&fields),
+                response_serial: get_resp_serial_from_fields(&fields),
                 params: params,
                 typ: header.typ,
                 serial: Some(header.serial),
@@ -733,6 +735,22 @@ fn get_destination_from_fields(header_fields: &Vec<message::HeaderField>) -> Opt
             message::HeaderField::Member(_) => {}
             message::HeaderField::Path(_) => {}
             message::HeaderField::ReplySerial(_) => {}
+            message::HeaderField::Sender(_) => {}
+            message::HeaderField::Signature(_) => {}
+            message::HeaderField::UnixFds(_) => {}
+        }
+    }
+    None
+}
+fn get_resp_serial_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<u32> {
+    for h in header_fields {
+        match h {
+            message::HeaderField::Destination(_) => {},
+            message::HeaderField::ErrorName(_) => {}
+            message::HeaderField::Interface(_) => {}
+            message::HeaderField::Member(_) => {}
+            message::HeaderField::Path(_) => {}
+            message::HeaderField::ReplySerial(u) => return Some(*u),
             message::HeaderField::Sender(_) => {}
             message::HeaderField::Signature(_) => {}
             message::HeaderField::UnixFds(_) => {}

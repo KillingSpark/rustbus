@@ -4,7 +4,8 @@ use rustbus::message_builder::MessageBuilder;
 
 fn main() {
     let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
-    let mut con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
+    let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
+    let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
 
     let hello_msg = MessageBuilder::new()
         .call("Hello".into())
@@ -14,14 +15,14 @@ fn main() {
         .build();
 
     println!("Send message: {:?}", hello_msg);
-    con.send_message(hello_msg).unwrap();
+    let hello_serial = rpc_con.send_message(hello_msg).unwrap().serial.unwrap();
 
     println!("\n");
     println!("\n");
     println!("\n");
     println!("Wait for incoming messages");
-    let msg = con.get_next_message().unwrap();
-    println!("Got message: {:?}", msg);
+    let msg = rpc_con.wait_response(&hello_serial).unwrap();
+    println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
     println!("\n");
@@ -59,12 +60,12 @@ fn main() {
         .build();
 
     println!("Send message: {:?}", sig_listen_msg);
-    con.send_message(sig_listen_msg).unwrap();
+    rpc_con.send_message(sig_listen_msg).unwrap();
 
     loop {
         println!("Wait for incoming messages");
-        let msg = con.get_next_message().unwrap();
-        println!("Got message: {:?}", msg);
+        let msg = rpc_con.wait_signal().unwrap();
+        println!("Got signal: {:?}", msg);
         println!("\n");
         println!("\n");
         println!("\n");

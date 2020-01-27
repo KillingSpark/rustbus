@@ -2,6 +2,8 @@ use crate::auth;
 use crate::marshal;
 use crate::message;
 use crate::unmarshal;
+use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::io::Read;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
@@ -13,6 +15,69 @@ use nix::sys::socket::recvmsg;
 use nix::sys::socket::ControlMessageOwned;
 use nix::sys::socket::MsgFlags;
 use nix::sys::uio::IoVec;
+
+pub struct RpcConn {
+    signals: VecDeque<message::Message>,
+    responses: HashMap<u32, message::Message>,
+    conn: Conn,
+}
+
+impl RpcConn {
+    pub fn new(conn: Conn) -> Self {
+        RpcConn {
+            signals: VecDeque::new(),
+            responses: HashMap::new(),
+            conn,
+        }
+    }
+
+    pub fn try_get_response(&mut self, serial: &u32) -> Option<message::Message> {
+        self.responses.remove(serial)
+    }
+    pub fn wait_response(&mut self, serial: &u32) -> Result<message::Message> {
+        loop {
+            if let Some(msg) = self.try_get_response(serial) {
+                return Ok(msg);
+            }
+            self.refill()?;
+        }
+    }
+
+    pub fn wait_signal(&mut self) -> Result<message::Message> {
+        loop {
+            if let Some(msg) = self.try_get_signal() {
+                return Ok(msg);
+            }
+            self.refill()?;
+        }
+    }
+
+    pub fn send_message(&mut self, msg: message::Message) -> Result<message::Message> {
+        self.conn.send_message(msg)
+    }
+
+    pub fn try_get_signal(&mut self) -> Option<message::Message> {
+        self.signals.pop_front()
+    }
+
+    fn refill(&mut self) -> Result<()> {
+        let msg = self.conn.get_next_message()?;
+        match msg.typ {
+            message::MessageType::Call => return Err(Error::UnexpectedTypeReceived),
+            message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+            message::MessageType::Error => {
+                self.responses.insert(msg.response_serial.unwrap(), msg);
+            }
+            message::MessageType::Reply => {
+                self.responses.insert(msg.response_serial.unwrap(), msg);
+            }
+            message::MessageType::Signal => {
+                self.signals.push_back(msg);
+            }
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct Conn {
@@ -39,6 +104,7 @@ pub enum Error {
     AddressTypeNotSupported(String),
     PathDoesNotExist(String),
     NoAdressFound,
+    UnexpectedTypeReceived,
 }
 
 impl std::convert::From<std::io::Error> for Error {
@@ -135,7 +201,7 @@ impl Conn {
 
         let header = loop {
             match unmarshal::unmarshal_header(&mut self.msg_buf_in, 0) {
-                Ok((_,header)) => break header,
+                Ok((_, header)) => break header,
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
             }
@@ -164,7 +230,9 @@ impl Conn {
             padding_between_header_and_body, complete_header_size
         );
 
-        let bytes_needed = unmarshal::HEADER_LEN + (header.body_len + header_fields_len + 4) as usize + padding_between_header_and_body; // +4 because the length of the header fields does not count
+        let bytes_needed = unmarshal::HEADER_LEN
+            + (header.body_len + header_fields_len + 4) as usize
+            + padding_between_header_and_body; // +4 because the length of the header fields does not count
         loop {
             println!("Buf size before read: {}", self.msg_buf_in.len());
             let new_cmsgs = self.refill_buffer(bytes_needed)?;
@@ -174,7 +242,11 @@ impl Conn {
                 break;
             }
         }
-        let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(&header, &mut self.msg_buf_in, unmarshal::HEADER_LEN)?;
+        let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(
+            &header,
+            &mut self.msg_buf_in,
+            unmarshal::HEADER_LEN,
+        )?;
         if bytes_used != bytes_needed {
             println!("Bytes used: {}, bytes needed: {}", bytes_used, bytes_needed);
         }

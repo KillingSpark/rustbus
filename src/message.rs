@@ -56,6 +56,7 @@ pub struct Message {
     pub destination: Option<String>,
     pub params: Vec<Param>,
     pub serial: Option<u32>,
+    pub response_serial: Option<u32>,
 
     pub num_fds: Option<u32>,
     pub raw_fds: Vec<RawFd>,
@@ -73,6 +74,7 @@ impl Message {
             serial: None,
             raw_fds: Vec::new(),
             num_fds: None,
+            response_serial: None,
         }
     }
 
