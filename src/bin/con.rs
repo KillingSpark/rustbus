@@ -1,18 +1,12 @@
 extern crate rustbus;
-use rustbus::message;
-use rustbus::message_builder::MessageBuilder;
+use rustbus::standard_messages;
 
 fn main() {
     let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
     let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
     let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
 
-    let hello_msg = MessageBuilder::new()
-        .call("Hello".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
-        .build();
+    let hello_msg = standard_messages::hello();
 
     println!("Send message: {:?}", hello_msg);
     let hello_serial = rpc_con.send_message(hello_msg).unwrap().serial.unwrap();
@@ -20,50 +14,60 @@ fn main() {
     println!("\n");
     println!("\n");
     println!("\n");
-    println!("Wait for incoming messages");
+    println!("Wait for hello response");
     let msg = rpc_con.wait_response(&hello_serial).unwrap();
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
     println!("\n");
 
-    //let member = "Ping".to_owned();
-    //let interface = "org.freedesktop.DBus.Peer".to_owned();
-    //let object = "/org/freedesktop/DBus".to_owned();
-    //let mut ping_msg = message::Message::new(message::MessageType::Call, 1337);
-    //ping_msg.set_object(object);
-    //ping_msg.set_interface(interface);
-    //ping_msg.set_member(member);
-    //println!("Send message: {:?}", ping_msg);
-    //con.send_message(&ping_msg).unwrap();
+    let reqname_serial = rpc_con
+        .send_message(standard_messages::request_name(
+            "io.killing.spark".into(),
+            0,
+        ))
+        .unwrap()
+        .serial
+        .unwrap();
 
-    //let member = "ListNames".to_owned();
-    //let interface = "org.freedesktop.DBus".to_owned();
-    //let object = "/org/freedesktop/DBus".to_owned();
-    //let dest = "org.freedesktop.DBus".to_owned();
-    //let mut list_msg = message::Message::new(message::MessageType::Call, 1338);
-    //list_msg.set_object(object);
-    //list_msg.set_interface(interface);
-    //list_msg.set_member(member);
-    //list_msg.set_destination(dest);
-    //println!("Send message: {:?}", list_msg);
-    //con.send_message(&list_msg).unwrap();
+    println!("Wait for name request response");
+    let msg = rpc_con.wait_response(&reqname_serial).unwrap();
+    println!("Got response: {:?}", msg);
+    println!("\n");
+    println!("\n");
+    println!("\n");
 
-    let sig_listen_msg = MessageBuilder::new()
-        .call("AddMatch".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .with_params(vec![message::Param::Base(message::Base::String(
-            "type='signal'".to_owned(),
-        ))])
-        .at("org.freedesktop.DBus".into())
-        .build();
+    if let rustbus::message::Param::Base(rustbus::message::Base::Uint32(ret)) = msg.params[0] {
+        match ret {
+            standard_messages::DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER => {
+                println!("Got name");
+            }
+            _ => panic!("Got other return: {}", ret),
+        }
+    } else {
+        panic!("Wrong args: {:?}", msg.params);
+    }
+
+    let list_serial = rpc_con
+        .send_message(standard_messages::list_names())
+        .unwrap()
+        .serial
+        .unwrap();
+
+    println!("Wait for list response");
+    let msg = rpc_con.wait_response(&list_serial).unwrap();
+    println!("Got response: {:?}", msg);
+    println!("\n");
+    println!("\n");
+    println!("\n");
+
+    let sig_listen_msg = standard_messages::add_match("type='signal'".into());
 
     println!("Send message: {:?}", sig_listen_msg);
     rpc_con.send_message(sig_listen_msg).unwrap();
 
     loop {
-        println!("Wait for incoming messages");
+        println!("Wait for incoming signals");
         let msg = rpc_con.wait_signal().unwrap();
         println!("Got signal: {:?}", msg);
         println!("\n");

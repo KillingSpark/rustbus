@@ -766,7 +766,7 @@ fn get_errorname_from_fields(header_fields: &Vec<message::HeaderField>) -> Optio
             message::HeaderField::Member(_) => {}
             message::HeaderField::Path(_) => {}
             message::HeaderField::ReplySerial(_) => {}
-            message::HeaderField::Sender(_) => {},
+            message::HeaderField::Sender(_) => {}
             message::HeaderField::Signature(_) => {}
             message::HeaderField::UnixFds(_) => {}
         }

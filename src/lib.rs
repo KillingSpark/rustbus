@@ -15,4 +15,5 @@ pub mod marshal;
 pub mod message;
 pub mod message_builder;
 pub mod signature;
+pub mod standard_messages;
 pub mod unmarshal;
