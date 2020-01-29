@@ -202,6 +202,9 @@ pub enum Error {
     DuplicatedHeaderFields,
     NoSerial,
     InvalidType,
+    ArrayElementTypesDiffer,
+    DictKeyTypesDiffer,
+    DictValueTypesDiffer,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -348,8 +351,52 @@ pub fn validate_signature(sig: &str) -> Result<()> {
     }
 }
 
-pub fn validate_array(_array: &Vec<Param>) -> Result<()> {
+pub fn validate_array(array: &Vec<Param>) -> Result<()> {
     // TODO check that all elements have the same type
+    if array.is_empty() {
+        return Ok(());
+    }
+    let mut first_sig = String::new();
+    array[0].make_signature(&mut first_sig);
+    let mut element_sig = String::new();
+    for el in array {
+        element_sig.clear();
+        el.make_signature(&mut element_sig);
+        if !element_sig.eq(&first_sig) {
+            return Err(Error::ArrayElementTypesDiffer);
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_dict(dict: &std::collections::HashMap<Base, Param>) -> Result<()> {
+    // TODO check that all elements have the same type
+    if dict.is_empty() {
+        return Ok(());
+    }
+    // check key sigs
+    let mut first_sig = String::new();
+    dict.keys().next().unwrap().make_signature(&mut first_sig);
+    let mut element_sig = String::new();
+    for el in dict.keys() {
+        element_sig.clear();
+        el.make_signature(&mut element_sig);
+        if !element_sig.eq(&first_sig) {
+            return Err(Error::DictKeyTypesDiffer);
+        }
+    }
+
+    // check value sigs
+    let mut first_sig = String::new();
+    dict.values().next().unwrap().make_signature(&mut first_sig);
+    let mut element_sig = String::new();
+    for el in dict.values() {
+        element_sig.clear();
+        el.make_signature(&mut element_sig);
+        if !element_sig.eq(&first_sig) {
+            return Err(Error::DictValueTypesDiffer);
+        }
+    }
     Ok(())
 }
 

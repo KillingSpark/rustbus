@@ -431,7 +431,7 @@ fn marshal_container_param(
             }
         }
         message::Container::Dict(params) => {
-            pad_to_align(4, buf);
+            message::validate_dict(&params)?;
             pad_to_align(4, buf);
             let pos = buf.len();
             buf.push(0);
