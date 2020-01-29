@@ -50,10 +50,7 @@ pub fn request_name(name: String, flags: u32) -> message::Message {
         .call("RequestName".into())
         .on("/org/freedesktop/DBus".into())
         .with_interface("org.freedesktop.DBus".into())
-        .with_params(vec![
-            message::Param::Base(message::Base::String(name)),
-            message::Param::Base(message::Base::Uint32(flags)),
-        ])
+        .with_params(vec![name.into(), flags.into()])
         .at("org.freedesktop.DBus".into())
         .build()
 }
@@ -63,9 +60,7 @@ pub fn add_match(match_rule: String) -> message::Message {
         .call("AddMatch".into())
         .on("/org/freedesktop/DBus".into())
         .with_interface("org.freedesktop.DBus".into())
-        .with_params(vec![message::Param::Base(message::Base::String(
-            match_rule,
-        ))])
+        .with_params(vec![match_rule.into()])
         .at("org.freedesktop.DBus".into())
         .build()
 }

@@ -439,3 +439,118 @@ pub fn validate_header_fields(
         Err(Error::InvalidHeaderFields)
     }
 }
+
+//
+//
+// Param FROM
+//
+//
+
+impl std::convert::From<Base> for Param {
+    fn from(s: Base) -> Self {
+        Param::Base(s)
+    }
+}
+impl std::convert::From<Container> for Param {
+    fn from(s: Container) -> Self {
+        Param::Container(s)
+    }
+}
+
+impl std::convert::From<bool> for Param {
+    fn from(s: bool) -> Self {
+        Param::Base(Base::Boolean(s))
+    }
+}
+impl std::convert::From<String> for Param {
+    fn from(s: String) -> Self {
+        Param::Base(Base::String(s))
+    }
+}
+impl std::convert::From<u8> for Param {
+    fn from(s: u8) -> Self {
+        Param::Base(Base::Byte(s))
+    }
+}
+impl std::convert::From<u16> for Param {
+    fn from(s: u16) -> Self {
+        Param::Base(Base::Uint16(s))
+    }
+}
+impl std::convert::From<u32> for Param {
+    fn from(s: u32) -> Self {
+        Param::Base(Base::Uint32(s))
+    }
+}
+impl std::convert::From<u64> for Param {
+    fn from(s: u64) -> Self {
+        Param::Base(Base::Uint64(s))
+    }
+}
+impl std::convert::From<i16> for Param {
+    fn from(s: i16) -> Self {
+        Param::Base(Base::Int16(s))
+    }
+}
+impl std::convert::From<i32> for Param {
+    fn from(s: i32) -> Self {
+        Param::Base(Base::Int32(s))
+    }
+}
+impl std::convert::From<i64> for Param {
+    fn from(s: i64) -> Self {
+        Param::Base(Base::Int64(s))
+    }
+}
+
+//
+//
+// Base FROM
+//
+//
+
+impl std::convert::From<bool> for Base {
+    fn from(s: bool) -> Self {
+        Base::Boolean(s)
+    }
+}
+impl std::convert::From<String> for Base {
+    fn from(s: String) -> Self {
+        Base::String(s)
+    }
+}
+impl std::convert::From<u8> for Base {
+    fn from(s: u8) -> Self {
+        Base::Byte(s)
+    }
+}
+impl std::convert::From<u16> for Base {
+    fn from(s: u16) -> Self {
+        Base::Uint16(s)
+    }
+}
+impl std::convert::From<u32> for Base {
+    fn from(s: u32) -> Self {
+        Base::Uint32(s)
+    }
+}
+impl std::convert::From<u64> for Base {
+    fn from(s: u64) -> Self {
+        Base::Uint64(s)
+    }
+}
+impl std::convert::From<i16> for Base {
+    fn from(s: i16) -> Self {
+        Base::Int16(s)
+    }
+}
+impl std::convert::From<i32> for Base {
+    fn from(s: i32) -> Self {
+        Base::Int32(s)
+    }
+}
+impl std::convert::From<i64> for Base {
+    fn from(s: i64) -> Self {
+        Base::Int64(s)
+    }
+}
