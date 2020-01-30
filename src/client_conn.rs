@@ -5,7 +5,6 @@ use crate::unmarshal;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::Read;
-use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
 use std::os::unix::net::UnixStream;
@@ -256,6 +255,9 @@ impl Conn {
             &mut self.msg_buf_in,
             unmarshal::HEADER_LEN,
         )?;
+        if bytes_needed != bytes_used + unmarshal::HEADER_LEN {
+            return Err(Error::UnmarshalError(unmarshal::Error::NotAllBytesUsed));
+        }
         self.msg_buf_in.clear();
 
         for cmsg in cmsgs {
