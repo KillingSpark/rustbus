@@ -3,7 +3,7 @@ use crate::message;
 pub fn marshal(
     msg: &message::Message,
     byteorder: message::ByteOrder,
-    header_fields: &Vec<message::HeaderField>,
+    header_fields: &[message::HeaderField],
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     marshal_header(msg, byteorder, header_fields, buf)?;
@@ -72,7 +72,7 @@ fn write_signature(val: &str, buf: &mut Vec<u8>) {
 fn marshal_header(
     msg: &message::Message,
     byteorder: message::ByteOrder,
-    header_fields: &Vec<message::HeaderField>,
+    header_fields: &[message::HeaderField],
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     match byteorder {
@@ -144,7 +144,7 @@ fn marshal_header(
     if let Some(serial) = &msg.response_serial {
         marshal_header_field(byteorder, &message::HeaderField::ReplySerial(*serial), buf)?;
     }
-    if msg.params.len() > 0 {
+    if !msg.params.is_empty() {
         let mut sig_str = String::new();
         for param in &msg.params {
             param.make_signature(&mut sig_str);
@@ -250,7 +250,7 @@ fn marshal_header_field(
 
 fn marshal_header_fields(
     byteorder: message::ByteOrder,
-    header_fields: &Vec<message::HeaderField>,
+    header_fields: &[message::HeaderField],
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     for field in header_fields {
@@ -346,19 +346,19 @@ fn marshal_base_param(
 fn insert_u16(byteorder: message::ByteOrder, val: u16, buf: &mut [u8]) {
     match byteorder {
         message::ByteOrder::LittleEndian => {
-            buf[0] = (val >> 0) as u8;
+            buf[0] = (val) as u8;
             buf[1] = (val >> 8) as u8;
         }
         message::ByteOrder::BigEndian => {
             buf[0] = (val >> 8) as u8;
-            buf[1] = (val >> 0) as u8;
+            buf[1] = (val) as u8;
         }
     }
 }
 fn insert_u32(byteorder: message::ByteOrder, val: u32, buf: &mut [u8]) {
     match byteorder {
         message::ByteOrder::LittleEndian => {
-            buf[0] = (val >> 0) as u8;
+            buf[0] = (val) as u8;
             buf[1] = (val >> 8) as u8;
             buf[2] = (val >> 16) as u8;
             buf[3] = (val >> 24) as u8;
@@ -367,14 +367,14 @@ fn insert_u32(byteorder: message::ByteOrder, val: u32, buf: &mut [u8]) {
             buf[0] = (val >> 24) as u8;
             buf[1] = (val >> 16) as u8;
             buf[2] = (val >> 8) as u8;
-            buf[3] = (val >> 0) as u8;
+            buf[3] = (val) as u8;
         }
     }
 }
 fn insert_u64(byteorder: message::ByteOrder, val: u64, buf: &mut [u8]) {
     match byteorder {
         message::ByteOrder::LittleEndian => {
-            buf[0] = (val >> 0) as u8;
+            buf[0] = (val) as u8;
             buf[1] = (val >> 8) as u8;
             buf[2] = (val >> 16) as u8;
             buf[3] = (val >> 24) as u8;
@@ -384,7 +384,7 @@ fn insert_u64(byteorder: message::ByteOrder, val: u64, buf: &mut [u8]) {
             buf[7] = (val >> 56) as u8;
         }
         message::ByteOrder::BigEndian => {
-            buf[7] = (val >> 0) as u8;
+            buf[7] = (val) as u8;
             buf[6] = (val >> 8) as u8;
             buf[5] = (val >> 16) as u8;
             buf[4] = (val >> 24) as u8;
@@ -413,11 +413,8 @@ fn marshal_container_param(
 
             // we need to pad here because the padding between length and first element does not count
             // into the length
-            match params[0] {
-                message::Param::Container(message::Container::Struct(_)) => {
-                    pad_to_align(8, buf);
-                }
-                _ => {}
+            if let message::Param::Container(message::Container::Struct(_)) = params[0] {
+                pad_to_align(8, buf);
             }
             let content_pos = buf.len();
             for p in params {
