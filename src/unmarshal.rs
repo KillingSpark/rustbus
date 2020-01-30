@@ -159,7 +159,9 @@ pub fn unmarshal_next_message(
         ))
     } else {
         let sigs = match get_sig_from_fields(&fields) {
-            Some(s) => signature::Type::parse_description(&s).map_err(|_| Error::InvalidSignature)?,
+            Some(s) => {
+                signature::Type::parse_description(&s).map_err(|_| Error::InvalidSignature)?
+            }
             None => {
                 // TODO this is ok if body_len == 0
                 return Err(Error::InvalidHeaderFields);
@@ -244,7 +246,8 @@ fn unmarshal_header_field(
     let offset = offset + typ_bytes_used;
 
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
-    let mut sig = signature::Type::parse_description(&sig_str).map_err(|_| Error::InvalidSignature)?;
+    let mut sig =
+        signature::Type::parse_description(&sig_str).map_err(|_| Error::InvalidSignature)?;
     let offset = offset + sig_bytes_used;
 
     if sig.len() != 1 {
@@ -352,7 +355,8 @@ fn unmarshal_variant(
     offset: usize,
 ) -> UnmarshalResult<message::Variant> {
     let (sig_bytes_used, sig_str) = unmarshal_signature(buf)?;
-    let mut sig = signature::Type::parse_description(&sig_str).map_err(|_| Error::InvalidSignature)?;
+    let mut sig =
+        signature::Type::parse_description(&sig_str).map_err(|_| Error::InvalidSignature)?;
     if sig.len() != 1 {
         // There must be exactly one type in the signature!
         return Err(Error::InvalidSignature);
