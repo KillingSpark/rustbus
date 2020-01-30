@@ -37,7 +37,7 @@ pub struct RpcConn {
 /// message::MessageType::Call => {
 ///     let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
 ///         && msg.interface.eq(&Some("io.killing.spark".into()));
-/// 
+///
 ///     let right_member = if let Some(member) = &msg.member {
 ///         member.eq("Echo") || member.eq("Reverse")
 ///     } else {
