@@ -1,19 +1,18 @@
-use rustbus::message;
-use rustbus::standard_messages;
+use rustbus::{get_session_bus_path, standard_messages, Conn, MessageType, RpcConn};
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
-    let session_path = rustbus::client_conn::get_session_bus_path()?;
-    let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true)?;
-    let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+    let session_path = get_session_bus_path()?;
+    let con = Conn::connect_to_bus(session_path, true)?;
+    let mut rpc_con = RpcConn::new(con);
 
     let hello_msg = standard_messages::hello();
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
-        message::MessageType::Call => false,
-        message::MessageType::Invalid => false,
-        message::MessageType::Error => true,
-        message::MessageType::Reply => true,
-        message::MessageType::Signal => msg.sender.eq(&Some("org.freedesktop.DBus".to_owned())),
+        MessageType::Call => false,
+        MessageType::Invalid => false,
+        MessageType::Error => true,
+        MessageType::Reply => true,
+        MessageType::Signal => msg.sender.eq(&Some("org.freedesktop.DBus".to_owned())),
     }));
 
     println!("Send message: {:?}", hello_msg);

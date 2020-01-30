@@ -34,15 +34,15 @@ pub struct RpcConn {
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
 /// ```rust,no_run
-/// use rustbus::message;
+/// use rustbus::{get_session_bus_path, standard_messages, Conn, Container, DictMap, MessageBuilder, MessageType, RpcConn};
 ///
 /// fn main() -> Result<(), rustbus::client_conn::Error> {
-///     let session_path = rustbus::client_conn::get_session_bus_path()?;
-///     let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true)?;
-///     let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+///     let session_path = get_session_bus_path()?;
+///     let con = Conn::connect_to_bus(session_path, true)?;
+///     let mut rpc_con = RpcConn::new(con);
 ///
 ///     rpc_con.set_filter(Box::new(|msg| match msg.typ {
-///     message::MessageType::Call => {
+///     MessageType::Call => {
 ///         let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
 ///             && msg.interface.eq(&Some("io.killing.spark".into()));
 ///
@@ -57,10 +57,10 @@ pub struct RpcConn {
 ///         }
 ///         keep
 ///     }
-///     message::MessageType::Invalid => false,
-///     message::MessageType::Error => true,
-///     message::MessageType::Reply => true,
-///     message::MessageType::Signal => false,
+///     MessageType::Invalid => false,
+///     MessageType::Error => true,
+///     MessageType::Reply => true,
+///     MessageType::Signal => false,
 /// }));
 ///
 /// Ok(())
