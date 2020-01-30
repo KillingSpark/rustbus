@@ -7,6 +7,24 @@ pub enum Commands {
     Reverse(String),
 }
 
+impl Commands {
+    fn execute(&self, call: &message::Message) -> message::Message {
+        match self {
+            Commands::Echo => {
+                let mut reply = call.make_response();
+                reply.push_params(call.params.clone());
+                reply
+            }
+            Commands::Reverse(val) => {
+                let mut reply = call.make_response();
+                let reverse = val.chars().rev().collect::<String>();
+                reply.push_params(vec![reverse.into()]);
+                reply
+            }
+        }
+    }
+}
+
 fn main() {
     let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
     let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
@@ -64,23 +82,10 @@ fn main() {
                     continue;
                 }
             };
-            match cmd {
-                Commands::Echo => {
-                    let mut reply = call.make_response();
-                    reply.push_params(call.params.clone());
-                    println!("Echo: {:?}", reply);
-                    rpc_con.send_message(reply).unwrap();
-                    println!("Echo sent");
-                }
-                Commands::Reverse(val) => {
-                    let mut reply = call.make_response();
-                    let reverse = val.chars().rev().collect::<String>();
-                    reply.push_params(vec![reverse.into()]);
-                    println!("Reply: {:?}", reply);
-                    rpc_con.send_message(reply).unwrap();
-                    println!("Reply sent");
-                }
-            }
+            let reply = cmd.execute(&call);
+            println!("Reply: {:?}", reply);
+            rpc_con.send_message(reply).unwrap();
+            println!("Reply sent");
         }
     }
 }
