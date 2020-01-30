@@ -92,7 +92,7 @@ pub fn parse_u16(number: &[u8], byteorder: message::ByteOrder) -> UnmarshalResul
 
 type UnmarshalResult<T> = std::result::Result<(usize, T), Error>;
 
-pub fn unmarshal_header(buf: &Vec<u8>, offset: usize) -> UnmarshalResult<Header> {
+pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
     if buf.len() < offset + HEADER_LEN {
         return Err(Error::NotEnoughBytes);
     }
@@ -202,7 +202,7 @@ pub fn unmarshal_next_message(
 
 fn unmarshal_header_fields(
     header: &Header,
-    buf: &Vec<u8>,
+    buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<Vec<message::HeaderField>> {
     let (_, header_fields_bytes) = parse_u32(&buf[offset..], header.byteorder)?;
@@ -230,13 +230,13 @@ fn unmarshal_header_fields(
 
 fn unmarshal_header_field(
     header: &Header,
-    buf: &Vec<u8>,
+    buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<message::HeaderField> {
     let padding = align_offset(8, buf, offset)?;
     let offset = offset + padding;
 
-    if buf.len() < 1 {
+    if buf.is_empty() {
         return Err(Error::NotEnoughBytes);
     }
     let typ = buf[offset];
@@ -445,13 +445,13 @@ fn unmarshal_container(
 
 fn unmarshal_base(
     header: &Header,
-    buf: &Vec<u8>,
+    buf: &[u8],
     typ: signature::Base,
     offset: usize,
 ) -> UnmarshalResult<message::Base> {
     match typ {
         signature::Base::Byte => {
-            if buf.len() < 1 {
+            if buf.is_empty() {
                 return Err(Error::NotEnoughBytes);
             }
             Ok((1, message::Base::Byte(buf[offset])))
@@ -544,7 +544,7 @@ fn unmarshal_base(
     }
 }
 
-fn align_offset(align_to: usize, buf: &Vec<u8>, offset: usize) -> Result<usize, Error> {
+fn align_offset(align_to: usize, buf: &[u8], offset: usize) -> Result<usize, Error> {
     let padding_delete = align_to - (offset % align_to);
     let padding_delete = if padding_delete == align_to {
         0
@@ -564,14 +564,15 @@ fn align_offset(align_to: usize, buf: &Vec<u8>, offset: usize) -> Result<usize, 
 }
 
 fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<String> {
-    if buf.len() < 1 {
+    if buf.is_empty() {
         return Err(Error::NotEnoughBytes);
     }
     let len = buf[0] as usize;
     if buf.len() < len + 2 {
         return Err(Error::NotEnoughBytes);
     }
-    let string = String::from_utf8(buf[1..len + 1].to_vec()).map_err(|_| Error::InvalidUtf8)?;
+    let sig_buf = &buf[1..];
+    let string = String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| Error::InvalidUtf8)?;
     Ok((len + 2, string))
 }
 
@@ -580,11 +581,12 @@ fn unmarshal_string(header: &Header, buf: &[u8]) -> UnmarshalResult<String> {
     if buf.len() < len + 4 {
         return Err(Error::NotEnoughBytes);
     }
-    let string = String::from_utf8(buf[4..len + 4].to_vec()).map_err(|_| Error::InvalidUtf8)?;
+    let str_buf = &buf[4..];
+    let string = String::from_utf8(str_buf[..len].to_vec()).map_err(|_| Error::InvalidUtf8)?;
     Ok((len + 5, string))
 }
 
-fn get_sig_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+fn get_sig_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
@@ -601,7 +603,7 @@ fn get_sig_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<Stri
     None
 }
 
-fn get_interface_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+fn get_interface_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
@@ -618,7 +620,7 @@ fn get_interface_from_fields(header_fields: &Vec<message::HeaderField>) -> Optio
     None
 }
 
-fn get_unixfds_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<u32> {
+fn get_unixfds_from_fields(header_fields: &[message::HeaderField]) -> Option<u32> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
@@ -635,7 +637,7 @@ fn get_unixfds_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<
     None
 }
 
-fn get_member_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+fn get_member_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
@@ -651,7 +653,7 @@ fn get_member_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<S
     }
     None
 }
-fn get_object_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+fn get_object_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
@@ -667,7 +669,7 @@ fn get_object_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<S
     }
     None
 }
-fn get_destination_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+fn get_destination_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(s) => return Some(s.clone()),
@@ -683,7 +685,7 @@ fn get_destination_from_fields(header_fields: &Vec<message::HeaderField>) -> Opt
     }
     None
 }
-fn get_resp_serial_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<u32> {
+fn get_resp_serial_from_fields(header_fields: &[message::HeaderField]) -> Option<u32> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
@@ -699,7 +701,7 @@ fn get_resp_serial_from_fields(header_fields: &Vec<message::HeaderField>) -> Opt
     }
     None
 }
-fn get_sender_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+fn get_sender_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
@@ -715,7 +717,7 @@ fn get_sender_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<S
     }
     None
 }
-fn get_errorname_from_fields(header_fields: &Vec<message::HeaderField>) -> Option<String> {
+fn get_errorname_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
     for h in header_fields {
         match h {
             message::HeaderField::Destination(_) => {}
