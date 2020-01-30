@@ -13,7 +13,7 @@ fn main() {
 
     let mut dict = DictMap::new();
     dict.insert("Key1".to_owned().into(), 100i32.into());
-    dict.insert("Key2".to_owned().into(), 100i32.into());
+    dict.insert("Key2".to_owned().into(), 200i32.into());
 
     let sig = MessageBuilder::new()
         .signal(

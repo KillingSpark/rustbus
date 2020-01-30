@@ -29,14 +29,6 @@ pub enum Error {
 
 pub const HEADER_LEN: usize = 12;
 
-pub fn read_u64(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u64, Error> {
-    if buf.len() < 8 {
-        return Err(Error::NotEnoughBytes);
-    }
-    let number = buf.drain(..8).collect::<Vec<_>>();
-    Ok(parse_u64(&number, byteorder)?.1)
-}
-
 pub fn parse_u64(number: &[u8], byteorder: message::ByteOrder) -> UnmarshalResult<u64> {
     if number.len() < 8 {
         return Err(Error::NotEnoughBytes);
@@ -87,15 +79,6 @@ pub fn parse_u32(number: &[u8], byteorder: message::ByteOrder) -> UnmarshalResul
     Ok((4, val))
 }
 
-pub fn read_u32(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u32, Error> {
-    if buf.len() < 4 {
-        return Err(Error::NotEnoughBytes);
-    }
-    let number = buf.drain(..4).collect::<Vec<_>>();
-    let (_, val) = parse_u32(&number, byteorder)?;
-    Ok(val)
-}
-
 pub fn parse_u16(number: &[u8], byteorder: message::ByteOrder) -> UnmarshalResult<u16> {
     if number.len() < 2 {
         return Err(Error::NotEnoughBytes);
@@ -105,14 +88,6 @@ pub fn parse_u16(number: &[u8], byteorder: message::ByteOrder) -> UnmarshalResul
         message::ByteOrder::BigEndian => (number[1] as u16) + ((number[0] as u16) << 8),
     };
     Ok((2, val))
-}
-
-pub fn read_u16(buf: &mut Vec<u8>, byteorder: message::ByteOrder) -> Result<u16, Error> {
-    if buf.len() < 2 {
-        return Err(Error::NotEnoughBytes);
-    }
-    let number = buf.drain(..2).collect::<Vec<_>>();
-    Ok(parse_u16(&number, byteorder)?.1)
 }
 
 type UnmarshalResult<T> = std::result::Result<(usize, T), Error>;
@@ -209,7 +184,8 @@ pub fn unmarshal_next_message(
         let mut params = Vec::new();
         let mut body_bytes_used = 0;
         for param_sig in sigs {
-            let (bytes, new_param) = unmarshal_with_sig(header, &param_sig, buf, offset)?;
+            let (bytes, new_param) =
+                unmarshal_with_sig(header, &param_sig, buf, offset + body_bytes_used)?;
             params.push(new_param);
             body_bytes_used += bytes;
         }
@@ -376,7 +352,7 @@ fn unmarshal_with_sig(
     offset: usize,
 ) -> UnmarshalResult<message::Param> {
     println!("Unmarshal: {:?}", sig);
-    println!("Unmarshal from: {:?}", buf);
+    println!("Unmarshal from: {:?}", &buf[offset..]);
     let (bytes, param) = match &sig {
         signature::Type::Base(base) => {
             let (bytes, base) = unmarshal_base(header, buf, *base, offset)?;
@@ -439,22 +415,32 @@ fn unmarshal_container(
         signature::Container::Dict(key_sig, val_sig) => {
             let padding = align_offset(4, buf, offset)?;
             let offset = offset + padding;
-            let bytes_in_dict = read_u32(buf, header.byteorder)?;
+            let (_,bytes_in_dict) = parse_u32(&buf[offset..], header.byteorder)?;
             let offset = offset + 4;
 
+            println!("Bytes in dict: {}", bytes_in_dict);
+            
+            let before_elements_padding = align_offset(8, buf, offset)?;
+            let offset = offset + before_elements_padding;
+            
+            println!("Decode dict from: {:?}", &buf[offset..]);
             let mut elements = std::collections::HashMap::new();
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_dict as usize {
+                let element_padding = align_offset(8, buf, offset + bytes_used_counter)?;
+                bytes_used_counter += element_padding;
+                println!("Key from: {:?}", &buf[offset + bytes_used_counter..]);
                 let (key_bytes, key) =
                     unmarshal_base(header, buf, *key_sig, offset + bytes_used_counter)?;
                 bytes_used_counter += key_bytes;
+                println!("Value from: {:?}", &buf[offset + bytes_used_counter..]);
                 let (val_bytes, val) =
                     unmarshal_with_sig(header, val_sig, buf, offset + bytes_used_counter)?;
                 bytes_used_counter += val_bytes;
                 elements.insert(key, val);
             }
             (
-                padding + 4 + bytes_used_counter,
+                padding + before_elements_padding + 4 + bytes_used_counter,
                 message::Container::Dict(elements),
             )
         }

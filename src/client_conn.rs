@@ -228,8 +228,8 @@ impl Conn {
 
         let mut header_fields_len = [0u8; 4];
         self.stream.read_exact(&mut header_fields_len[..])?;
-        let header_fields_len =
-            unmarshal::read_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
+        let (_,header_fields_len) =
+            unmarshal::parse_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
         println!("Header fields bytes: {}", header_fields_len);
         marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
 
