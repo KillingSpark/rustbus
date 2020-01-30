@@ -46,7 +46,7 @@ fn get_uid_as_hex() -> String {
     let mut numbers = Vec::new();
     while tmp > 0 {
         numbers.push(tmp % 10);
-        tmp = tmp / 10;
+        tmp /= 10;
     }
     let mut hex = String::new();
     for idx in 0..numbers.len() {
