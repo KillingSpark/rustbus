@@ -22,7 +22,10 @@ pub struct RpcConn {
     calls: VecDeque<message::Message>,
     responses: HashMap<u32, message::Message>,
     conn: Conn,
+    filter: Box<MessageFilter>,
 }
+
+pub type MessageFilter = dyn Fn(&message::Message) -> bool;
 
 impl RpcConn {
     pub fn new(conn: Conn) -> Self {
@@ -31,7 +34,12 @@ impl RpcConn {
             calls: VecDeque::new(),
             responses: HashMap::new(),
             conn,
+            filter: Box::new(|_| true),
         }
+    }
+
+    pub fn set_filter(&mut self, filter: Box<MessageFilter>) {
+        self.filter = filter;
     }
 
     pub fn try_get_response(&mut self, serial: &u32) -> Option<message::Message> {
@@ -76,20 +84,50 @@ impl RpcConn {
     }
 
     fn refill(&mut self) -> Result<()> {
-        let msg = self.conn.get_next_message()?;
-        match msg.typ {
-            message::MessageType::Call => {
-                self.calls.push_back(msg);
-            }
-            message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
-            message::MessageType::Error => {
-                self.responses.insert(msg.response_serial.unwrap(), msg);
-            }
-            message::MessageType::Reply => {
-                self.responses.insert(msg.response_serial.unwrap(), msg);
-            }
-            message::MessageType::Signal => {
-                self.signals.push_back(msg);
+        loop {
+            let msg = self.conn.get_next_message()?;
+
+            if self.filter.as_ref()(&msg) {
+                match msg.typ {
+                    message::MessageType::Call => {
+                        self.calls.push_back(msg);
+                    }
+                    message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                    message::MessageType::Error => {
+                        self.responses.insert(msg.response_serial.unwrap(), msg);
+                    }
+                    message::MessageType::Reply => {
+                        self.responses.insert(msg.response_serial.unwrap(), msg);
+                    }
+                    message::MessageType::Signal => {
+                        self.signals.push_back(msg);
+                    }
+                }
+                break;
+            } else {
+                match msg.typ {
+                    message::MessageType::Call => {
+                        let mut reply =
+                            msg.make_error_response("org.freedesktop.DBus.Error.UnknownMethod".to_owned());
+                        reply.push_params(vec![format!(
+                            "No calls to {}.{} are accepted for object {}",
+                            msg.interface.unwrap_or("".to_owned()),
+                            msg.member.unwrap_or("".to_owned()),
+                            msg.object.unwrap_or("".to_owned()),
+                        )
+                        .into()])
+                    }
+                    message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                    message::MessageType::Error => {
+                        // just drop it
+                    }
+                    message::MessageType::Reply => {
+                        // just drop it
+                    }
+                    message::MessageType::Signal => {
+                        // just drop it
+                    }
+                }
             }
         }
         Ok(())
