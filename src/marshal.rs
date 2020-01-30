@@ -412,17 +412,26 @@ fn marshal_container_param(
         message::Container::Array(params) => {
             message::validate_array(&params)?;
             pad_to_align(4, buf);
-            let pos = buf.len();
+            let len_pos = buf.len();
             buf.push(0);
             buf.push(0);
             buf.push(0);
             buf.push(0);
 
+            // we need to pad here because the padding between length and first element does not count
+            // into the length
+            match params[0] {
+                message::Param::Container(message::Container::Struct(_)) => {
+                    pad_to_align(8, buf);
+                }
+                _ => {}
+            }
+            let content_pos = buf.len();
             for p in params {
                 marshal_param(&p, byteorder, buf)?;
             }
-            let len = buf.len() - pos - 4; // -4 the length bytes dont count
-            insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
+            let len = buf.len() - content_pos;
+            insert_u32(byteorder, len as u32, &mut buf[len_pos..len_pos + 4]);
         }
         message::Container::Struct(params) => {
             pad_to_align(8, buf);
@@ -433,18 +442,21 @@ fn marshal_container_param(
         message::Container::Dict(params) => {
             message::validate_dict(&params)?;
             pad_to_align(4, buf);
-            let pos = buf.len();
+            let len_pos = buf.len();
             buf.push(0);
             buf.push(0);
             buf.push(0);
             buf.push(0);
+            pad_to_align(8, buf);
+
+            let content_pos = buf.len();
             for (key, value) in params {
                 pad_to_align(8, buf);
                 marshal_base_param(byteorder, &key, buf)?;
                 marshal_param(&value, byteorder, buf)?;
             }
-            let len = buf.len() - pos - 4;  // -4 the length bytes dont count
-            insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
+            let len = buf.len() - content_pos;
+            insert_u32(byteorder, len as u32, &mut buf[len_pos..len_pos + 4]);
         }
         message::Container::Variant(variant) => {
             let mut sig_str = String::new();
