@@ -134,12 +134,7 @@ pub fn unmarshal_next_message(
     buf: &mut Vec<u8>,
     offset: usize,
 ) -> UnmarshalResult<message::Message> {
-    println!("Start reading header fields");
     let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
-    println!(
-        "Finished reading header fields: {} bytes",
-        fields_bytes_used
-    );
     let offset = offset + fields_bytes_used;
 
     // TODO find in fields
@@ -163,7 +158,6 @@ pub fn unmarshal_next_message(
             },
         ))
     } else {
-        println!("Need a signature");
         let sigs = match get_sig_from_fields(&fields) {
             Some(s) => signature::Type::from_str(&s).map_err(|_| Error::InvalidSignature)?,
             None => {
@@ -171,16 +165,14 @@ pub fn unmarshal_next_message(
                 return Err(Error::InvalidHeaderFields);
             }
         };
-        println!("Found a signature: {:?}", sigs);
-
-        println!("Unmarshal body: {:?}", &buf[offset..]);
+        
+        
         let padding = align_offset(8, buf, offset)?;
         let offset = offset + padding;
 
         if buf[offset..].len() < (header.body_len as usize) {
             return Err(Error::NotEnoughBytes);
         }
-        println!("Start reading params");
         let mut params = Vec::new();
         let mut body_bytes_used = 0;
         for param_sig in sigs {
@@ -221,14 +213,8 @@ fn unmarshal_header_fields(
     let mut bytes_used_counter = 0;
 
     while bytes_used_counter < header_fields_bytes as usize {
-        println!(
-            "Bytes left in header fields: {}",
-            header_fields_bytes as usize - bytes_used_counter
-        );
-
         match unmarshal_header_field(header, buf, offset + bytes_used_counter) {
             Ok((bytes_used, field)) => {
-                println!("Field: {:?}", field);
                 fields.push(field);
                 bytes_used_counter += bytes_used;
             }
@@ -248,7 +234,6 @@ fn unmarshal_header_field(
     buf: &Vec<u8>,
     offset: usize,
 ) -> UnmarshalResult<message::HeaderField> {
-    println!("before header field: {:?}", &buf[offset..]);
     let padding = align_offset(8, buf, offset)?;
     let offset = offset + padding;
 
@@ -258,10 +243,8 @@ fn unmarshal_header_field(
     let typ = buf[offset];
     let typ_bytes_used = 1;
     let offset = offset + typ_bytes_used;
-    println!("TYPE: {}", typ);
-
+    
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
-    println!("Field sig: {}", sig_str);
     let mut sig = signature::Type::from_str(&sig_str).map_err(|_| Error::InvalidSignature)?;
     let offset = offset + sig_bytes_used;
 
@@ -351,8 +334,6 @@ fn unmarshal_with_sig(
     buf: &mut Vec<u8>,
     offset: usize,
 ) -> UnmarshalResult<message::Param> {
-    println!("Unmarshal: {:?}", sig);
-    println!("Unmarshal from: {:?}", &buf[offset..]);
     let (bytes, param) = match &sig {
         signature::Type::Base(base) => {
             let (bytes, base) = unmarshal_base(header, buf, *base, offset)?;
@@ -363,7 +344,6 @@ fn unmarshal_with_sig(
             (bytes, message::Param::Container(cont))
         }
     };
-    println!("param: {:?}", param);
     Ok((bytes, param))
 }
 
@@ -418,22 +398,18 @@ fn unmarshal_container(
             let (_, bytes_in_dict) = parse_u32(&buf[offset..], header.byteorder)?;
             let offset = offset + 4;
 
-            println!("Bytes in dict: {}", bytes_in_dict);
-
+            
             let before_elements_padding = align_offset(8, buf, offset)?;
             let offset = offset + before_elements_padding;
 
-            println!("Decode dict from: {:?}", &buf[offset..]);
             let mut elements = std::collections::HashMap::new();
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_dict as usize {
                 let element_padding = align_offset(8, buf, offset + bytes_used_counter)?;
                 bytes_used_counter += element_padding;
-                println!("Key from: {:?}", &buf[offset + bytes_used_counter..]);
                 let (key_bytes, key) =
                     unmarshal_base(header, buf, *key_sig, offset + bytes_used_counter)?;
                 bytes_used_counter += key_bytes;
-                println!("Value from: {:?}", &buf[offset + bytes_used_counter..]);
                 let (val_bytes, val) =
                     unmarshal_with_sig(header, val_sig, buf, offset + bytes_used_counter)?;
                 bytes_used_counter += val_bytes;
@@ -577,8 +553,6 @@ fn align_offset(align_to: usize, buf: &Vec<u8>, offset: usize) -> Result<usize, 
     } else {
         padding_delete
     };
-
-    println!("Unpad: {}", padding_delete);
 
     if buf.len() < padding_delete {
         return Err(Error::NotEnoughBytes);

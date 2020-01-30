@@ -142,7 +142,6 @@ impl Type {
         }
         let mut types = Vec::new();
         while !tokens.is_empty() {
-            println!("Get next type from tokens: {:?}", tokens);
             let t = Self::parse_next_type(&mut tokens)?;
             types.push(t);
         }
@@ -225,9 +224,7 @@ impl Type {
             Token::DictEntryStart => {
                 tokens.remove(0);
                 let key_type = Self::parse_next_base(tokens)?;
-                println!("Key type: {:?}", key_type);
                 let value_type = Self::parse_next_type(tokens)?;
-                println!("Value type: {:?}", value_type);
                 if tokens.is_empty() {
                     return Err(Error::InvalidSignature);
                 }

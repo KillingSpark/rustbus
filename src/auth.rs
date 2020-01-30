@@ -80,7 +80,6 @@ pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
 
     let mut read_buf = Vec::new();
     let msg = read_message(stream, &mut read_buf)?;
-    println!("Message: {}", msg);
     if msg.starts_with("OK") {
         Ok(AuthResult::Ok)
     } else {
@@ -93,7 +92,6 @@ pub fn negotiate_unix_fds(stream: &mut UnixStream) -> std::io::Result<AuthResult
 
     let mut read_buf = Vec::new();
     let msg = read_message(stream, &mut read_buf)?;
-    println!("Message: {}", msg);
     if msg.starts_with("AGREE_UNIX_FD") {
         Ok(AuthResult::Ok)
     } else {

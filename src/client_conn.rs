@@ -189,7 +189,6 @@ impl Conn {
     }
 
     fn refill_buffer(&mut self, max_buffer_size: usize) -> Result<Vec<ControlMessageOwned>> {
-        println!("Refill to: {}", max_buffer_size);
         let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
 
         const BUFSIZE: usize = 512;
@@ -226,13 +225,11 @@ impl Conn {
             let new_cmsgs = self.refill_buffer(unmarshal::HEADER_LEN)?;
             cmsgs.extend(new_cmsgs);
         };
-        println!("Got header: {:?}", header);
 
         let mut header_fields_len = [0u8; 4];
         self.stream.read_exact(&mut header_fields_len[..])?;
         let (_, header_fields_len) =
             unmarshal::parse_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
-        println!("Header fields bytes: {}", header_fields_len);
         marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
 
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
@@ -243,19 +240,13 @@ impl Conn {
         } else {
             padding_between_header_and_body
         };
-        println!(
-            "Bytes padding header <-> body {}, (because complete header size is: {})",
-            padding_between_header_and_body, complete_header_size
-        );
 
         let bytes_needed = unmarshal::HEADER_LEN
             + (header.body_len + header_fields_len + 4) as usize
             + padding_between_header_and_body; // +4 because the length of the header fields does not count
         loop {
-            println!("Buf size before read: {}", self.msg_buf_in.len());
             let new_cmsgs = self.refill_buffer(bytes_needed)?;
             cmsgs.extend(new_cmsgs);
-            println!("Buf size after read: {}", self.msg_buf_in.len());
             if self.msg_buf_in.len() == bytes_needed {
                 break;
             }
@@ -265,9 +256,6 @@ impl Conn {
             &mut self.msg_buf_in,
             unmarshal::HEADER_LEN,
         )?;
-        if bytes_used != bytes_needed {
-            println!("Bytes used: {}, bytes needed: {}", bytes_used, bytes_needed);
-        }
         self.msg_buf_in.clear();
 
         for cmsg in cmsgs {
@@ -296,11 +284,6 @@ impl Conn {
             &vec![],
             &mut self.msg_buf_out,
         )?;
-        println!("Message: {:?}", self.msg_buf_out);
-        //let mut clone_msg = buf.clone();
-        //let msg_header = unmarshal::unmarshal_header(&mut clone_msg).unwrap();
-        //println!("unmarshaled header: {:?}", msg_header);
-        //let msg = unmarshal::unmarshal_next_message(&msg_header, &mut clone_msg).unwrap();
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
         let flags = MsgFlags::empty();
 
@@ -313,8 +296,6 @@ impl Conn {
         )
         .unwrap();
         assert_eq!(l, self.msg_buf_out.len());
-
-        println!("Written {} bytes", l);
         Ok(msg)
     }
 }

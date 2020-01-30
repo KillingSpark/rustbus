@@ -7,14 +7,12 @@ pub fn marshal(
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     marshal_header(msg, byteorder, header_fields, buf)?;
-    println!("Pad after header");
     pad_to_align(8, buf);
     let header_len = buf.len();
 
     for p in &msg.params {
         let pos_before = buf.len();
         marshal_param(p, byteorder, buf)?;
-        println!("Param: {:?}: {:?}", p, &buf[pos_before..]);
     }
 
     // set the correct message length
@@ -26,7 +24,6 @@ pub fn marshal(
 fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
     let padding_needed = align_to - (buf.len() % align_to);
     if padding_needed != align_to {
-        println!("Pad {}", padding_needed);
         buf.resize(buf.len() + padding_needed, 0);
         assert!(buf.len() % align_to == 0);
     }
@@ -247,7 +244,6 @@ fn marshal_header_field(
             write_u32(*fds, byteorder, buf);
         }
     }
-    println!("Header field {:?}: {:?}", field, &buf[len_before..]);
     Ok(())
 }
 

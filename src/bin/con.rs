@@ -70,6 +70,14 @@ fn main() {
         println!("Wait for incoming signals");
         let msg = rpc_con.wait_signal().unwrap();
         println!("Got signal: {:?}", msg);
+        loop {
+            let msg = rpc_con.try_get_signal();
+            if let Some(msg) = msg {
+                println!("Got signal: {:?}", msg);
+            }else{
+                break;
+            }
+        }
         println!("\n");
         println!("\n");
         println!("\n");
