@@ -170,7 +170,12 @@ impl Type {
             Token::Array => {
                 tokens.remove(0);
                 let elem_type = Self::parse_next_type(tokens)?;
-                Ok(Type::Container(Container::Array(Box::new(elem_type))))
+                if let Type::Container(Container::Dict(_, _)) = &elem_type {
+                    // if the array contains dictentries this is a dict
+                    Ok(elem_type)
+                }else{
+                    Ok(Type::Container(Container::Array(Box::new(elem_type))))
+                }
             }
 
             Token::Byte => {
@@ -220,13 +225,16 @@ impl Type {
             Token::DictEntryStart => {
                 tokens.remove(0);
                 let key_type = Self::parse_next_base(tokens)?;
+                println!("Key type: {:?}", key_type);
                 let value_type = Self::parse_next_type(tokens)?;
+                println!("Value type: {:?}", value_type);
                 if tokens.is_empty() {
                     return Err(Error::InvalidSignature);
                 }
                 if tokens[0] != Token::DictEntryEnd {
                     return Err(Error::InvalidSignature);
                 }
+                tokens.remove(0);
                 Ok(Type::Container(Container::Dict(
                     key_type,
                     Box::new(value_type),
@@ -238,12 +246,20 @@ impl Type {
     }
 
     fn parse_next_base(tokens: &mut Vec<Token>) -> Result<Base> {
-        match tokens[0] {
+        let token = tokens.remove(0);
+        match token {
+            Token::Byte => Ok(Base::Byte),
+            Token::Int16 => Ok(Base::Int16),
+            Token::Uint16 => Ok(Base::Uint16),
             Token::Int32 => Ok(Base::Int32),
             Token::Uint32 => Ok(Base::Uint32),
+            Token::Int64 => Ok(Base::Int64),
+            Token::Uint64 => Ok(Base::Uint64),
             Token::String => Ok(Base::String),
             Token::ObjectPath => Ok(Base::ObjectPath),
             Token::Signature => Ok(Base::Signature),
+            Token::Double => Ok(Base::Double),
+            Token::UnixFd => Ok(Base::UnixFd),
             _ => Err(Error::InvalidSignature),
         }
     }

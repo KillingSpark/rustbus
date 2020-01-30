@@ -10,7 +10,7 @@ pub enum MessageType {
     Invalid,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Base {
     Double(u64),
     Byte(u8),
@@ -27,27 +27,29 @@ pub enum Base {
     Boolean(bool),
 }
 
-#[derive(Debug)]
+pub type DictMap = std::collections::HashMap<Base, Param>;
+
+#[derive(Debug, Clone)]
 pub enum Container {
     Array(Vec<Param>),
     Struct(Vec<Param>),
-    Dict(std::collections::HashMap<Base, Param>),
+    Dict(DictMap),
     Variant(Box<Variant>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variant {
     pub sig: signature::Type,
     pub value: Param,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Param {
     Base(Base),
     Container(Container),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Message {
     pub typ: MessageType,
     pub interface: Option<String>,
@@ -171,10 +173,11 @@ impl Container {
                 let key = map.keys().next().unwrap();
                 let val = map.get(key).unwrap();
 
+                buf.push('a');
                 buf.push('{');
                 key.make_signature(buf);
                 val.make_signature(buf);
-                buf.push('{');
+                buf.push('}');
             }
             Container::Struct(elements) => {
                 buf.push('(');

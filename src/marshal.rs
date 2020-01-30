@@ -421,7 +421,7 @@ fn marshal_container_param(
             for p in params {
                 marshal_param(&p, byteorder, buf)?;
             }
-            let len = buf.len() - pos;
+            let len = buf.len() - pos - 4; // -4 the length bytes dont count
             insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
         }
         message::Container::Struct(params) => {
@@ -439,10 +439,11 @@ fn marshal_container_param(
             buf.push(0);
             buf.push(0);
             for (key, value) in params {
+                pad_to_align(8, buf);
                 marshal_base_param(byteorder, &key, buf)?;
                 marshal_param(&value, byteorder, buf)?;
             }
-            let len = buf.len() - pos;
+            let len = buf.len() - pos - 4;  // -4 the length bytes dont count
             insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
         }
         message::Container::Variant(variant) => {

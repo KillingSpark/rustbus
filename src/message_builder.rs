@@ -23,10 +23,11 @@ impl MessageBuilder {
         self.msg.member = Some(member);
         CallBuilder { msg: self.msg }
     }
-    pub fn signal(mut self, interface: String, member: String) -> SignalBuilder {
+    pub fn signal(mut self, interface: String, member: String, object: String) -> SignalBuilder {
         self.msg.typ = message::MessageType::Signal;
         self.msg.member = Some(member);
         self.msg.interface = Some(interface);
+        self.msg.object = Some(object);
         SignalBuilder { msg: self.msg }
     }
 }
@@ -58,12 +59,7 @@ impl CallBuilder {
 }
 
 impl SignalBuilder {
-    pub fn with_interface(mut self, interface: String) -> Self {
-        self.msg.interface = Some(interface);
-        self
-    }
-
-    pub fn at(mut self, destination: String) -> Self {
+    pub fn to(mut self, destination: String) -> Self {
         self.msg.destination = Some(destination);
         self
     }
