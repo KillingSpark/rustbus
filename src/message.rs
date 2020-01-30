@@ -308,20 +308,26 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         return Err(Error::InvalidBusname);
     }
 
+    let (unique, bn) = if bn.chars().nth(0).unwrap() == ':' {
+        (true, &bn[1..])
+    } else {
+        (false, &bn[..])
+    };
+
     let split = bn.split('.').collect::<Vec<_>>();
     if split.len() < 2 {
         return Err(Error::InvalidBusname);
     }
-    for idx in 0..split.len() {
-        let element = split[idx];
+
+    for element in split {
         if element.is_empty() {
             return Err(Error::InvalidBusname);
         }
-        if element.chars().nth(0).unwrap().is_numeric() {
+        if !unique && element.chars().nth(0).unwrap().is_numeric() {
             return Err(Error::InvalidBusname);
         }
         let alphanum_or_underscore_or_dash = element.chars().fold(true, |acc, c| {
-            acc && (c.is_alphanumeric() || c == '_' || c == '-' || (idx == 0 && c == ':'))
+            acc && (c.is_alphanumeric() || c == '_' || c == '-')
         });
         if !alphanum_or_underscore_or_dash {
             return Err(Error::InvalidBusname);

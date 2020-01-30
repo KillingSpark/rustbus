@@ -107,15 +107,8 @@ impl RpcConn {
             } else {
                 match msg.typ {
                     message::MessageType::Call => {
-                        let mut reply =
-                            msg.make_error_response("org.freedesktop.DBus.Error.UnknownMethod".to_owned());
-                        reply.push_params(vec![format!(
-                            "No calls to {}.{} are accepted for object {}",
-                            msg.interface.unwrap_or("".to_owned()),
-                            msg.member.unwrap_or("".to_owned()),
-                            msg.object.unwrap_or("".to_owned()),
-                        )
-                        .into()])
+                        let reply = crate::standard_messages::unknown_method(&msg);
+                        self.conn.send_message(reply)?;
                     }
                     message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
                     message::MessageType::Error => {

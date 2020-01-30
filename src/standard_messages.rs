@@ -64,3 +64,15 @@ pub fn add_match(match_rule: String) -> message::Message {
         .at("org.freedesktop.DBus".into())
         .build()
 }
+
+pub fn unknown_method(call: &message::Message) -> message::Message {
+    let mut reply = call.make_error_response("org.freedesktop.DBus.Error.UnknownMethod".to_owned());
+    reply.push_params(vec![format!(
+        "No calls to {}.{} are accepted for object {}",
+        call.interface.clone().unwrap_or("".to_owned()),
+        call.member.clone().unwrap_or("".to_owned()),
+        call.object.clone().unwrap_or("".to_owned()),
+    )
+    .into()]);
+    reply
+}
