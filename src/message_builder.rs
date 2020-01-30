@@ -1,3 +1,5 @@
+//! Helps in building messages conveniently
+
 use crate::message;
 
 pub struct MessageBuilder {

@@ -1,3 +1,5 @@
+//! Some standard messages that are often needed
+
 use crate::message;
 use crate::message_builder::MessageBuilder;
 
@@ -45,6 +47,7 @@ pub const DBUS_REQUEST_NAME_REPLY_IN_QUEUE: u32 = 2;
 pub const DBUS_REQUEST_NAME_REPLY_EXISTS: u32 = 3;
 pub const DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER: u32 = 4;
 
+/// Request a name on the bus
 pub fn request_name(name: String, flags: u32) -> message::Message {
     MessageBuilder::new()
         .call("RequestName".into())
@@ -55,6 +58,8 @@ pub fn request_name(name: String, flags: u32) -> message::Message {
         .build()
 }
 
+
+/// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
 pub fn add_match(match_rule: String) -> message::Message {
     MessageBuilder::new()
         .call("AddMatch".into())
@@ -65,6 +70,7 @@ pub fn add_match(match_rule: String) -> message::Message {
         .build()
 }
 
+/// Error message to tell the caller that this method is not known by your server
 pub fn unknown_method(call: &message::Message) -> message::Message {
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.UnknownMethod".to_owned());
     reply.push_params(vec![format!(
@@ -76,6 +82,9 @@ pub fn unknown_method(call: &message::Message) -> message::Message {
     .into()]);
     reply
 }
+
+
+/// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
 pub fn invalid_args(call: &message::Message, sig: Option<&str>) -> message::Message {
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.InvalidArgs".to_owned());
     reply.push_params(vec![format!(

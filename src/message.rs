@@ -1,3 +1,5 @@
+//! lowlevel message stuff
+
 use crate::signature;
 use std::os::unix::io::RawFd;
 
@@ -10,6 +12,8 @@ pub enum MessageType {
     Invalid,
 }
 
+/// The base types a message can have as parameters
+/// There are From<T> impls for most of them
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Base {
     Double(u64),
@@ -29,6 +33,7 @@ pub enum Base {
 
 pub type DictMap = std::collections::HashMap<Base, Param>;
 
+/// The container types a message can have as parameters
 #[derive(Debug, Clone)]
 pub enum Container {
     Array(Vec<Param>),
@@ -43,12 +48,15 @@ pub struct Variant {
     pub value: Param,
 }
 
+/// The Types a message can have as parameters
+/// There are From<T> impls for most of the Base ones
 #[derive(Debug, Clone)]
 pub enum Param {
     Base(Base),
     Container(Container),
 }
 
+/// A message with all the different fields it may or may not have
 #[derive(Debug, Clone)]
 pub struct Message {
     pub typ: MessageType,
@@ -67,6 +75,7 @@ pub struct Message {
 }
 
 impl Message {
+    /// Create a new empty message
     pub fn new() -> Message {
         Message {
             typ: MessageType::Invalid,
@@ -100,6 +109,7 @@ impl Message {
         self.params.extend(params);
     }
 
+    /// Make a correctly addressed response with the correct response serial
     pub fn make_response(&self) -> Message {
         Message {
             typ: MessageType::Reply,
@@ -116,6 +126,8 @@ impl Message {
             error_name: None,
         }
     }
+
+    /// Make a correctly addressed error response with the correct response serial
     pub fn make_error_response(&self, error_name: String) -> Message {
         Message {
             typ: MessageType::Reply,
@@ -193,6 +205,7 @@ impl Container {
     }
 }
 
+/// The different errors that can occur when dealing with messages
 #[derive(Debug)]
 pub enum Error {
     InvalidObjectPath,
@@ -210,6 +223,7 @@ pub enum Error {
     DictValueTypesDiffer,
 }
 
+/// The supported byte orders
 #[derive(Clone, Copy, Debug)]
 pub enum ByteOrder {
     LittleEndian,
@@ -222,6 +236,7 @@ pub enum HeaderFlags {
     AllowInteractiveAuthorization,
 }
 
+/// The different header fields a message may or maynot have
 #[derive(Debug)]
 pub enum HeaderField {
     Path(String),

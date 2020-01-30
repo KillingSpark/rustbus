@@ -17,6 +17,7 @@ use nix::sys::socket::ControlMessageOwned;
 use nix::sys::socket::MsgFlags;
 use nix::sys::uio::IoVec;
 
+/// Convenience wrapper around the lowlevel connection
 pub struct RpcConn {
     signals: VecDeque<message::Message>,
     calls: VecDeque<message::Message>,
@@ -25,6 +26,32 @@ pub struct RpcConn {
     filter: Box<MessageFilter>,
 }
 
+/// Filter out messages you dont want in your RpcConn.
+/// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
+/// if the filter returns false.
+/// ```
+/// rpc_con.set_filter(Box::new(|msg| match msg.typ {
+/// message::MessageType::Call => {
+///     let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
+///         && msg.interface.eq(&Some("io.killing.spark".into()));
+/// 
+///     let right_member = if let Some(member) = &msg.member {
+///         member.eq("Echo") || member.eq("Reverse")
+///     } else {
+///         false
+///     };
+///     let keep = right_interface_object && right_member;
+///     if !keep {
+///         println!("Discard: {:?}", msg);
+///     }
+///     keep
+/// }
+/// message::MessageType::Invalid => false,
+/// message::MessageType::Error => true,
+/// message::MessageType::Reply => true,
+/// message::MessageType::Signal => false,
+/// }));
+/// ```
 pub type MessageFilter = dyn Fn(&message::Message) -> bool;
 
 impl RpcConn {
@@ -42,9 +69,12 @@ impl RpcConn {
         self.filter = filter;
     }
 
+    /// Return a response if one is there but dont block
     pub fn try_get_response(&mut self, serial: &u32) -> Option<message::Message> {
         self.responses.remove(serial)
     }
+
+    /// Return a response if one is there or block until it arrives
     pub fn wait_response(&mut self, serial: &u32) -> Result<message::Message> {
         loop {
             if let Some(msg) = self.try_get_response(serial) {
@@ -53,10 +83,13 @@ impl RpcConn {
             self.refill()?;
         }
     }
+
+    /// Return a signal if one is there but dont block
     pub fn try_get_signal(&mut self) -> Option<message::Message> {
         self.signals.pop_front()
     }
 
+    /// Return a sginal if one is there or block until it arrives
     pub fn wait_signal(&mut self) -> Result<message::Message> {
         loop {
             if let Some(msg) = self.try_get_signal() {
@@ -66,10 +99,12 @@ impl RpcConn {
         }
     }
 
+    /// Return a call if one is there but dont block
     pub fn try_get_call(&mut self) -> Option<message::Message> {
         self.calls.pop_front()
     }
 
+    /// Return a call if one is there or block until it arrives
     pub fn wait_call(&mut self) -> Result<message::Message> {
         loop {
             if let Some(msg) = self.try_get_call() {
@@ -79,10 +114,13 @@ impl RpcConn {
         }
     }
 
+    /// Send a message to the bus
     pub fn send_message(&mut self, msg: message::Message) -> Result<message::Message> {
         self.conn.send_message(msg)
     }
 
+    /// This blocks until a new message (that should not be ignored) arrives.
+    /// The message gets placed into the correct list
     fn refill(&mut self) -> Result<()> {
         loop {
             let msg = self.conn.get_next_message()?;
@@ -127,6 +165,7 @@ impl RpcConn {
     }
 }
 
+/// A lowlevel abstraction over the raw unix socket
 #[derive(Debug)]
 pub struct Conn {
     socket_path: PathBuf,
@@ -140,6 +179,7 @@ pub struct Conn {
     serial_counter: u32,
 }
 
+/// Errors that can occur when using the Conn/RpcConn
 #[derive(Debug)]
 pub enum Error {
     IoError(std::io::Error),
@@ -180,6 +220,7 @@ impl std::convert::From<nix::Error> for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 impl Conn {
+    /// Connect to a unix socket and choose a byteorder
     pub fn connect_to_bus_with_byteorder(
         path: PathBuf,
         byteorder: message::ByteOrder,
@@ -210,12 +251,10 @@ impl Conn {
             serial_counter: 1,
         })
     }
+
+    /// Connect to a unix socket. The default little endian byteorder is used
     pub fn connect_to_bus(path: PathBuf, with_unix_fd: bool) -> Result<Conn> {
         Self::connect_to_bus_with_byteorder(path, message::ByteOrder::LittleEndian, with_unix_fd)
-    }
-
-    pub fn request_name(&mut self, _name: &str) -> Result<()> {
-        Ok(())
     }
 
     fn refill_buffer(&mut self, max_buffer_size: usize) -> Result<Vec<ControlMessageOwned>> {
@@ -241,6 +280,7 @@ impl Conn {
         Ok(cmsgs)
     }
 
+    /// Blocks until a message has been read from the conn
     pub fn get_next_message(&mut self) -> Result<message::Message> {
         // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
         // I think thats necessary so we can later add support for unixfd sending
@@ -305,6 +345,7 @@ impl Conn {
         Ok(msg)
     }
 
+    /// send a message over the conn
     pub fn send_message(&mut self, mut msg: message::Message) -> Result<message::Message> {
         self.msg_buf_out.clear();
         if msg.serial.is_none() {
@@ -333,6 +374,7 @@ impl Conn {
     }
 }
 
+/// Convenience function that returns a path to the session bus according to the env var $DBUS_SESSION_BUS_ADDRESS
 pub fn get_session_bus_path() -> Result<PathBuf> {
     if let Ok(envvar) = std::env::var("DBUS_SESSION_BUS_ADDRESS") {
         if envvar.starts_with("unix:path=") {
@@ -350,6 +392,8 @@ pub fn get_session_bus_path() -> Result<PathBuf> {
         Err(Error::NoAdressFound)
     }
 }
+
+/// Convenience function that returns a path to the system bus at /run/dbus/systemd_bus_socket
 pub fn get_system_bus_path() -> Result<PathBuf> {
     let ps = "/run/dbus/system_bus_socket";
     let p = PathBuf::from(&ps);
