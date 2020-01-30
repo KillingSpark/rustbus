@@ -165,8 +165,7 @@ pub fn unmarshal_next_message(
                 return Err(Error::InvalidHeaderFields);
             }
         };
-        
-        
+
         let padding = align_offset(8, buf, offset)?;
         let offset = offset + padding;
 
@@ -243,7 +242,7 @@ fn unmarshal_header_field(
     let typ = buf[offset];
     let typ_bytes_used = 1;
     let offset = offset + typ_bytes_used;
-    
+
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
     let mut sig = signature::Type::from_str(&sig_str).map_err(|_| Error::InvalidSignature)?;
     let offset = offset + sig_bytes_used;
@@ -398,7 +397,6 @@ fn unmarshal_container(
             let (_, bytes_in_dict) = parse_u32(&buf[offset..], header.byteorder)?;
             let offset = offset + 4;
 
-            
             let before_elements_padding = align_offset(8, buf, offset)?;
             let offset = offset + before_elements_padding;
 

@@ -74,7 +74,7 @@ fn main() {
             let msg = rpc_con.try_get_signal();
             if let Some(msg) = msg {
                 println!("Got signal: {:?}", msg);
-            }else{
+            } else {
                 break;
             }
         }
