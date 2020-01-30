@@ -20,7 +20,7 @@ Generally working but there are probably bugs lingering. Need to setup fuzzing a
 
 
 # How to use it
-There are some examples in the src/bin directory but the gist is:
+There are some examples in the `examples/` directory but the gist is:
 ```
 // Connect to the session bus
 let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
