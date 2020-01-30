@@ -1,8 +1,6 @@
 extern crate rustbus;
-use rustbus::message::Base;
 use rustbus::message::Container;
 use rustbus::message::DictMap;
-use rustbus::message::Param;
 use rustbus::message_builder::MessageBuilder;
 
 fn main() {
@@ -27,7 +25,8 @@ fn main() {
             Container::Array(vec![
                 Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
                 Container::Struct(vec![305419896i32.into(), "CCDD".to_owned().into()]).into(),
-            ]).into(),
+            ])
+            .into(),
             Container::Dict(dict).into(),
         ])
         .build();

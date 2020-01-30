@@ -6,13 +6,6 @@ pub fn marshal(
     header_fields: &Vec<message::HeaderField>,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    if msg.num_fds.is_some() {
-        unimplemented!("Sending filedescriptors is unimplemented");
-    }
-    if !msg.raw_fds.is_empty() {
-        unimplemented!("Sending filedescriptors is unimplemented");
-    }
-
     marshal_header(msg, byteorder, header_fields, buf)?;
     println!("Pad after header");
     pad_to_align(8, buf);
@@ -148,6 +141,9 @@ fn marshal_header(
     }
     if let Some(obj) = &msg.object {
         marshal_header_field(byteorder, &message::HeaderField::Path(obj.clone()), buf)?;
+    }
+    if let Some(numfds) = &msg.num_fds {
+        marshal_header_field(byteorder, &message::HeaderField::UnixFds(*numfds), buf)?;
     }
     if msg.params.len() > 0 {
         let mut sig_str = String::new();

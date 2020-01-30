@@ -12,6 +12,8 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
 use nix::sys::socket::recvmsg;
+use nix::sys::socket::sendmsg;
+use nix::sys::socket::ControlMessage;
 use nix::sys::socket::ControlMessageOwned;
 use nix::sys::socket::MsgFlags;
 use nix::sys::uio::IoVec;
@@ -228,7 +230,7 @@ impl Conn {
 
         let mut header_fields_len = [0u8; 4];
         self.stream.read_exact(&mut header_fields_len[..])?;
-        let (_,header_fields_len) =
+        let (_, header_fields_len) =
             unmarshal::parse_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
         println!("Header fields bytes: {}", header_fields_len);
         marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
@@ -299,9 +301,20 @@ impl Conn {
         //let msg_header = unmarshal::unmarshal_header(&mut clone_msg).unwrap();
         //println!("unmarshaled header: {:?}", msg_header);
         //let msg = unmarshal::unmarshal_next_message(&msg_header, &mut clone_msg).unwrap();
+        let iov = [IoVec::from_slice(&self.msg_buf_out)];
+        let flags = MsgFlags::empty();
 
-        self.stream.write_all(&self.msg_buf_out)?;
-        println!("Written {} bytes", self.msg_buf_out.len());
+        let l = sendmsg(
+            self.stream.as_raw_fd(),
+            &iov,
+            &vec![ControlMessage::ScmRights(&msg.raw_fds)],
+            flags,
+            None,
+        )
+        .unwrap();
+        assert_eq!(l, self.msg_buf_out.len());
+
+        println!("Written {} bytes", l);
         Ok(msg)
     }
 }

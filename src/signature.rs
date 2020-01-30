@@ -173,7 +173,7 @@ impl Type {
                 if let Type::Container(Container::Dict(_, _)) = &elem_type {
                     // if the array contains dictentries this is a dict
                     Ok(elem_type)
-                }else{
+                } else {
                     Ok(Type::Container(Container::Array(Box::new(elem_type))))
                 }
             }

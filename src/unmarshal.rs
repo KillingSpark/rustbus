@@ -415,14 +415,14 @@ fn unmarshal_container(
         signature::Container::Dict(key_sig, val_sig) => {
             let padding = align_offset(4, buf, offset)?;
             let offset = offset + padding;
-            let (_,bytes_in_dict) = parse_u32(&buf[offset..], header.byteorder)?;
+            let (_, bytes_in_dict) = parse_u32(&buf[offset..], header.byteorder)?;
             let offset = offset + 4;
 
             println!("Bytes in dict: {}", bytes_in_dict);
-            
+
             let before_elements_padding = align_offset(8, buf, offset)?;
             let offset = offset + before_elements_padding;
-            
+
             println!("Decode dict from: {:?}", &buf[offset..]);
             let mut elements = std::collections::HashMap::new();
             let mut bytes_used_counter = 0;
