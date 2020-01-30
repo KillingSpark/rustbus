@@ -38,7 +38,7 @@ pub fn list_names() -> message::Message {
         .build()
 }
 
-pub const DBUS_NAME_FLAG_ALLOW_REPLACEMENT: u32 = 1 << 0;
+pub const DBUS_NAME_FLAG_ALLOW_REPLACEMENT: u32 = 1;
 pub const DBUS_NAME_FLAG_REPLACE_EXISTING: u32 = 1 << 1;
 pub const DBUS_NAME_FLAG_DO_NOT_QUEUE: u32 = 1 << 2;
 
@@ -74,9 +74,9 @@ pub fn unknown_method(call: &message::Message) -> message::Message {
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.UnknownMethod".to_owned());
     reply.push_params(vec![format!(
         "No calls to {}.{} are accepted for object {}",
-        call.interface.clone().unwrap_or("".to_owned()),
-        call.member.clone().unwrap_or("".to_owned()),
-        call.object.clone().unwrap_or("".to_owned()),
+        call.interface.clone().unwrap_or_else(|| "".to_owned()),
+        call.member.clone().unwrap_or_else(|| "".to_owned()),
+        call.object.clone().unwrap_or_else(|| "".to_owned()),
     )
     .into()]);
     reply
@@ -87,11 +87,11 @@ pub fn invalid_args(call: &message::Message, sig: Option<&str>) -> message::Mess
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.InvalidArgs".to_owned());
     reply.push_params(vec![format!(
         "Invalid arguments for calls to {}.{} on object {} {}",
-        call.interface.clone().unwrap_or("".to_owned()),
-        call.member.clone().unwrap_or("".to_owned()),
-        call.object.clone().unwrap_or("".to_owned()),
-        if sig.is_some() {
-            format!("expected signature: {}", sig.unwrap())
+        call.interface.clone().unwrap_or_else(|| "".to_owned()),
+        call.member.clone().unwrap_or_else(|| "".to_owned()),
+        call.object.clone().unwrap_or_else(|| "".to_owned()),
+        if let Some(sig) = sig {
+            format!("expected signature: {}", sig)
         } else {
             "".to_owned()
         }
