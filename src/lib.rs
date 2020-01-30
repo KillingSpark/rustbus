@@ -13,7 +13,7 @@
 //! // send the obligatory hello message
 //! rpc_con.send_message(standard_messages::hello()).unwrap();
 //! 
-//! //! // Request a bus name if you want to
+//! // Request a bus name if you want to
 //! rpc_con.send_message(standard_messages::request_name(
 //!     "io.killing.spark".into(),
 //!     0,

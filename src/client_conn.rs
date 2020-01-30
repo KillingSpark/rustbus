@@ -1,3 +1,6 @@
+//! The connection stuff you probably want to use. Conn is the lowlevel abstraction RpcConn is the higher level wrapper with convenience functions
+//! over the Conn struct.
+
 use crate::auth;
 use crate::marshal;
 use crate::message;
