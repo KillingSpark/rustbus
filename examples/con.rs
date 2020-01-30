@@ -1,6 +1,6 @@
 extern crate rustbus;
-use rustbus::standard_messages;
 use rustbus::message;
+use rustbus::standard_messages;
 
 fn main() {
     let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
@@ -9,22 +9,12 @@ fn main() {
 
     let hello_msg = standard_messages::hello();
 
-    rpc_con.set_filter(Box::new(|msg| {
-        match msg.typ {
-            message::MessageType::Call => {
-                false
-            }
-            message::MessageType::Invalid => false,
-            message::MessageType::Error => {
-                true
-            }
-            message::MessageType::Reply => {
-                true
-            }
-            message::MessageType::Signal => {
-                msg.sender.eq(&Some("org.freedesktop.DBus".to_owned()))
-            }
-        }
+    rpc_con.set_filter(Box::new(|msg| match msg.typ {
+        message::MessageType::Call => false,
+        message::MessageType::Invalid => false,
+        message::MessageType::Error => true,
+        message::MessageType::Reply => true,
+        message::MessageType::Signal => msg.sender.eq(&Some("org.freedesktop.DBus".to_owned())),
     }));
 
     println!("Send message: {:?}", hello_msg);

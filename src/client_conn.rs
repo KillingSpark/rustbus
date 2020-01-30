@@ -32,12 +32,18 @@ pub struct RpcConn {
 /// Filter out messages you dont want in your RpcConn.
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
-/// ```
+/// ```rust,no_run
+/// use rustbus::message;
+///
+/// let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
+/// let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
+/// let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+///
 /// rpc_con.set_filter(Box::new(|msg| match msg.typ {
 /// message::MessageType::Call => {
 ///     let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
 ///         && msg.interface.eq(&Some("io.killing.spark".into()));
-/// 
+///
 ///     let right_member = if let Some(member) = &msg.member {
 ///         member.eq("Echo") || member.eq("Reverse")
 ///     } else {
