@@ -368,7 +368,7 @@ pub fn validate_membername(mem: &str) -> Result<()> {
 }
 
 pub fn validate_signature(sig: &str) -> Result<()> {
-    if signature::Type::from_str(sig).is_err() {
+    if signature::Type::parse_description(sig).is_err() {
         Err(Error::InvalidSignature)
     } else {
         Ok(())

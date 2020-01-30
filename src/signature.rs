@@ -115,7 +115,7 @@ impl Container {
 }
 
 impl Base {
-    pub fn to_str(&self, buf: &mut String) {
+    pub fn to_str(self, buf: &mut String) {
         match self {
             Base::Boolean => buf.push('b'),
             Base::Byte => buf.push('y'),
@@ -135,7 +135,7 @@ impl Base {
 }
 
 impl Type {
-    pub fn from_str(sig: &str) -> Result<Vec<Type>> {
+    pub fn parse_description(sig: &str) -> Result<Vec<Type>> {
         let mut tokens = make_tokens(sig)?;
         if tokens.is_empty() {
             return Err(Error::EmptySignature);
