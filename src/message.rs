@@ -128,7 +128,7 @@ impl Message {
             raw_fds: Vec::new(),
             num_fds: None,
             sender: None,
-            response_serial: self.serial.clone(),
+            response_serial: self.serial,
             error_name: None,
         }
     }
@@ -146,7 +146,7 @@ impl Message {
             raw_fds: Vec::new(),
             num_fds: None,
             sender: None,
-            response_serial: self.serial.clone(),
+            response_serial: self.serial,
             error_name: Some(error_name),
         }
     }
@@ -279,7 +279,7 @@ pub fn validate_object_path(op: &str) -> Result<()> {
             }
             let alphanum_or_underscore = element
                 .chars()
-                .fold(true, |acc, c| acc && (c.is_alphanumeric() || c == '_'));
+                .all(|c| c.is_alphanumeric() || c == '_');
             if !alphanum_or_underscore {
                 return Err(Error::InvalidObjectPath);
             }
@@ -308,7 +308,7 @@ pub fn validate_interface(int: &str) -> Result<()> {
         }
         let alphanum_or_underscore = element
             .chars()
-            .fold(true, |acc, c| acc && (c.is_alphanumeric() || c == '_'));
+            .all(|c| c.is_alphanumeric() || c == '_');
         if !alphanum_or_underscore {
             return Err(Error::InvalidInterface);
         }
@@ -347,9 +347,9 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         if !unique && element.chars().nth(0).unwrap().is_numeric() {
             return Err(Error::InvalidBusname);
         }
-        let alphanum_or_underscore_or_dash = element.chars().fold(true, |acc, c| {
-            acc && (c.is_alphanumeric() || c == '_' || c == '-')
-        });
+        let alphanum_or_underscore_or_dash = element
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-');
         if !alphanum_or_underscore_or_dash {
             return Err(Error::InvalidBusname);
         }
@@ -363,9 +363,7 @@ pub fn validate_membername(mem: &str) -> Result<()> {
         return Err(Error::InvalidBusname);
     }
 
-    let alphanum_or_underscore = mem
-        .chars()
-        .fold(true, |acc, c| acc && (c.is_alphanumeric() || c == '_'));
+    let alphanum_or_underscore = mem.chars().all(|c| c.is_alphanumeric() || c == '_');
     if !alphanum_or_underscore {
         return Err(Error::InvalidMembername);
     }
@@ -381,7 +379,7 @@ pub fn validate_signature(sig: &str) -> Result<()> {
     }
 }
 
-pub fn validate_array(array: &Vec<Param>) -> Result<()> {
+pub fn validate_array(array: &[Param]) -> Result<()> {
     // TODO check that all elements have the same type
     if array.is_empty() {
         return Ok(());
@@ -430,10 +428,7 @@ pub fn validate_dict(dict: &std::collections::HashMap<Base, Param>) -> Result<()
     Ok(())
 }
 
-pub fn validate_header_fields(
-    msg_type: MessageType,
-    header_fields: &Vec<HeaderField>,
-) -> Result<()> {
+pub fn validate_header_fields(msg_type: MessageType, header_fields: &[HeaderField]) -> Result<()> {
     let mut have_path = false;
     let mut have_interface = false;
     let mut have_member = false;
