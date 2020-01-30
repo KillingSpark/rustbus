@@ -11,7 +11,6 @@ pub fn marshal(
     let header_len = buf.len();
 
     for p in &msg.params {
-        let pos_before = buf.len();
         marshal_param(p, byteorder, buf)?;
     }
 
@@ -164,7 +163,6 @@ fn marshal_header_field(
     field: &message::HeaderField,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    let len_before = buf.len();
     pad_to_align(8, buf);
     match field {
         message::HeaderField::Path(path) => {
