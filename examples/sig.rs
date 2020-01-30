@@ -1,4 +1,3 @@
-extern crate rustbus;
 use rustbus::message::Container;
 use rustbus::message::DictMap;
 use rustbus::message_builder::MessageBuilder;

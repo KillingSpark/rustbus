@@ -1,4 +1,3 @@
-extern crate rustbus;
 use rustbus::message_builder::MessageBuilder;
 use rustbus::standard_messages;
 

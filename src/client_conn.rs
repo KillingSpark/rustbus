@@ -13,6 +13,7 @@ use std::os::unix::io::RawFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
+use nix::cmsg_space;
 use nix::sys::socket::recvmsg;
 use nix::sys::socket::sendmsg;
 use nix::sys::socket::ControlMessage;

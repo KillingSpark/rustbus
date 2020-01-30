@@ -45,9 +45,6 @@
 //! }
 //! ```
 
-#[macro_use]
-extern crate nix;
-
 pub mod auth;
 pub mod client_conn;
 pub mod marshal;
