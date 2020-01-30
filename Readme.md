@@ -25,21 +25,20 @@ Generally working but there are probably bugs lingering. Need to setup fuzzing a
 There are some examples in the `examples/` directory but the gist is:
 ```
 // Connect to the session bus
-let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
-let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
+let session_path = rustbus::client_conn::get_session_bus_path()?;
+let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true)?;
 
 // Wrap the con in an RpcConnection which provides many convenient functions
 let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
 
 // send the obligatory hello message
-rpc_con.send_message(standard_messages::hello()).unwrap();
+rpc_con.send_message(standard_messages::hello())?;
 
 // Request a bus name if you want to
 rpc_con.send_message(standard_messages::request_name(
     "io.killing.spark".into(),
     0,
-))
-.unwrap();
+))?;
 
 // send a signal to all bus members
 let sig = MessageBuilder::new()
@@ -59,5 +58,5 @@ let sig = MessageBuilder::new()
     Container::Dict(dict).into(),
 ])
 .build();
-con.send_message(sig).unwrap();
+con.send_message(sig)?;
 ```

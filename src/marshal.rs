@@ -147,7 +147,7 @@ fn marshal_header(
     if !msg.params.is_empty() {
         let mut sig_str = String::new();
         for param in &msg.params {
-            param.make_signature(&mut sig_str);
+            param.make_signature(&mut sig_str)?;
         }
         marshal_header_field(byteorder, &message::HeaderField::Signature(sig_str), buf)?;
     }
