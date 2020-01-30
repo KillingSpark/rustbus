@@ -2,24 +2,26 @@
 //! Rustbus is a dbus library that allows for RPC on services on the bus or to implement your own service that listens on the bus. There are some examples
 //! in the src/bin directory but the gist is:
 //!
-//! ```
+//! ```rust,no_run
+//! use rustbus::{message::{Container, DictMap}, message_builder::MessageBuilder, standard_messages};
+//!
 //! // Connect to the session bus
 //! let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
 //! let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
-//! 
+//!
 //! // Wrap the con in an RpcConnection which provides many convenient functions
 //! let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
-//! 
+//!
 //! // send the obligatory hello message
 //! rpc_con.send_message(standard_messages::hello()).unwrap();
-//! 
+//!
 //! // Request a bus name if you want to
 //! rpc_con.send_message(standard_messages::request_name(
 //!     "io.killing.spark".into(),
 //!     0,
 //! ))
 //! .unwrap();
-//! 
+//!
 //! // send a signal to all bus members
 //! let sig = MessageBuilder::new()
 //! .signal(
@@ -35,10 +37,10 @@
 //!         Container::Struct(vec![305419896i32.into(), "CCDD".to_owned().into()]).into(),
 //!     ])
 //!     .into(),
-//!     Container::Dict(dict).into(),
+//!     Container::Dict(DictMap::new()).into(),
 //! ])
 //! .build();
-//! con.send_message(sig).unwrap();
+//! rpc_con.send_message(sig).unwrap();
 //! ```
 
 #[macro_use]

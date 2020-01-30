@@ -190,7 +190,7 @@ pub fn unmarshal_next_message(
                 response_serial: get_resp_serial_from_fields(&fields),
                 sender: get_sender_from_fields(&fields),
                 error_name: get_errorname_from_fields(&fields),
-                params: params,
+                params,
                 typ: header.typ,
                 serial: Some(header.serial),
                 raw_fds: Vec::new(),

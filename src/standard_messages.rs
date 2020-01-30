@@ -58,7 +58,6 @@ pub fn request_name(name: String, flags: u32) -> message::Message {
         .build()
 }
 
-
 /// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
 pub fn add_match(match_rule: String) -> message::Message {
     MessageBuilder::new()
@@ -83,7 +82,6 @@ pub fn unknown_method(call: &message::Message) -> message::Message {
     reply
 }
 
-
 /// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
 pub fn invalid_args(call: &message::Message, sig: Option<&str>) -> message::Message {
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.InvalidArgs".to_owned());
@@ -92,9 +90,9 @@ pub fn invalid_args(call: &message::Message, sig: Option<&str>) -> message::Mess
         call.interface.clone().unwrap_or("".to_owned()),
         call.member.clone().unwrap_or("".to_owned()),
         call.object.clone().unwrap_or("".to_owned()),
-        if sig.is_some(){
+        if sig.is_some() {
             format!("expected signature: {}", sig.unwrap())
-        }else{
+        } else {
             "".to_owned()
         }
     )
