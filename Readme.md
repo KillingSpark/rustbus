@@ -1,4 +1,6 @@
 # Rustbus
+[![Actions Status](https://github.com/KillingSpark/rustbus/workflows/CI/badge.svg)](https://github.com/KillingSpark/rustbus/actions?query=workflow%3A"CI")
+
 Rustbus implements the [dbus specification](https://dbus.freedesktop.org/doc/dbus-specification.html) for local unix sockets. It is not a bus implementation but a library
 that enables clients to communicate over the dbus daemon.
 
