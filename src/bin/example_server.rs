@@ -45,8 +45,15 @@ fn main() {
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
         message::MessageType::Call => {
-            let keep = msg.object.eq(&Some("/io/killing/spark".into()))
+            let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
                 && msg.interface.eq(&Some("io.killing.spark".into()));
+
+            let right_member = if let Some(member) = &msg.member {
+                member.eq("Echo") || member.eq("Reverse")
+            } else {
+                false
+            };
+            let keep = right_interface_object && right_member;
             if !keep {
                 println!("Discard: {:?}", msg);
             }
@@ -66,16 +73,23 @@ fn main() {
             let cmd = match member.as_str() {
                 "Echo" => Commands::Echo,
                 "Reverse" => {
+                    if call.params.len() != 1 {
+                        rpc_con
+                            .send_message(standard_messages::invalid_args(&call, Some("String")))
+                            .unwrap();
+                        continue;
+                    }
                     if let message::Param::Base(message::Base::String(val)) = &call.params[0] {
                         Commands::Reverse(val.clone())
                     } else {
                         rpc_con
-                            .send_message(standard_messages::invalid_args(&call))
+                            .send_message(standard_messages::invalid_args(&call, Some("String")))
                             .unwrap();
                         continue;
                     }
                 }
                 _ => {
+                    // This shouldn't happen with the filters defined above
                     rpc_con
                         .send_message(standard_messages::unknown_method(&call))
                         .unwrap();

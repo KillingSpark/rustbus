@@ -76,13 +76,18 @@ pub fn unknown_method(call: &message::Message) -> message::Message {
     .into()]);
     reply
 }
-pub fn invalid_args(call: &message::Message) -> message::Message {
+pub fn invalid_args(call: &message::Message, sig: Option<&str>) -> message::Message {
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.InvalidArgs".to_owned());
     reply.push_params(vec![format!(
-        "Invalid arguments for calls to {}.{} on object {}",
+        "Invalid arguments for calls to {}.{} on object {} {}",
         call.interface.clone().unwrap_or("".to_owned()),
         call.member.clone().unwrap_or("".to_owned()),
         call.object.clone().unwrap_or("".to_owned()),
+        if sig.is_some(){
+            format!("expected signature: {}", sig.unwrap())
+        }else{
+            "".to_owned()
+        }
     )
     .into()]);
     reply
