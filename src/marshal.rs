@@ -142,6 +142,9 @@ fn marshal_header(
     if let Some(numfds) = &msg.num_fds {
         marshal_header_field(byteorder, &message::HeaderField::UnixFds(*numfds), buf)?;
     }
+    if let Some(serial) = &msg.response_serial {
+        marshal_header_field(byteorder, &message::HeaderField::ReplySerial(*serial), buf)?;
+    }
     if msg.params.len() > 0 {
         let mut sig_str = String::new();
         for param in &msg.params {
