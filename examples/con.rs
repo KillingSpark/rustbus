@@ -24,7 +24,7 @@ fn main() {
     println!("\n");
     println!("\n");
     println!("Wait for hello response");
-    let msg = rpc_con.wait_response(&hello_serial).unwrap();
+    let msg = rpc_con.wait_response(hello_serial).unwrap();
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -40,7 +40,7 @@ fn main() {
         .unwrap();
 
     println!("Wait for name request response");
-    let msg = rpc_con.wait_response(&reqname_serial).unwrap();
+    let msg = rpc_con.wait_response(reqname_serial).unwrap();
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -64,7 +64,7 @@ fn main() {
         .unwrap();
 
     println!("Wait for list response");
-    let msg = rpc_con.wait_response(&list_serial).unwrap();
+    let msg = rpc_con.wait_response(list_serial).unwrap();
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");

@@ -40,7 +40,7 @@ fn main() {
         .unwrap()
         .serial
         .unwrap();
-    let resp = rpc_con.wait_response(&namereq_serial).unwrap();
+    let resp = rpc_con.wait_response(namereq_serial).unwrap();
     println!("Name request response: {:?}", resp);
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {

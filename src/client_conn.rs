@@ -79,12 +79,12 @@ impl RpcConn {
     }
 
     /// Return a response if one is there but dont block
-    pub fn try_get_response(&mut self, serial: &u32) -> Option<message::Message> {
-        self.responses.remove(serial)
+    pub fn try_get_response(&mut self, serial: u32) -> Option<message::Message> {
+        self.responses.remove(&serial)
     }
 
     /// Return a response if one is there or block until it arrives
-    pub fn wait_response(&mut self, serial: &u32) -> Result<message::Message> {
+    pub fn wait_response(&mut self, serial: u32) -> Result<message::Message> {
         loop {
             if let Some(msg) = self.try_get_response(serial) {
                 return Ok(msg);
@@ -296,7 +296,7 @@ impl Conn {
         let mut cmsgs = Vec::new();
 
         let header = loop {
-            match unmarshal::unmarshal_header(&mut self.msg_buf_in, 0) {
+            match unmarshal::unmarshal_header(&self.msg_buf_in, 0) {
                 Ok((_, header)) => break header,
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
@@ -308,7 +308,7 @@ impl Conn {
         let mut header_fields_len = [0u8; 4];
         self.stream.read_exact(&mut header_fields_len[..])?;
         let (_, header_fields_len) =
-            unmarshal::parse_u32(&mut header_fields_len.to_vec(), header.byteorder)?;
+            unmarshal::parse_u32(&header_fields_len.to_vec(), header.byteorder)?;
         marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
 
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
@@ -364,7 +364,7 @@ impl Conn {
         marshal::marshal(
             &msg,
             message::ByteOrder::LittleEndian,
-            &vec![],
+            &[],
             &mut self.msg_buf_out,
         )?;
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
@@ -373,7 +373,7 @@ impl Conn {
         let l = sendmsg(
             self.stream.as_raw_fd(),
             &iov,
-            &vec![ControlMessage::ScmRights(&msg.raw_fds)],
+            &[ControlMessage::ScmRights(&msg.raw_fds)],
             flags,
             None,
         )
