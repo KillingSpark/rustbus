@@ -74,6 +74,12 @@ pub struct Message {
     pub raw_fds: Vec<RawFd>,
 }
 
+impl Default for Message {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Message {
     /// Create a new empty message
     pub fn new() -> Message {

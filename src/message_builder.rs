@@ -2,6 +2,7 @@
 
 use crate::message;
 
+#[derive(Default)]
 pub struct MessageBuilder {
     msg: message::Message,
 }
