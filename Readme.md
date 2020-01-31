@@ -20,6 +20,10 @@ Transmitting filedescriptors works. The limit is currently set to 10 per message
 ## State of this project
 Generally working but there are probably bugs lingering. Need to setup fuzzing and unit tests.
 
+### Known bugs
+Arrays and dicts with no elements can't be marshaled. This needs some extensive rewriting because currently the type of the array is deduced by the 
+elements it contains. There could be a sane default (like empty struct for arrays and (byte,empty struct) for dicts) but that isn't any good if the callee 
+expects a certain type even if the list is empty. 
 
 # How to use it
 There are some examples in the `examples/` directory but the gist is:
