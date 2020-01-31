@@ -13,6 +13,7 @@ use std::os::unix::io::RawFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
+use nix::cmsg_space;
 use nix::sys::socket::recvmsg;
 use nix::sys::socket::sendmsg;
 use nix::sys::socket::ControlMessage;
@@ -33,33 +34,37 @@ pub struct RpcConn {
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
 /// ```rust,no_run
-/// use rustbus::message;
+/// use rustbus::{get_session_bus_path, standard_messages, Conn, Container, DictMap, MessageBuilder, MessageType, RpcConn};
 ///
-/// let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
-/// let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
-/// let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+/// fn main() -> Result<(), rustbus::client_conn::Error> {
+///     let session_path = get_session_bus_path()?;
+///     let con = Conn::connect_to_bus(session_path, true)?;
+///     let mut rpc_con = RpcConn::new(con);
 ///
-/// rpc_con.set_filter(Box::new(|msg| match msg.typ {
-/// message::MessageType::Call => {
-///     let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
-///         && msg.interface.eq(&Some("io.killing.spark".into()));
+///     rpc_con.set_filter(Box::new(|msg| match msg.typ {
+///     MessageType::Call => {
+///         let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
+///             && msg.interface.eq(&Some("io.killing.spark".into()));
 ///
-///     let right_member = if let Some(member) = &msg.member {
-///         member.eq("Echo") || member.eq("Reverse")
-///     } else {
-///         false
-///     };
-///     let keep = right_interface_object && right_member;
-///     if !keep {
-///         println!("Discard: {:?}", msg);
+///         let right_member = if let Some(member) = &msg.member {
+///             member.eq("Echo") || member.eq("Reverse")
+///         } else {
+///             false
+///         };
+///         let keep = right_interface_object && right_member;
+///         if !keep {
+///             println!("Discard: {:?}", msg);
+///         }
+///         keep
 ///     }
-///     keep
-/// }
-/// message::MessageType::Invalid => false,
-/// message::MessageType::Error => true,
-/// message::MessageType::Reply => true,
-/// message::MessageType::Signal => false,
+///     MessageType::Invalid => false,
+///     MessageType::Error => true,
+///     MessageType::Reply => true,
+///     MessageType::Signal => false,
 /// }));
+///
+/// Ok(())
+/// }
 /// ```
 pub type MessageFilter = dyn Fn(&message::Message) -> bool;
 
@@ -376,8 +381,7 @@ impl Conn {
             &[ControlMessage::ScmRights(&msg.raw_fds)],
             flags,
             None,
-        )
-        .unwrap();
+        )?;
         assert_eq!(l, self.msg_buf_out.len());
         Ok(msg)
     }

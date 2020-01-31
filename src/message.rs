@@ -153,11 +153,12 @@ impl Message {
 }
 
 impl Param {
-    pub fn make_signature(&self, buf: &mut String) {
+    pub fn make_signature(&self, buf: &mut String) -> Result<()> {
         match self {
             Param::Base(b) => b.make_signature(buf),
-            Param::Container(c) => c.make_signature(buf),
+            Param::Container(c) => c.make_signature(buf)?,
         }
+        Ok(())
     }
 }
 
@@ -181,11 +182,11 @@ impl Base {
     }
 }
 impl Container {
-    pub fn make_signature(&self, buf: &mut String) {
+    pub fn make_signature(&self, buf: &mut String) -> Result<()> {
         match self {
             Container::Array(elements) => {
                 buf.push('a');
-                elements[0].make_signature(buf);
+                elements[0].make_signature(buf)?;
             }
             Container::Dict(map) => {
                 let key = map.keys().next().unwrap();
@@ -194,13 +195,13 @@ impl Container {
                 buf.push('a');
                 buf.push('{');
                 key.make_signature(buf);
-                val.make_signature(buf);
+                val.make_signature(buf)?;
                 buf.push('}');
             }
             Container::Struct(elements) => {
                 buf.push('(');
                 for el in elements {
-                    el.make_signature(buf);
+                    el.make_signature(buf)?;
                 }
                 buf.push(')');
             }
@@ -208,6 +209,7 @@ impl Container {
                 buf.push('v');
             }
         }
+        Ok(())
     }
 }
 
@@ -274,7 +276,7 @@ pub fn validate_object_path(op: &str) -> Result<()> {
             if element.is_empty() {
                 return Err(Error::InvalidObjectPath);
             }
-            if element.chars().nth(0).unwrap().is_numeric() {
+            if let Some(true) = element.chars().nth(0).map(|c| c.is_numeric()) {
                 return Err(Error::InvalidObjectPath);
             }
             let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
@@ -301,7 +303,7 @@ pub fn validate_interface(int: &str) -> Result<()> {
         if element.is_empty() {
             return Err(Error::InvalidInterface);
         }
-        if element.chars().nth(0).unwrap().is_numeric() {
+        if let Some(true) = element.chars().nth(0).map(|c| c.is_numeric()) {
             return Err(Error::InvalidInterface);
         }
         let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
@@ -340,7 +342,7 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         if element.is_empty() {
             return Err(Error::InvalidBusname);
         }
-        if !unique && element.chars().nth(0).unwrap().is_numeric() {
+        if !unique && element.chars().nth(0).map(|c| c.is_numeric()) == Some(true) {
             return Err(Error::InvalidBusname);
         }
         let alphanum_or_underscore_or_dash = element
@@ -381,11 +383,11 @@ pub fn validate_array(array: &[Param]) -> Result<()> {
         return Ok(());
     }
     let mut first_sig = String::new();
-    array[0].make_signature(&mut first_sig);
+    array[0].make_signature(&mut first_sig)?;
     let mut element_sig = String::new();
     for el in array {
         element_sig.clear();
-        el.make_signature(&mut element_sig);
+        el.make_signature(&mut element_sig)?;
         if !element_sig.eq(&first_sig) {
             return Err(Error::ArrayElementTypesDiffer);
         }
@@ -412,11 +414,14 @@ pub fn validate_dict(dict: &std::collections::HashMap<Base, Param>) -> Result<()
 
     // check value sigs
     let mut first_sig = String::new();
-    dict.values().next().unwrap().make_signature(&mut first_sig);
+    dict.values()
+        .next()
+        .unwrap()
+        .make_signature(&mut first_sig)?;
     let mut element_sig = String::new();
     for el in dict.values() {
         element_sig.clear();
-        el.make_signature(&mut element_sig);
+        el.make_signature(&mut element_sig)?;
         if !element_sig.eq(&first_sig) {
             return Err(Error::DictValueTypesDiffer);
         }

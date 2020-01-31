@@ -1,6 +1,6 @@
-extern crate rustbus;
-use rustbus::message;
-use rustbus::standard_messages;
+use rustbus::{
+    get_session_bus_path, message, standard_messages, Conn, Message, MessageType, RpcConn,
+};
 
 pub enum Commands {
     Echo,
@@ -8,7 +8,7 @@ pub enum Commands {
 }
 
 impl Commands {
-    fn execute(&self, call: &message::Message) -> message::Message {
+    fn execute(&self, call: &Message) -> Message {
         match self {
             Commands::Echo => {
                 let mut reply = call.make_response();
@@ -25,26 +25,25 @@ impl Commands {
     }
 }
 
-fn main() {
-    let session_path = rustbus::client_conn::get_session_bus_path().unwrap();
-    let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true).unwrap();
-    let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+fn main() -> Result<(), rustbus::client_conn::Error> {
+    let session_path = get_session_bus_path()?;
+    let con = Conn::connect_to_bus(session_path, true)?;
+    let mut rpc_con = RpcConn::new(con);
 
-    rpc_con.send_message(standard_messages::hello()).unwrap();
+    rpc_con.send_message(standard_messages::hello())?;
 
     let namereq_serial = rpc_con
         .send_message(standard_messages::request_name(
             "io.killing.spark".into(),
             0,
-        ))
-        .unwrap()
+        ))?
         .serial
         .unwrap();
-    let resp = rpc_con.wait_response(namereq_serial).unwrap();
+    let resp = rpc_con.wait_response(namereq_serial)?;
     println!("Name request response: {:?}", resp);
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
-        message::MessageType::Call => {
+        MessageType::Call => {
             let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
                 && msg.interface.eq(&Some("io.killing.spark".into()));
 
@@ -59,15 +58,15 @@ fn main() {
             }
             keep
         }
-        message::MessageType::Invalid => false,
-        message::MessageType::Error => true,
-        message::MessageType::Reply => true,
-        message::MessageType::Signal => false,
+        MessageType::Invalid => false,
+        MessageType::Error => true,
+        MessageType::Reply => true,
+        MessageType::Signal => false,
     }));
 
     loop {
         println!("Wait for call");
-        let call = rpc_con.wait_call().unwrap();
+        let call = rpc_con.wait_call()?;
         println!("Got call: {:?}", call);
         if let Some(member) = &call.member {
             let cmd = match member.as_str() {
@@ -75,30 +74,26 @@ fn main() {
                 "Reverse" => {
                     if call.params.len() != 1 {
                         rpc_con
-                            .send_message(standard_messages::invalid_args(&call, Some("String")))
-                            .unwrap();
+                            .send_message(standard_messages::invalid_args(&call, Some("String")))?;
                         continue;
                     }
                     if let message::Param::Base(message::Base::String(val)) = &call.params[0] {
                         Commands::Reverse(val.clone())
                     } else {
                         rpc_con
-                            .send_message(standard_messages::invalid_args(&call, Some("String")))
-                            .unwrap();
+                            .send_message(standard_messages::invalid_args(&call, Some("String")))?;
                         continue;
                     }
                 }
                 _ => {
                     // This shouldn't happen with the filters defined above
-                    rpc_con
-                        .send_message(standard_messages::unknown_method(&call))
-                        .unwrap();
+                    rpc_con.send_message(standard_messages::unknown_method(&call))?;
                     continue;
                 }
             };
             let reply = cmd.execute(&call);
             println!("Reply: {:?}", reply);
-            rpc_con.send_message(reply).unwrap();
+            rpc_con.send_message(reply)?;
             println!("Reply sent");
         }
     }
