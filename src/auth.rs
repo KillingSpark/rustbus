@@ -44,6 +44,9 @@ fn get_uid_as_hex() -> String {
     let uid = getuid();
     let mut tmp = uid.as_raw();
     let mut numbers = Vec::new();
+    if tmp == 0 {
+        return "30".to_owned();
+    }
     while tmp > 0 {
         numbers.push(tmp % 10);
         tmp /= 10;
