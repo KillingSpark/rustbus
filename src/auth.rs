@@ -1,43 +1,16 @@
 use nix::unistd::getuid;
-use std::io::{Read, Write};
-use std::os::unix::net::UnixStream;
+use std::io::{BufRead, BufReader, Read, Write};
 
-fn write_message(msg: &str, stream: &mut UnixStream) -> std::io::Result<()> {
+fn write_message<S>(msg: &str, stream: &mut S) -> std::io::Result<()>
+where
+    S: Write,
+{
     let mut buf = Vec::new();
     buf.extend(msg.bytes());
     buf.push(b'\r');
     buf.push(b'\n');
     stream.write_all(&buf)?;
     Ok(())
-}
-
-fn has_line_ending(buf: &[u8]) -> bool {
-    for idx in 1..buf.len() {
-        if buf[idx - 1] == b'\r' && buf[idx] == b'\n' {
-            return true;
-        }
-    }
-    false
-}
-
-fn find_line_ending(buf: &[u8]) -> Option<usize> {
-    for idx in 1..buf.len() {
-        if buf[idx - 1] == b'\r' && buf[idx] == b'\n' {
-            return Some(idx - 1);
-        }
-    }
-    None
-}
-
-fn read_message(stream: &mut UnixStream, buf: &mut Vec<u8>) -> std::io::Result<String> {
-    let mut tmpbuf = [0u8; 512];
-    while !has_line_ending(&buf) {
-        let bytes = stream.read(&mut tmpbuf[..])?;
-        buf.extend(&tmpbuf[..bytes])
-    }
-    let idx = find_line_ending(&buf).unwrap();
-    let line = buf.drain(0..idx).collect::<Vec<_>>();
-    Ok(String::from_utf8(line).unwrap())
 }
 
 fn get_uid_as_hex() -> String {
@@ -76,13 +49,18 @@ pub enum AuthResult {
     Rejected,
 }
 
-pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
+pub fn do_auth<S>(stream: &mut S) -> std::io::Result<AuthResult>
+where
+    S: Write + Read,
+{
     // send a null byte as the first thing
     stream.write_all(&[0])?;
     write_message(&format!("AUTH EXTERNAL {}", get_uid_as_hex()), stream)?;
 
-    let mut read_buf = Vec::new();
-    let msg = read_message(stream, &mut read_buf)?;
+    let mut msg = String::new();
+    let mut reader = BufReader::new(stream);
+    reader.read_line(&mut msg)?;
+
     if msg.starts_with("OK") {
         Ok(AuthResult::Ok)
     } else {
@@ -90,11 +68,16 @@ pub fn do_auth(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
     }
 }
 
-pub fn negotiate_unix_fds(stream: &mut UnixStream) -> std::io::Result<AuthResult> {
+pub fn negotiate_unix_fds<S>(stream: &mut S) -> std::io::Result<AuthResult>
+where
+    S: Write + Read,
+{
     write_message("NEGOTIATE_UNIX_FD", stream)?;
 
-    let mut read_buf = Vec::new();
-    let msg = read_message(stream, &mut read_buf)?;
+    let mut msg = String::new();
+    let mut reader = BufReader::new(stream);
+    reader.read_line(&mut msg)?;
+
     if msg.starts_with("AGREE_UNIX_FD") {
         Ok(AuthResult::Ok)
     } else {
@@ -102,7 +85,10 @@ pub fn negotiate_unix_fds(stream: &mut UnixStream) -> std::io::Result<AuthResult
     }
 }
 
-pub fn send_begin(stream: &mut UnixStream) -> std::io::Result<()> {
+pub fn send_begin<S>(stream: &mut S) -> std::io::Result<()>
+where
+    S: Write,
+{
     write_message("BEGIN", stream)?;
     Ok(())
 }
