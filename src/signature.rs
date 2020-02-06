@@ -41,6 +41,7 @@ enum Token {
     Structstart,
     Structend,
     Array,
+    Boolean,
     Byte,
     Int16,
     Uint16,
@@ -65,6 +66,7 @@ fn make_tokens(sig: &str) -> Result<Vec<Token>> {
             '(' => Token::Structstart,
             ')' => Token::Structend,
             'a' => Token::Array,
+            'b' => Token::Boolean,
             'y' => Token::Byte,
             'n' => Token::Int16,
             'q' => Token::Uint16,
@@ -180,6 +182,10 @@ impl Type {
             Token::Byte => {
                 tokens.remove(0);
                 Ok(Type::Base(Base::Byte))
+            }
+            Token::Boolean => {
+                tokens.remove(0);
+                Ok(Type::Base(Base::Boolean))
             }
             Token::Int16 => {
                 tokens.remove(0);
