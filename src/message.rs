@@ -165,7 +165,7 @@ impl Param {
 impl Base {
     pub fn make_signature(&self, buf: &mut String) {
         match self {
-            Base::Boolean(_) => buf.push('c'),
+            Base::Boolean(_) => buf.push('b'),
             Base::Double(_) => buf.push('d'),
             Base::Byte(_) => buf.push('y'),
             Base::Int16(_) => buf.push('n'),
