@@ -268,9 +268,9 @@ fn marshal_base_param(
         message::Base::Boolean(b) => {
             pad_to_align(4, buf);
             if *b {
-                write_u32(0, byteorder, buf);
-            } else {
                 write_u32(1, byteorder, buf);
+            } else {
+                write_u32(0, byteorder, buf);
             }
             Ok(())
         }
