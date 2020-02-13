@@ -627,3 +627,108 @@ impl std::convert::From<i64> for Base {
         Base::Int64(s)
     }
 }
+
+//
+//
+// Base TO
+//
+//
+
+impl std::convert::TryFrom<&Base> for bool {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<bool, Error> {
+        if let Base::Boolean(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for String {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<String, Error> {
+        if let Base::String(value) = b {
+            Ok(value.clone())
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for u8 {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<u8, Error> {
+        if let Base::Byte(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for u16 {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<u16, Error> {
+        if let Base::Uint16(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for u32 {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<u32, Error> {
+        if let Base::Uint32(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for u64 {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<u64, Error> {
+        if let Base::Uint64(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for i16 {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<i16, Error> {
+        if let Base::Int16(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for i32 {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<i32, Error> {
+        if let Base::Int32(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Base> for i64 {
+    type Error = Error;
+    fn try_from(b: &Base) -> std::result::Result<i64, Error> {
+        if let Base::Int64(value) = b {
+            Ok(*value)
+        } else {
+            Err(Error::InvalidType)
+        }
+    }
+}
