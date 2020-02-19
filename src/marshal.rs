@@ -403,7 +403,7 @@ fn marshal_container_param(
 ) -> message::Result<()> {
     match p {
         message::Container::Array(params) => {
-            message::validate_array(&params.values)?;
+            message::validate_array(&params)?;
             pad_to_align(4, buf);
             let len_pos = buf.len();
             buf.push(0);
@@ -428,7 +428,7 @@ fn marshal_container_param(
             }
         }
         message::Container::Dict(params) => {
-            message::validate_dict(&params.map)?;
+            message::validate_dict(&params)?;
             pad_to_align(4, buf);
             let len_pos = buf.len();
             buf.push(0);

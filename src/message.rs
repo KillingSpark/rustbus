@@ -435,15 +435,15 @@ pub fn validate_signature(sig: &str) -> Result<()> {
     }
 }
 
-pub fn validate_array(array: &[Param]) -> Result<()> {
+pub fn validate_array(array: &Array) -> Result<()> {
     // TODO check that all elements have the same type
-    if array.is_empty() {
+    if array.values.is_empty() {
         return Ok(());
     }
     let mut first_sig = String::new();
-    array[0].make_signature(&mut first_sig)?;
+    array.element_sig.to_str(&mut first_sig);
     let mut element_sig = String::new();
-    for el in array {
+    for el in &array.values {
         element_sig.clear();
         el.make_signature(&mut element_sig)?;
         if !element_sig.eq(&first_sig) {
@@ -453,16 +453,16 @@ pub fn validate_array(array: &[Param]) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_dict(dict: &std::collections::HashMap<Base, Param>) -> Result<()> {
+pub fn validate_dict(dict: &Dict) -> Result<()> {
     // TODO check that all elements have the same type
-    if dict.is_empty() {
+    if dict.map.is_empty() {
         return Ok(());
     }
     // check key sigs
     let mut first_sig = String::new();
-    dict.keys().next().unwrap().make_signature(&mut first_sig);
+    dict.key_sig.to_str(&mut first_sig);
     let mut element_sig = String::new();
-    for el in dict.keys() {
+    for el in dict.map.keys() {
         element_sig.clear();
         el.make_signature(&mut element_sig);
         if !element_sig.eq(&first_sig) {
@@ -472,12 +472,9 @@ pub fn validate_dict(dict: &std::collections::HashMap<Base, Param>) -> Result<()
 
     // check value sigs
     let mut first_sig = String::new();
-    dict.values()
-        .next()
-        .unwrap()
-        .make_signature(&mut first_sig)?;
+    dict.value_sig.to_str(&mut first_sig);
     let mut element_sig = String::new();
-    for el in dict.values() {
+    for el in dict.map.values() {
         element_sig.clear();
         el.make_signature(&mut element_sig)?;
         if !element_sig.eq(&first_sig) {
