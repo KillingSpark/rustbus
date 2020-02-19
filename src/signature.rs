@@ -114,6 +114,15 @@ impl Container {
             }
         }
     }
+
+    pub fn get_alignment(&self) -> usize {
+        match self {
+            Container::Variant => 1,
+            Container::Array(_) => 4,
+            Container::Dict(_, _) => 4,
+            Container::Struct(_) => 8,
+        }
+    }
 }
 
 impl Base {
@@ -132,6 +141,24 @@ impl Base {
             Base::String => buf.push('s'),
             Base::ObjectPath => buf.push('o'),
             Base::Signature => buf.push('g'),
+        }
+    }
+
+    pub fn get_alignment(&self) -> usize {
+        match self {
+            Base::Boolean => 4,
+            Base::Byte => 1,
+            Base::Int16 => 2,
+            Base::Uint16 => 2,
+            Base::Int32 => 4,
+            Base::Uint32 => 4,
+            Base::UnixFd => 4,
+            Base::Int64 => 8,
+            Base::Uint64 => 8,
+            Base::Double => 8,
+            Base::String => 4,
+            Base::ObjectPath => 4,
+            Base::Signature => 1,
         }
     }
 }
@@ -154,6 +181,13 @@ impl Type {
         match self {
             Type::Container(c) => c.to_str(buf),
             Type::Base(b) => b.to_str(buf),
+        }
+    }
+
+    pub fn get_alignment(&self) -> usize {
+        match self {
+            Type::Base(b) => b.get_alignment(),
+            Type::Container(c) => c.get_alignment(),
         }
     }
 

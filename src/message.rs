@@ -36,16 +36,77 @@ pub type DictMap = std::collections::HashMap<Base, Param>;
 /// The container types a message can have as parameters
 #[derive(Debug, Clone)]
 pub enum Container {
-    Array(Vec<Param>),
+    Array(Array),
     Struct(Vec<Param>),
-    Dict(DictMap),
+    Dict(Dict),
     Variant(Box<Variant>),
+}
+
+impl Container {
+    pub fn make_array(element_sig: &str, elements: Vec<Param>) -> Result<Container> {
+        let mut sigs =
+            signature::Type::parse_description(element_sig).map_err(|_| Error::InvalidSignature)?;
+
+        if sigs.len() != 1 {
+            return Err(Error::InvalidSignature);
+        }
+
+        let sig = sigs.remove(0);
+        let arr = Array {
+            element_sig: sig,
+            values: elements,
+        };
+        Ok(Container::Array(arr))
+    }
+
+    pub fn make_dict(key_sig: &str, val_sig: &str, map: DictMap) -> Result<Container> {
+        let mut valsigs =
+            signature::Type::parse_description(val_sig).map_err(|_| Error::InvalidSignature)?;
+
+        if valsigs.len() != 1 {
+            return Err(Error::InvalidSignature);
+        }
+
+        let value_sig = valsigs.remove(0);
+        let mut keysigs =
+            signature::Type::parse_description(key_sig).map_err(|_| Error::InvalidSignature)?;
+
+        if keysigs.len() != 1 {
+            return Err(Error::InvalidSignature);
+        }
+        let key_sig = keysigs.remove(0);
+        let key_sig = if let signature::Type::Base(sig) = key_sig {
+            sig
+        } else {
+            return Err(Error::InvalidSignature);
+        };
+
+        let dict = Dict {
+            key_sig,
+            value_sig,
+            map,
+        };
+        Ok(Container::Dict(dict))
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Variant {
     pub sig: signature::Type,
     pub value: Param,
+}
+
+#[derive(Debug, Clone)]
+pub struct Array {
+    pub element_sig: signature::Type,
+    pub values: Vec<Param>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Dict {
+    pub key_sig: signature::Base,
+    pub value_sig: signature::Type,
+    pub map: DictMap,
 }
 
 /// The Types a message can have as parameters
@@ -186,16 +247,13 @@ impl Container {
         match self {
             Container::Array(elements) => {
                 buf.push('a');
-                elements[0].make_signature(buf)?;
+                elements.element_sig.to_str(buf);
             }
             Container::Dict(map) => {
-                let key = map.keys().next().unwrap();
-                let val = map.get(key).unwrap();
-
                 buf.push('a');
                 buf.push('{');
-                key.make_signature(buf);
-                val.make_signature(buf)?;
+                map.key_sig.to_str(buf);
+                map.value_sig.to_str(buf);
                 buf.push('}');
             }
             Container::Struct(elements) => {
@@ -515,6 +573,21 @@ pub fn validate_header_fields(msg_type: MessageType, header_fields: &[HeaderFiel
 
 //
 //
+// Param TO
+//
+//
+
+impl std::convert::From<&Param> for signature::Type {
+    fn from(p: &Param) -> crate::signature::Type {
+        match p {
+            Param::Base(b) => signature::Type::Base(b.into()),
+            Param::Container(c) => signature::Type::Container(c.into()),
+        }
+    }
+}
+
+//
+//
 // Param FROM
 //
 //
@@ -630,9 +703,50 @@ impl std::convert::From<i64> for Base {
 
 //
 //
+// Container TO
+//
+//
+
+impl std::convert::From<&Container> for signature::Container {
+    fn from(c: &Container) -> crate::signature::Container {
+        match c {
+            Container::Array(arr) => signature::Container::Array(Box::new(arr.element_sig.clone())),
+            Container::Dict(dict) => {
+                signature::Container::Dict(dict.key_sig, Box::new(dict.value_sig.clone()))
+            }
+            Container::Struct(params) => {
+                signature::Container::Struct(params.iter().map(|param| param.into()).collect())
+            }
+            Container::Variant(_) => signature::Container::Variant,
+        }
+    }
+}
+
+//
+//
 // Base TO
 //
 //
+
+impl std::convert::From<&Base> for signature::Base {
+    fn from(b: &Base) -> crate::signature::Base {
+        match b {
+            Base::Boolean(_) => signature::Base::Boolean,
+            Base::Byte(_) => signature::Base::Byte,
+            Base::Double(_) => signature::Base::Double,
+            Base::Int16(_) => signature::Base::Int16,
+            Base::Int32(_) => signature::Base::Int32,
+            Base::Int64(_) => signature::Base::Int64,
+            Base::Uint16(_) => signature::Base::Uint16,
+            Base::Uint32(_) => signature::Base::Uint32,
+            Base::Uint64(_) => signature::Base::Uint64,
+            Base::ObjectPath(_) => signature::Base::ObjectPath,
+            Base::Signature(_) => signature::Base::Signature,
+            Base::String(_) => signature::Base::String,
+            Base::UnixFd(_) => signature::Base::UnixFd,
+        }
+    }
+}
 
 impl std::convert::TryFrom<&Base> for bool {
     type Error = Error;

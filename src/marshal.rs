@@ -403,7 +403,7 @@ fn marshal_container_param(
 ) -> message::Result<()> {
     match p {
         message::Container::Array(params) => {
-            message::validate_array(&params)?;
+            message::validate_array(&params.values)?;
             pad_to_align(4, buf);
             let len_pos = buf.len();
             buf.push(0);
@@ -413,11 +413,10 @@ fn marshal_container_param(
 
             // we need to pad here because the padding between length and first element does not count
             // into the length
-            if let message::Param::Container(message::Container::Struct(_)) = params[0] {
-                pad_to_align(8, buf);
-            }
+            pad_to_align(params.element_sig.get_alignment(), buf);
+
             let content_pos = buf.len();
-            for p in params {
+            for p in &params.values {
                 marshal_param(&p, byteorder, buf)?;
             }
             let len = buf.len() - content_pos;
@@ -430,7 +429,7 @@ fn marshal_container_param(
             }
         }
         message::Container::Dict(params) => {
-            message::validate_dict(&params)?;
+            message::validate_dict(&params.map)?;
             pad_to_align(4, buf);
             let len_pos = buf.len();
             buf.push(0);
@@ -440,7 +439,7 @@ fn marshal_container_param(
             pad_to_align(8, buf);
 
             let content_pos = buf.len();
-            for (key, value) in params {
+            for (key, value) in &params.map {
                 pad_to_align(8, buf);
                 marshal_base_param(byteorder, &key, buf)?;
                 marshal_param(&value, byteorder, buf)?;

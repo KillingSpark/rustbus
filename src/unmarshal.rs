@@ -392,7 +392,10 @@ fn unmarshal_container(
             }
             (
                 padding + 4 + bytes_used_counter,
-                message::Container::Array(elements),
+                message::Container::Array(message::Array {
+                    element_sig: elem_sig.as_ref().clone(),
+                    values: elements,
+                }),
             )
         }
         signature::Container::Dict(key_sig, val_sig) => {
@@ -419,7 +422,11 @@ fn unmarshal_container(
             }
             (
                 padding + before_elements_padding + 4 + bytes_used_counter,
-                message::Container::Dict(elements),
+                message::Container::Dict(message::Dict {
+                    key_sig: *key_sig,
+                    value_sig: val_sig.as_ref().clone(),
+                    map: elements,
+                }),
             )
         }
         signature::Container::Struct(sigs) => {
