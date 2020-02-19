@@ -382,6 +382,10 @@ fn unmarshal_container(
             let (_, bytes_in_array) = parse_u32(&buf[offset..], header.byteorder)?;
             let offset = offset + 4;
 
+
+            let first_elem_padding = align_offset(elem_sig.get_alignment(), buf, offset)?;
+            let offset = offset + first_elem_padding;
+            
             let mut elements = Vec::new();
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_array as usize {
@@ -390,8 +394,10 @@ fn unmarshal_container(
                 elements.push(element);
                 bytes_used_counter += bytes_used;
             }
+            let total_bytes_used = padding + 4 + first_elem_padding + bytes_used_counter;
+
             (
-                padding + 4 + bytes_used_counter,
+                total_bytes_used,
                 message::Container::Array(message::Array {
                     element_sig: elem_sig.as_ref().clone(),
                     values: elements,
