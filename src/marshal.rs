@@ -413,17 +413,13 @@ fn marshal_container_param(
 
             // we need to pad here because the padding between length and first element does not count
             // into the length
-            println!("LEN BEFORE {}", buf.len());
             pad_to_align(params.element_sig.get_alignment(), buf);
-            println!("LEN AFTER {}", buf.len());
             let content_pos = buf.len();
             for p in &params.values {
                 marshal_param(&p, byteorder, buf)?;
             }
             let len = buf.len() - content_pos;
-            println!("Array content len: {}", len);
             insert_u32(byteorder, len as u32, &mut buf[len_pos..len_pos + 4]);
-            println!("Encoded array: {:?}", &buf[len_pos..]);
         }
         message::Container::Struct(params) => {
             pad_to_align(8, buf);

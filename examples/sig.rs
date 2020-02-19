@@ -21,8 +21,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         ],
     )
     .unwrap();
-    let arr3 = Container::make_array("(sa{i(sisisis)}((si)uby))", vec![]).unwrap();
-    let arr3 = Container::make_array("(sssi)", vec![]).unwrap();
+    let arr3 = Container::make_array("(a{i(sisisis)}((si)uby))", vec![]).unwrap();
     
     let sig = MessageBuilder::new()
         .signal(

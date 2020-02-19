@@ -97,6 +97,7 @@ impl Container {
                 el.to_str(buf);
             }
             Container::Dict(key, val) => {
+                buf.push('a');
                 buf.push('{');
                 key.to_str(buf);
                 val.to_str(buf);
