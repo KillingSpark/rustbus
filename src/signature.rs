@@ -145,7 +145,7 @@ impl Base {
         }
     }
 
-    pub fn get_alignment(&self) -> usize {
+    pub fn get_alignment(self) -> usize {
         match self {
             Base::Boolean => 4,
             Base::Byte => 1,

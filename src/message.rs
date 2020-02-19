@@ -738,7 +738,7 @@ impl std::convert::TryFrom<DictMap> for Container {
         if let signature::Type::Base(key_sig) = key_sig {
             Container::try_from((key_sig, value_sig, elems))
         } else {
-            return Err(Error::InvalidSignature);
+            Err(Error::InvalidSignature)
         }
     }
 }

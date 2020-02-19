@@ -30,14 +30,7 @@
 //!         "/io/killing/spark".into(),
 //!     )
 //!     .with_params(vec![
-//!         Container::Array(vec!["ABCDE".to_owned().into()]).into(),
 //!         Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-//!         Container::Array(vec![
-//!             Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-//!             Container::Struct(vec![305419896i32.into(), "CCDD".to_owned().into()]).into(),
-//!         ])
-//!         .into(),
-//!         Container::Dict(DictMap::new()).into(),
 //!     ])
 //!     .build();
 //!     rpc_con.send_message(sig)?;
