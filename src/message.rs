@@ -52,10 +52,20 @@ impl Container {
         }
 
         let sig = sigs.remove(0);
+        Self::make_array_with_sig(sig, elements)
+    }
+
+    pub fn make_array_with_sig(
+        element_sig: signature::Type,
+        elements: Vec<Param>,
+    ) -> Result<Container> {
         let arr = Array {
-            element_sig: sig,
+            element_sig,
             values: elements,
         };
+
+        validate_array(&arr)?;
+
         Ok(Container::Array(arr))
     }
 
@@ -81,11 +91,22 @@ impl Container {
             return Err(Error::InvalidSignature);
         };
 
+        Self::make_dict_with_sig(key_sig, value_sig, map)
+    }
+
+    pub fn make_dict_with_sig(
+        key_sig: signature::Base,
+        value_sig: signature::Type,
+        map: DictMap,
+    ) -> Result<Container> {
         let dict = Dict {
             key_sig,
             value_sig,
             map,
         };
+
+        validate_dict(&dict)?;
+
         Ok(Container::Dict(dict))
     }
 }
@@ -221,6 +242,12 @@ impl Param {
         }
         Ok(())
     }
+    pub fn sig(&self) -> signature::Type {
+        match self {
+            Param::Base(b) => b.sig(),
+            Param::Container(c) => c.sig(),
+        }
+    }
 }
 
 impl Base {
@@ -240,6 +267,11 @@ impl Base {
             Base::String(_) => buf.push('s'),
             Base::Signature(_) => buf.push('g'),
         }
+    }
+
+    pub fn sig(&self) -> signature::Type {
+        let sig: signature::Base = self.into();
+        signature::Type::Base(sig)
     }
 }
 impl Container {
@@ -269,6 +301,11 @@ impl Container {
         }
         Ok(())
     }
+
+    pub fn sig(&self) -> signature::Type {
+        let sig: signature::Container = self.into();
+        signature::Type::Container(sig)
+    }
 }
 
 /// The different errors that can occur when dealing with messages
@@ -287,6 +324,8 @@ pub enum Error {
     ArrayElementTypesDiffer,
     DictKeyTypesDiffer,
     DictValueTypesDiffer,
+    EmptyArray,
+    EmptyDict,
 }
 
 /// The supported byte orders
@@ -643,6 +682,64 @@ impl std::convert::From<i32> for Param {
 impl std::convert::From<i64> for Param {
     fn from(s: i64) -> Self {
         Param::Base(Base::Int64(s))
+    }
+}
+
+//
+//
+// Container FROM
+//
+//
+
+impl std::convert::TryFrom<(signature::Type, Vec<Param>)> for Container {
+    type Error = Error;
+    fn try_from(parts: (signature::Type, Vec<Param>)) -> std::result::Result<Container, Error> {
+        let arr = Array {
+            element_sig: parts.0,
+            values: parts.1,
+        };
+        validate_array(&arr)?;
+        Ok(Container::Array(arr))
+    }
+}
+impl std::convert::TryFrom<Vec<Param>> for Container {
+    type Error = Error;
+    fn try_from(elems: Vec<Param>) -> std::result::Result<Container, Error> {
+        if elems.is_empty() {
+            return Err(Error::EmptyArray);
+        }
+        Container::try_from((elems[0].sig(), elems))
+    }
+}
+
+impl std::convert::TryFrom<(signature::Base, signature::Type, DictMap)> for Container {
+    type Error = Error;
+    fn try_from(
+        parts: (signature::Base, signature::Type, DictMap),
+    ) -> std::result::Result<Container, Error> {
+        let dict = Dict {
+            key_sig: parts.0,
+            value_sig: parts.1,
+            map: parts.2,
+        };
+        validate_dict(&dict)?;
+        Ok(Container::Dict(dict))
+    }
+}
+impl std::convert::TryFrom<DictMap> for Container {
+    type Error = Error;
+    fn try_from(elems: DictMap) -> std::result::Result<Container, Error> {
+        if elems.is_empty() {
+            return Err(Error::EmptyDict);
+        }
+        let key_sig = elems.keys().nth(0).unwrap().sig();
+        let value_sig = elems.values().nth(0).unwrap().sig();
+
+        if let signature::Type::Base(key_sig) = key_sig {
+            Container::try_from((key_sig, value_sig, elems))
+        } else {
+            return Err(Error::InvalidSignature);
+        }
     }
 }
 
