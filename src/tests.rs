@@ -37,3 +37,151 @@ fn test_marshal_unmarshal() {
 
     assert_eq!(msg.params, unmarshed_msg.params);
 }
+
+// this tests that invalid inputs do not panic but return errors
+#[test]
+fn test_invalid_stuff() {
+    // invalid signature
+    let mut params: Vec<Param> = Vec::new();
+    params.push(Base::Signature("((((((((}}}}}}}".into()).into());
+    let mut msg = crate::message_builder::MessageBuilder::new()
+        .signal(
+            "io.killing.spark".into(),
+            "TestSignal".into(),
+            "/io/killing/spark".into(),
+        )
+        .with_params(params)
+        .build();
+    msg.serial = Some(1);
+    let mut buf = Vec::new();
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
+    );
+    // invalid objectpath
+    let mut params: Vec<Param> = Vec::new();
+    params.push(Base::ObjectPath("invalid/object/path".into()).into());
+    let mut msg = crate::message_builder::MessageBuilder::new()
+        .signal(
+            "io.killing.spark".into(),
+            "TestSignal".into(),
+            "/io/killing/spark".into(),
+        )
+        .with_params(params)
+        .build();
+    msg.serial = Some(1);
+    let mut buf = Vec::new();
+    assert_eq!(
+        Err(crate::message::Error::InvalidObjectPath),
+        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
+    );
+
+    // invalid interface
+    let mut msg = crate::message_builder::MessageBuilder::new()
+        .signal(
+            ".......io.killing.spark".into(),
+            "TestSignal".into(),
+            "/io/killing/spark".into(),
+        )
+        .build();
+    msg.serial = Some(1);
+    let mut buf = Vec::new();
+    assert_eq!(
+        Err(crate::message::Error::InvalidInterface),
+        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
+    );
+
+    // invalid member
+    let mut msg = crate::message_builder::MessageBuilder::new()
+        .signal(
+            "io.killing.spark".into(),
+            "Members.have.no.dots".into(),
+            "/io/killing/spark".into(),
+        )
+        .build();
+    msg.serial = Some(1);
+    let mut buf = Vec::new();
+    assert_eq!(
+        Err(crate::message::Error::InvalidMembername),
+        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
+    );
+}
+
+// more specific tests for constraints on strings
+#[test]
+fn test_objectpath_constraints() {
+    let no_beginning_slash = "da/di/du";
+    assert_eq!(
+        Err(crate::message::Error::InvalidObjectPath),
+        crate::message::validate_object_path(no_beginning_slash)
+    );
+    let empty_element = "/da//du";
+    assert_eq!(
+        Err(crate::message::Error::InvalidObjectPath),
+        crate::message::validate_object_path(empty_element)
+    );
+    let trailing_slash = "/da/di/du/";
+    assert_eq!(
+        Err(crate::message::Error::InvalidObjectPath),
+        crate::message::validate_object_path(trailing_slash)
+    );
+    let invalid_chars = "/da$$/di!!/du~~";
+    assert_eq!(
+        Err(crate::message::Error::InvalidObjectPath),
+        crate::message::validate_object_path(invalid_chars)
+    );
+    let trailing_slash_on_root = "/";
+    assert_eq!(
+        Ok(()),
+        crate::message::validate_object_path(trailing_slash_on_root)
+    );
+}
+#[test]
+fn test_signature_constraints() {
+    let wrong_parans = "((i)";
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(wrong_parans)
+    );
+    let wrong_parans = "(i))";
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(wrong_parans)
+    );
+    let wrong_parans = "a{{i}";
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(wrong_parans)
+    );
+    let wrong_parans = "a{i}}";
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(wrong_parans)
+    );
+    let array_without_type = "(i)a";
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(array_without_type)
+    );
+    let invalid_chars = "!!§$%&(i)a";
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(invalid_chars)
+    );
+
+    // TODO FIXME this should be an error. Nesting is at maximum 32 for structs and arrays
+    let too_deep_nesting = "((((((((((((((((((((((((((((((((()))))))))))))))))))))))))))))))))";
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(too_deep_nesting)
+    );
+
+    let too_long = (0..256).fold(String::new(), |mut s, _| {
+        s.push('b');
+        s
+    });
+    assert_eq!(
+        Err(crate::message::Error::InvalidSignature),
+        crate::message::validate_signature(&too_long)
+    );
+}

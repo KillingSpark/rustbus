@@ -31,6 +31,8 @@ pub enum Type {
 
 pub enum Error {
     InvalidSignature,
+    SignatureTooLong,
+    NestingTooDeep,
     EmptySignature,
 }
 
@@ -166,6 +168,10 @@ impl Base {
 
 impl Type {
     pub fn parse_description(sig: &str) -> Result<Vec<Type>> {
+        if sig.len() > 255 {
+            return Err(Error::SignatureTooLong);
+        }
+
         let mut tokens = make_tokens(sig)?;
         if tokens.is_empty() {
             return Err(Error::EmptySignature);
@@ -175,7 +181,33 @@ impl Type {
             let t = Self::parse_next_type(&mut tokens)?;
             types.push(t);
         }
+        for t in &types {
+            Self::check_nesting_depth(t, 0, 0)?;
+        }
         Ok(types)
+    }
+
+    fn check_nesting_depth(t: &Type, struct_depth: u8, array_depth: u8) -> Result<()> {
+        if struct_depth >= 32 || array_depth >= 32 {
+            Err(Error::NestingTooDeep)
+        } else {
+            match t {
+                Type::Base(_) => Ok(()),
+                Type::Container(Container::Struct(types)) => {
+                    for t in types {
+                        Self::check_nesting_depth(t, struct_depth + 1, array_depth)?;
+                    }
+                    Ok(())
+                }
+                Type::Container(Container::Array(elem_t)) => {
+                    Self::check_nesting_depth(elem_t, struct_depth, array_depth + 1)
+                }
+                Type::Container(Container::Dict(_, elem_t)) => {
+                    Self::check_nesting_depth(elem_t, struct_depth, array_depth + 1)
+                }
+                Type::Container(Container::Variant) => Ok(()),
+            }
+        }
     }
 
     pub fn to_str(&self, buf: &mut String) {
@@ -193,6 +225,9 @@ impl Type {
     }
 
     fn parse_next_type(tokens: &mut Vec<Token>) -> Result<Type> {
+        if tokens.is_empty() {
+            return Err(Error::InvalidSignature);
+        }
         match tokens[0] {
             Token::Structstart => {
                 tokens.remove(0);

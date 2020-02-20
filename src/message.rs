@@ -309,7 +309,7 @@ impl Container {
 }
 
 /// The different errors that can occur when dealing with messages
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     InvalidObjectPath,
     InvalidSignature,
