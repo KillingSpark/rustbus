@@ -44,8 +44,8 @@ pub enum Container {
 
 impl Container {
     pub fn make_array(element_sig: &str, elements: Vec<Param>) -> Result<Container> {
-        let mut sigs = signature::Type::parse_description(element_sig)
-            .map_err(|e| Error::InvalidSignature(e))?;
+        let mut sigs =
+            signature::Type::parse_description(element_sig).map_err(Error::InvalidSignature)?;
 
         if sigs.len() != 1 {
             return Err(Error::InvalidSignatureTooManyTypes);
@@ -71,7 +71,7 @@ impl Container {
 
     pub fn make_dict(key_sig: &str, val_sig: &str, map: DictMap) -> Result<Container> {
         let mut valsigs =
-            signature::Type::parse_description(val_sig).map_err(|e| Error::InvalidSignature(e))?;
+            signature::Type::parse_description(val_sig).map_err(Error::InvalidSignature)?;
 
         if valsigs.len() != 1 {
             return Err(Error::InvalidSignatureTooManyTypes);
@@ -79,7 +79,7 @@ impl Container {
 
         let value_sig = valsigs.remove(0);
         let mut keysigs =
-            signature::Type::parse_description(key_sig).map_err(|e| Error::InvalidSignature(e))?;
+            signature::Type::parse_description(key_sig).map_err(Error::InvalidSignature)?;
 
         if keysigs.len() != 1 {
             return Err(Error::InvalidSignatureTooManyTypes);
@@ -469,7 +469,7 @@ pub fn validate_membername(mem: &str) -> Result<()> {
 }
 
 pub fn validate_signature(sig: &str) -> Result<()> {
-    signature::Type::parse_description(sig).map_err(|e| Error::InvalidSignature(e))?;
+    signature::Type::parse_description(sig).map_err(Error::InvalidSignature)?;
     Ok(())
 }
 
