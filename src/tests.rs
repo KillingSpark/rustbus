@@ -181,7 +181,6 @@ fn test_busname_constraints() {
         crate::message::validate_busname(too_short)
     );
 
-
     let too_long = (0..256).fold(String::new(), |mut s, _| {
         s.push('b');
         s.push('.');
