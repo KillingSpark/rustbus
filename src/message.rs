@@ -455,7 +455,7 @@ pub fn validate_busname(bn: &str) -> Result<()> {
 
 pub fn validate_membername(mem: &str) -> Result<()> {
     if mem.is_empty() {
-        return Err(Error::InvalidBusname);
+        return Err(Error::InvalidMembername);
     }
 
     let alphanum_or_underscore = mem.chars().all(|c| c.is_alphanumeric() || c == '_');

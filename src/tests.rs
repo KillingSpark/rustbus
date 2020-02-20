@@ -137,6 +137,90 @@ fn test_objectpath_constraints() {
     );
 }
 #[test]
+fn test_interface_constraints() {
+    let invalid_chars = "/da$$/di!!/du~~";
+    assert_eq!(
+        Err(crate::message::Error::InvalidInterface),
+        crate::message::validate_interface(invalid_chars)
+    );
+    let leading_digits = "1leading.digits";
+    assert_eq!(
+        Err(crate::message::Error::InvalidInterface),
+        crate::message::validate_interface(leading_digits)
+    );
+    let too_short = "have_more_than_one_element";
+    assert_eq!(
+        Err(crate::message::Error::InvalidInterface),
+        crate::message::validate_interface(too_short)
+    );
+    let too_long = (0..256).fold(String::new(), |mut s, _| {
+        s.push('b');
+        s.push('.');
+        s
+    });
+    assert_eq!(
+        Err(crate::message::Error::InvalidInterface),
+        crate::message::validate_interface(&too_long)
+    );
+}
+#[test]
+fn test_busname_constraints() {
+    let invalid_chars = "/da$$/di!!/du~~";
+    assert_eq!(
+        Err(crate::message::Error::InvalidBusname),
+        crate::message::validate_busname(invalid_chars)
+    );
+    let empty = "";
+    assert_eq!(
+        Err(crate::message::Error::InvalidBusname),
+        crate::message::validate_busname(empty)
+    );
+    let too_short = "have_more_than_one_element";
+    assert_eq!(
+        Err(crate::message::Error::InvalidBusname),
+        crate::message::validate_busname(too_short)
+    );
+
+
+    let too_long = (0..256).fold(String::new(), |mut s, _| {
+        s.push('b');
+        s.push('.');
+        s
+    });
+    assert_eq!(
+        Err(crate::message::Error::InvalidBusname),
+        crate::message::validate_busname(&too_long)
+    );
+}
+#[test]
+fn test_membername_constraints() {
+    let invalid_chars = "/da$$/di!!/du~~";
+    assert_eq!(
+        Err(crate::message::Error::InvalidMembername),
+        crate::message::validate_membername(invalid_chars)
+    );
+    let dots = "Shouldnt.have.dots";
+    assert_eq!(
+        Err(crate::message::Error::InvalidMembername),
+        crate::message::validate_membername(dots)
+    );
+    let empty = "";
+    assert_eq!(
+        Err(crate::message::Error::InvalidMembername),
+        crate::message::validate_membername(empty)
+    );
+
+    let too_long = (0..256).fold(String::new(), |mut s, _| {
+        s.push('b');
+        s.push('.');
+        s
+    });
+    assert_eq!(
+        Err(crate::message::Error::InvalidMembername),
+        crate::message::validate_membername(&too_long)
+    );
+}
+#[test]
 fn test_signature_constraints() {
     let wrong_parans = "((i)";
     assert_eq!(
