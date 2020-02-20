@@ -34,7 +34,7 @@ pub enum Base {
 pub type DictMap = std::collections::HashMap<Base, Param>;
 
 /// The container types a message can have as parameters
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Container {
     Array(Array),
     Struct(Vec<Param>),
@@ -111,19 +111,19 @@ impl Container {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Variant {
     pub sig: signature::Type,
     pub value: Param,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Array {
     pub element_sig: signature::Type,
     pub values: Vec<Param>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Dict {
     pub key_sig: signature::Base,
     pub value_sig: signature::Type,
@@ -132,7 +132,7 @@ pub struct Dict {
 
 /// The Types a message can have as parameters
 /// There are From<T> impls for most of the Base ones
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Param {
     Base(Base),
     Container(Container),

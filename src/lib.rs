@@ -50,3 +50,6 @@ pub mod unmarshal;
 pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
 pub use message::{Container, DictMap, Message, MessageType};
 pub use message_builder::{CallBuilder, MessageBuilder, SignalBuilder};
+
+#[cfg(test)]
+mod tests;

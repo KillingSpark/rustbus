@@ -131,7 +131,7 @@ pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
 
 pub fn unmarshal_next_message(
     header: &Header,
-    buf: &mut Vec<u8>,
+    buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<message::Message> {
     let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
@@ -333,7 +333,7 @@ fn unmarshal_header_field(
 fn unmarshal_with_sig(
     header: &Header,
     sig: &signature::Type,
-    buf: &mut Vec<u8>,
+    buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<message::Param> {
     let (bytes, param) = match &sig {
@@ -351,7 +351,7 @@ fn unmarshal_with_sig(
 
 fn unmarshal_variant(
     header: &Header,
-    buf: &mut Vec<u8>,
+    buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<message::Variant> {
     let (sig_bytes_used, sig_str) = unmarshal_signature(buf)?;
@@ -371,7 +371,7 @@ fn unmarshal_variant(
 
 fn unmarshal_container(
     header: &Header,
-    buf: &mut Vec<u8>,
+    buf: &[u8],
     typ: &signature::Container,
     offset: usize,
 ) -> UnmarshalResult<message::Container> {

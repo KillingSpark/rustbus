@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Base {
     Byte,
     Int16,
@@ -15,7 +15,7 @@ pub enum Base {
     Boolean,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Container {
     Array(Box<Type>),
     Struct(Vec<Type>),
@@ -23,7 +23,7 @@ pub enum Container {
     Variant,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Type {
     Base(Base),
     Container(Container),

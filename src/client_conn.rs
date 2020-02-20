@@ -271,6 +271,8 @@ impl Conn {
         Self::connect_to_bus_with_byteorder(path, message::ByteOrder::LittleEndian, with_unix_fd)
     }
 
+    /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
+    /// so we can process messages separatly and avoid leaking file descriptors to wrong messages
     fn refill_buffer(&mut self, max_buffer_size: usize) -> Result<Vec<ControlMessageOwned>> {
         let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
 
@@ -310,10 +312,13 @@ impl Conn {
             cmsgs.extend(new_cmsgs);
         };
 
+        // read the 4 bytes that tell us how big the header fields are because that info is not included in the header
         let mut header_fields_len = [0u8; 4];
         self.stream.read_exact(&mut header_fields_len[..])?;
         let (_, header_fields_len) =
             unmarshal::parse_u32(&header_fields_len.to_vec(), header.byteorder)?;
+
+        // but push that info into the buffer so the unmarshalling has that info too
         marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
 
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
@@ -335,11 +340,8 @@ impl Conn {
                 break;
             }
         }
-        let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(
-            &header,
-            &mut self.msg_buf_in,
-            unmarshal::HEADER_LEN,
-        )?;
+        let (bytes_used, mut msg) =
+            unmarshal::unmarshal_next_message(&header, &self.msg_buf_in, unmarshal::HEADER_LEN)?;
         if bytes_needed != bytes_used + unmarshal::HEADER_LEN {
             return Err(Error::UnmarshalError(unmarshal::Error::NotAllBytesUsed));
         }
