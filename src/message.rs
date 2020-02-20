@@ -44,11 +44,11 @@ pub enum Container {
 
 impl Container {
     pub fn make_array(element_sig: &str, elements: Vec<Param>) -> Result<Container> {
-        let mut sigs =
-            signature::Type::parse_description(element_sig).map_err(|_| Error::InvalidSignature)?;
+        let mut sigs = signature::Type::parse_description(element_sig)
+            .map_err(|e| Error::InvalidSignature(e))?;
 
         if sigs.len() != 1 {
-            return Err(Error::InvalidSignature);
+            return Err(Error::InvalidSignatureTooManyTypes);
         }
 
         let sig = sigs.remove(0);
@@ -71,24 +71,24 @@ impl Container {
 
     pub fn make_dict(key_sig: &str, val_sig: &str, map: DictMap) -> Result<Container> {
         let mut valsigs =
-            signature::Type::parse_description(val_sig).map_err(|_| Error::InvalidSignature)?;
+            signature::Type::parse_description(val_sig).map_err(|e| Error::InvalidSignature(e))?;
 
         if valsigs.len() != 1 {
-            return Err(Error::InvalidSignature);
+            return Err(Error::InvalidSignatureTooManyTypes);
         }
 
         let value_sig = valsigs.remove(0);
         let mut keysigs =
-            signature::Type::parse_description(key_sig).map_err(|_| Error::InvalidSignature)?;
+            signature::Type::parse_description(key_sig).map_err(|e| Error::InvalidSignature(e))?;
 
         if keysigs.len() != 1 {
-            return Err(Error::InvalidSignature);
+            return Err(Error::InvalidSignatureTooManyTypes);
         }
         let key_sig = keysigs.remove(0);
         let key_sig = if let signature::Type::Base(sig) = key_sig {
             sig
         } else {
-            return Err(Error::InvalidSignature);
+            return Err(Error::InvalidSignatureShouldBeBase);
         };
 
         Self::make_dict_with_sig(key_sig, value_sig, map)
@@ -312,7 +312,9 @@ impl Container {
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     InvalidObjectPath,
-    InvalidSignature,
+    InvalidSignature(signature::Error),
+    InvalidSignatureTooManyTypes,
+    InvalidSignatureShouldBeBase,
     InvalidBusname,
     InvalidErrorname,
     InvalidMembername,
@@ -467,11 +469,8 @@ pub fn validate_membername(mem: &str) -> Result<()> {
 }
 
 pub fn validate_signature(sig: &str) -> Result<()> {
-    if signature::Type::parse_description(sig).is_err() {
-        Err(Error::InvalidSignature)
-    } else {
-        Ok(())
-    }
+    signature::Type::parse_description(sig).map_err(|e| Error::InvalidSignature(e))?;
+    Ok(())
 }
 
 pub fn validate_array(array: &Array) -> Result<()> {
@@ -738,7 +737,7 @@ impl std::convert::TryFrom<DictMap> for Container {
         if let signature::Type::Base(key_sig) = key_sig {
             Container::try_from((key_sig, value_sig, elems))
         } else {
-            Err(Error::InvalidSignature)
+            Err(Error::InvalidSignatureShouldBeBase)
         }
     }
 }

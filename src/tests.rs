@@ -55,7 +55,9 @@ fn test_invalid_stuff() {
     msg.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::InvalidSignature
+        )),
         marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
     );
     // invalid objectpath
@@ -223,39 +225,53 @@ fn test_membername_constraints() {
 fn test_signature_constraints() {
     let wrong_parans = "((i)";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::InvalidSignature
+        )),
         crate::message::validate_signature(wrong_parans)
     );
     let wrong_parans = "(i))";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::InvalidSignature
+        )),
         crate::message::validate_signature(wrong_parans)
     );
     let wrong_parans = "a{{i}";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::InvalidSignature
+        )),
         crate::message::validate_signature(wrong_parans)
     );
     let wrong_parans = "a{i}}";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::InvalidSignature
+        )),
         crate::message::validate_signature(wrong_parans)
     );
     let array_without_type = "(i)a";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::InvalidSignature
+        )),
         crate::message::validate_signature(array_without_type)
     );
     let invalid_chars = "!!§$%&(i)a";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::InvalidSignature
+        )),
         crate::message::validate_signature(invalid_chars)
     );
 
     // TODO FIXME this should be an error. Nesting is at maximum 32 for structs and arrays
     let too_deep_nesting = "((((((((((((((((((((((((((((((((()))))))))))))))))))))))))))))))))";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::NestingTooDeep
+        )),
         crate::message::validate_signature(too_deep_nesting)
     );
 
@@ -264,7 +280,9 @@ fn test_signature_constraints() {
         s
     });
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature),
+        Err(crate::message::Error::InvalidSignature(
+            crate::signature::Error::SignatureTooLong
+        )),
         crate::message::validate_signature(&too_long)
     );
 }

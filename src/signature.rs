@@ -29,6 +29,7 @@ pub enum Type {
     Container(Container),
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     InvalidSignature,
     SignatureTooLong,
