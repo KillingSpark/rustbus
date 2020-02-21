@@ -1,6 +1,6 @@
 use rustbus::{
-    get_session_bus_path, message::Param, signature, standard_messages, Conn, Container, DictMap,
-    MessageBuilder,
+    get_session_bus_path, message::Param, message::Variant, signature, standard_messages, Conn,
+    Container, DictMap, MessageBuilder,
 };
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
@@ -46,6 +46,17 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         Container::Struct(vec![162254319i32.into(), "Inferred type".to_owned().into()]).into();
     let arr5 = Container::try_from(vec![element]).unwrap();
 
+    let variant_param: Param = Container::Struct(vec![
+        162254319i32.into(),
+        "Variant content".to_owned().into(),
+    ])
+    .into();
+    let variant: Param = Container::Variant(Box::new(Variant {
+        sig: variant_param.sig(),
+        value: variant_param,
+    }))
+    .into();
+
     // Now we can build a message from all of these
     let sig = MessageBuilder::new()
         .signal(
@@ -62,10 +73,12 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
             arr5.into(),
             dict1.into(),
             dict2.into(),
+            variant,
         ])
         .build();
     con.send_message(sig.clone())?;
     con.send_message(sig)?;
+
 
     Ok(())
 }

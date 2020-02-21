@@ -59,6 +59,7 @@ enum Token {
     Signature,
     DictEntryStart,
     DictEntryEnd,
+    Variant,
 }
 
 fn make_tokens(sig: &str) -> Result<Vec<Token>> {
@@ -84,6 +85,7 @@ fn make_tokens(sig: &str) -> Result<Vec<Token>> {
             'g' => Token::Signature,
             '{' => Token::DictEntryStart,
             '}' => Token::DictEntryEnd,
+            'v' => Token::Variant,
             _ => return Err(Error::InvalidSignature),
         };
         tokens.push(token);
@@ -297,6 +299,10 @@ impl Type {
             Token::Signature => {
                 tokens.remove(0);
                 Ok(Type::Base(Base::Signature))
+            }
+            Token::Variant => {
+                tokens.remove(0);
+                Ok(Type::Container(Container::Variant))
             }
             Token::DictEntryStart => {
                 tokens.remove(0);

@@ -235,12 +235,11 @@ impl Message {
 }
 
 impl Param {
-    pub fn make_signature(&self, buf: &mut String) -> Result<()> {
+    pub fn make_signature(&self, buf: &mut String) {
         match self {
             Param::Base(b) => b.make_signature(buf),
-            Param::Container(c) => c.make_signature(buf)?,
+            Param::Container(c) => c.make_signature(buf),
         }
-        Ok(())
     }
     pub fn sig(&self) -> signature::Type {
         match self {
@@ -275,7 +274,7 @@ impl Base {
     }
 }
 impl Container {
-    pub fn make_signature(&self, buf: &mut String) -> Result<()> {
+    pub fn make_signature(&self, buf: &mut String) {
         match self {
             Container::Array(elements) => {
                 buf.push('a');
@@ -291,7 +290,7 @@ impl Container {
             Container::Struct(elements) => {
                 buf.push('(');
                 for el in elements {
-                    el.make_signature(buf)?;
+                    el.make_signature(buf);
                 }
                 buf.push(')');
             }
@@ -299,7 +298,6 @@ impl Container {
                 buf.push('v');
             }
         }
-        Ok(())
     }
 
     pub fn sig(&self) -> signature::Type {
@@ -483,7 +481,7 @@ pub fn validate_array(array: &Array) -> Result<()> {
     let mut element_sig = String::new();
     for el in &array.values {
         element_sig.clear();
-        el.make_signature(&mut element_sig)?;
+        el.make_signature(&mut element_sig);
         if !element_sig.eq(&first_sig) {
             return Err(Error::ArrayElementTypesDiffer);
         }
@@ -514,7 +512,7 @@ pub fn validate_dict(dict: &Dict) -> Result<()> {
     let mut element_sig = String::new();
     for el in dict.map.values() {
         element_sig.clear();
-        el.make_signature(&mut element_sig)?;
+        el.make_signature(&mut element_sig);
         if !element_sig.eq(&first_sig) {
             return Err(Error::DictValueTypesDiffer);
         }

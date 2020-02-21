@@ -29,7 +29,7 @@ pub fn unmarshal_variant(
     buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<message::Variant> {
-    let (sig_bytes_used, sig_str) = unmarshal_signature(buf)?;
+    let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
     let mut sig = signature::Type::parse_description(&sig_str)
         .map_err(|_| unmarshal::Error::InvalidSignature)?;
     if sig.len() != 1 {
@@ -37,6 +37,8 @@ pub fn unmarshal_variant(
         return Err(unmarshal::Error::InvalidSignature);
     }
     let sig = sig.remove(0);
+    let offset = offset + sig_bytes_used;
+
     let (param_bytes_used, param) = unmarshal_with_sig(header, &sig, buf, offset)?;
     Ok((
         sig_bytes_used + param_bytes_used,

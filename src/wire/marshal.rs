@@ -12,7 +12,7 @@ pub fn marshal(
     marshal_header(msg, byteorder, header_fields, buf)?;
     pad_to_align(8, buf);
     let header_len = buf.len();
-
+    
     for p in &msg.params {
         marshal_param(p, byteorder, buf)?;
     }
@@ -101,7 +101,7 @@ fn marshal_header(
     if !msg.params.is_empty() {
         let mut sig_str = String::new();
         for param in &msg.params {
-            param.make_signature(&mut sig_str)?;
+            param.make_signature(&mut sig_str);
         }
         marshal_header_field(byteorder, &message::HeaderField::Signature(sig_str), buf)?;
     }

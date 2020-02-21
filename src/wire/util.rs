@@ -194,13 +194,13 @@ pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<String> {
     }
     let sig_buf = &buf[1..];
     let string =
-        String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
+    String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
     Ok((len + 2, string))
 }
 
 pub fn unmarshal_string(header: &unmarshal::Header, buf: &[u8]) -> UnmarshalResult<String> {
     let len = parse_u32(buf, header.byteorder)?.1 as usize;
-    if buf.len() < len + 4 {
+    if buf.len() < len + 5 {
         return Err(unmarshal::Error::NotEnoughBytes);
     }
     let str_buf = &buf[4..];

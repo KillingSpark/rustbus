@@ -375,6 +375,7 @@ impl Conn {
             &[],
             &mut self.msg_buf_out,
         )?;
+
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
         let flags = MsgFlags::empty();
 
@@ -385,6 +386,7 @@ impl Conn {
             flags,
             None,
         )?;
+
         assert_eq!(l, self.msg_buf_out.len());
         Ok(msg)
     }
