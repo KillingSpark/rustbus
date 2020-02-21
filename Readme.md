@@ -18,44 +18,44 @@ that to use transports like tcp require other authentication methods which is th
 Transmitting filedescriptors works. The limit is currently set to 10 per message but since dbus-daemon limits this even more this should be fine.
 
 ## State of this project
-Generally working but there are probably bugs lingering. Need to setup fuzzing and unit tests.
+There are some tests for correctness and the dbus-daemon seems to generally accept all messages sent by this lib. Interoperability with libdbus is not yet tested.
+The unmarshalling has been fuzzed and doesn't panic on any input so far. If you wanto to help fuzzing, just use the command: `cargo +nightly fuzz run fuzz_unmarshal` 
 
 # How to use it
 There are some examples in the `examples/` directory but the gist is:
 ```
-// Connect to the session bus
-let session_path = rustbus::client_conn::get_session_bus_path()?;
-let con = rustbus::client_conn::Conn::connect_to_bus(session_path, true)?;
+rust,no_run
+use rustbus::{get_session_bus_path, standard_messages, Conn, Container, DictMap, MessageBuilder};
 
-// Wrap the con in an RpcConnection which provides many convenient functions
-let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+fn main() -> Result<(), rustbus::client_conn::Error> {
+    // Connect to the session bus
+    let session_path = get_session_bus_path()?;
+    let con = Conn::connect_to_bus(session_path, true)?;
 
-// send the obligatory hello message
-rpc_con.send_message(standard_messages::hello())?;
+    // Wrap the con in an RpcConnection which provides many convenient functions
+    let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
 
-// Request a bus name if you want to
-rpc_con.send_message(standard_messages::request_name(
-    "io.killing.spark".into(),
-    0,
-))?;
+    // send the obligatory hello message
+    rpc_con.send_message(standard_messages::hello())?;
 
-// send a signal to all bus members
-let sig = MessageBuilder::new()
-.signal(
-    "io.killing.spark".into(),
-    "TestSignal".into(),
-    "/io/killing/spark".into(),
-)
-.with_params(vec![
-    Container::Array(vec!["ABCDE".to_owned().into()]).into(),
-    Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-    Container::Array(vec![
+    // Request a bus name if you want to
+    rpc_con.send_message(standard_messages::request_name(
+        "io.killing.spark".into(),
+        0,
+    ))?;
+
+    // send a signal to all bus members
+    let sig = MessageBuilder::new()
+    .signal(
+        "io.killing.spark".into(),
+        "TestSignal".into(),
+        "/io/killing/spark".into(),
+    )
+    .with_params(vec![
         Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-        Container::Struct(vec![305419896i32.into(), "CCDD".to_owned().into()]).into(),
     ])
-    .into(),
-    Container::Dict(dict).into(),
-])
-.build();
-con.send_message(sig)?;
+    .build();
+    rpc_con.send_message(sig)?;
+    Ok(())
+}
 ```
