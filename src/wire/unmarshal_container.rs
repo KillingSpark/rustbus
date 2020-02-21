@@ -1,9 +1,9 @@
 use crate::message;
 use crate::signature;
-use crate::wire::util::*;
-use crate::wire::unmarshal_base::unmarshal_base;
-use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::unmarshal;
+use crate::wire::unmarshal::UnmarshalResult;
+use crate::wire::unmarshal_base::unmarshal_base;
+use crate::wire::util::*;
 
 pub fn unmarshal_with_sig(
     header: &unmarshal::Header,
@@ -30,8 +30,8 @@ pub fn unmarshal_variant(
     offset: usize,
 ) -> UnmarshalResult<message::Variant> {
     let (sig_bytes_used, sig_str) = unmarshal_signature(buf)?;
-    let mut sig =
-        signature::Type::parse_description(&sig_str).map_err(|_| unmarshal::Error::InvalidSignature)?;
+    let mut sig = signature::Type::parse_description(&sig_str)
+        .map_err(|_| unmarshal::Error::InvalidSignature)?;
     if sig.len() != 1 {
         // There must be exactly one type in the signature!
         return Err(unmarshal::Error::InvalidSignature);

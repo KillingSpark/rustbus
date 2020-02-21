@@ -1,9 +1,9 @@
 use crate::message;
 use crate::signature;
-use crate::wire::util::*;
+use crate::wire::unmarshal::Error;
 use crate::wire::unmarshal::Header;
 use crate::wire::unmarshal::UnmarshalResult;
-use crate::wire::unmarshal::Error;
+use crate::wire::util::*;
 
 pub fn unmarshal_base(
     header: &Header,

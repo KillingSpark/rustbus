@@ -1,6 +1,6 @@
 use crate::message;
-use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::unmarshal;
+use crate::wire::unmarshal::UnmarshalResult;
 
 pub fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
     let padding_needed = align_to - (buf.len() % align_to);
@@ -104,8 +104,6 @@ pub fn write_signature(val: &str, buf: &mut Vec<u8>) {
     buf.push(0);
 }
 
-
-
 pub fn parse_u64(number: &[u8], byteorder: message::ByteOrder) -> UnmarshalResult<u64> {
     if number.len() < 8 {
         return Err(unmarshal::Error::NotEnoughBytes);
@@ -195,7 +193,8 @@ pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<String> {
         return Err(unmarshal::Error::NotEnoughBytes);
     }
     let sig_buf = &buf[1..];
-    let string = String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
+    let string =
+        String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
     Ok((len + 2, string))
 }
 
@@ -205,6 +204,7 @@ pub fn unmarshal_string(header: &unmarshal::Header, buf: &[u8]) -> UnmarshalResu
         return Err(unmarshal::Error::NotEnoughBytes);
     }
     let str_buf = &buf[4..];
-    let string = String::from_utf8(str_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
+    let string =
+        String::from_utf8(str_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
     Ok((len + 5, string))
 }

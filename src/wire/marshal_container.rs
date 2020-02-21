@@ -1,6 +1,6 @@
 use crate::message;
-use crate::wire::util::*;
 use crate::wire::marshal_base::*;
+use crate::wire::util::*;
 
 pub fn marshal_param(
     p: &message::Param,
