@@ -18,7 +18,12 @@ that to use transports like tcp require other authentication methods which is th
 Transmitting filedescriptors works. The limit is currently set to 10 per message but since dbus-daemon limits this even more this should be fine.
 
 ## State of this project
-There are some tests for correctness and the dbus-daemon seems to generally accept all messages sent by this lib. Interoperability with libdbus is not yet tested.
+There are some tests for correctness and the dbus-daemon seems to generally accept all messages sent by this lib. 
+
+Interoperability with libdbus is not yet thorougly tested, but the dbus-monitor tool correctly displays the signals sent in the 'examples/sig.rs' 
+example which uses pretty much all different types that can occur.
+
+
 The unmarshalling has been fuzzed and doesn't panic on any input so far. If you wanto to help fuzzing, just use the command: `cargo +nightly fuzz run fuzz_unmarshal` 
 
 # How to use it
