@@ -294,10 +294,10 @@ fn collect_header_fields(header_fields: &[message::HeaderField], msg: &mut messa
             message::HeaderField::Interface(s) => msg.interface = Some(s.clone()),
             message::HeaderField::Member(m) => msg.member = Some(m.clone()),
             message::HeaderField::Path(p) => msg.object = Some(p.clone()),
-            message::HeaderField::ReplySerial(r) => msg.response_serial = Some(r.clone()),
+            message::HeaderField::ReplySerial(r) => msg.response_serial = Some(*r),
             message::HeaderField::Sender(s) => msg.sender = Some(s.clone()),
             message::HeaderField::Signature(_) => {}
-            message::HeaderField::UnixFds(u) => msg.num_fds = Some(u.clone()),
+            message::HeaderField::UnixFds(u) => msg.num_fds = Some(*u),
         }
     }
 }
