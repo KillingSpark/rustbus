@@ -1,5 +1,8 @@
 use crate::message;
 
+use crate::wire::marshal_base::*;
+use crate::wire::util::*;
+
 pub fn marshal(
     msg: &message::Message,
     byteorder: message::ByteOrder,
@@ -18,55 +21,6 @@ pub fn marshal(
     let body_len = buf.len() - header_len;
     insert_u32(byteorder, body_len as u32, &mut buf[4..8]);
     Ok(())
-}
-
-fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
-    let padding_needed = align_to - (buf.len() % align_to);
-    if padding_needed != align_to {
-        buf.resize(buf.len() + padding_needed, 0);
-        assert!(buf.len() % align_to == 0);
-    }
-}
-
-pub fn write_u16(val: u16, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
-    let pos = buf.len();
-    buf.push(0);
-    buf.push(0);
-    insert_u16(byteorder, val, &mut buf[pos..]);
-}
-pub fn write_u32(val: u32, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
-    let pos = buf.len();
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    insert_u32(byteorder, val, &mut buf[pos..]);
-}
-pub fn write_u64(val: u64, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
-    let pos = buf.len();
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    insert_u64(byteorder, val, &mut buf[pos..]);
-}
-
-fn write_string(val: &str, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
-    let len = val.len() as u32;
-    write_u32(len, byteorder, buf);
-    buf.extend(val.bytes());
-    buf.push(0);
-}
-
-fn write_signature(val: &str, buf: &mut Vec<u8>) {
-    let len = val.len() as u8;
-    buf.push(len);
-    buf.extend(val.bytes());
-    buf.push(0);
 }
 
 fn marshal_header(
@@ -257,143 +211,6 @@ fn marshal_header_fields(
         marshal_header_field(byteorder, field, buf)?;
     }
     Ok(())
-}
-
-fn marshal_base_param(
-    byteorder: message::ByteOrder,
-    p: &message::Base,
-    buf: &mut Vec<u8>,
-) -> message::Result<()> {
-    match p {
-        message::Base::Boolean(b) => {
-            pad_to_align(4, buf);
-            if *b {
-                write_u32(1, byteorder, buf);
-            } else {
-                write_u32(0, byteorder, buf);
-            }
-            Ok(())
-        }
-        message::Base::Byte(i) => {
-            buf.push(*i);
-            Ok(())
-        }
-        message::Base::Int16(i) => {
-            pad_to_align(2, buf);
-            write_u16(*i as u16, byteorder, buf);
-            Ok(())
-        }
-        message::Base::Uint16(i) => {
-            let raw = *i as u16;
-            pad_to_align(2, buf);
-            write_u16(raw, byteorder, buf);
-            Ok(())
-        }
-        message::Base::Int32(i) => {
-            pad_to_align(4, buf);
-            write_u32(*i as u32, byteorder, buf);
-            Ok(())
-        }
-        message::Base::Uint32(i) => {
-            let raw = *i as u32;
-            pad_to_align(4, buf);
-            write_u32(raw, byteorder, buf);
-            Ok(())
-        }
-        message::Base::UnixFd(i) => {
-            let raw = *i as u32;
-            pad_to_align(4, buf);
-            write_u32(raw, byteorder, buf);
-            Ok(())
-        }
-        message::Base::Int64(i) => {
-            pad_to_align(8, buf);
-            write_u64(*i as u64, byteorder, buf);
-            Ok(())
-        }
-        message::Base::Uint64(i) => {
-            let raw = *i as u64;
-            pad_to_align(8, buf);
-            write_u64(raw, byteorder, buf);
-            Ok(())
-        }
-        message::Base::Double(i) => {
-            let raw = *i as u64;
-            pad_to_align(8, buf);
-            write_u64(raw, byteorder, buf);
-            Ok(())
-        }
-        message::Base::String(s) => {
-            pad_to_align(4, buf);
-            write_string(&s, byteorder, buf);
-            Ok(())
-        }
-        message::Base::Signature(s) => {
-            message::validate_signature(&s)?;
-            pad_to_align(1, buf);
-            write_signature(&s, buf);
-            Ok(())
-        }
-        message::Base::ObjectPath(s) => {
-            message::validate_object_path(&s)?;
-            pad_to_align(4, buf);
-            write_string(&s, byteorder, buf);
-            Ok(())
-        }
-    }
-}
-
-fn insert_u16(byteorder: message::ByteOrder, val: u16, buf: &mut [u8]) {
-    match byteorder {
-        message::ByteOrder::LittleEndian => {
-            buf[0] = (val) as u8;
-            buf[1] = (val >> 8) as u8;
-        }
-        message::ByteOrder::BigEndian => {
-            buf[0] = (val >> 8) as u8;
-            buf[1] = (val) as u8;
-        }
-    }
-}
-fn insert_u32(byteorder: message::ByteOrder, val: u32, buf: &mut [u8]) {
-    match byteorder {
-        message::ByteOrder::LittleEndian => {
-            buf[0] = (val) as u8;
-            buf[1] = (val >> 8) as u8;
-            buf[2] = (val >> 16) as u8;
-            buf[3] = (val >> 24) as u8;
-        }
-        message::ByteOrder::BigEndian => {
-            buf[0] = (val >> 24) as u8;
-            buf[1] = (val >> 16) as u8;
-            buf[2] = (val >> 8) as u8;
-            buf[3] = (val) as u8;
-        }
-    }
-}
-fn insert_u64(byteorder: message::ByteOrder, val: u64, buf: &mut [u8]) {
-    match byteorder {
-        message::ByteOrder::LittleEndian => {
-            buf[0] = (val) as u8;
-            buf[1] = (val >> 8) as u8;
-            buf[2] = (val >> 16) as u8;
-            buf[3] = (val >> 24) as u8;
-            buf[4] = (val >> 32) as u8;
-            buf[5] = (val >> 40) as u8;
-            buf[6] = (val >> 48) as u8;
-            buf[7] = (val >> 56) as u8;
-        }
-        message::ByteOrder::BigEndian => {
-            buf[7] = (val) as u8;
-            buf[6] = (val >> 8) as u8;
-            buf[5] = (val >> 16) as u8;
-            buf[4] = (val >> 24) as u8;
-            buf[3] = (val >> 32) as u8;
-            buf[2] = (val >> 40) as u8;
-            buf[1] = (val >> 48) as u8;
-            buf[0] = (val >> 56) as u8;
-        }
-    }
 }
 
 fn marshal_container_param(

@@ -1,8 +1,8 @@
-use crate::marshal::marshal;
 use crate::message::Base;
 use crate::message::Param;
-use crate::unmarshal::unmarshal_header;
-use crate::unmarshal::unmarshal_next_message;
+use crate::wire::marshal::marshal;
+use crate::wire::unmarshal::unmarshal_header;
+use crate::wire::unmarshal::unmarshal_next_message;
 
 // this tests the happy path
 #[test]
@@ -33,7 +33,7 @@ fn test_marshal_unmarshal() {
     let (_, header) = unmarshal_header(&buf, 0).unwrap();
 
     let (_, unmarshed_msg) =
-        unmarshal_next_message(&header, &buf, crate::unmarshal::HEADER_LEN).unwrap();
+        unmarshal_next_message(&header, &buf, crate::wire::unmarshal::HEADER_LEN).unwrap();
 
     assert_eq!(msg.params, unmarshed_msg.params);
 }

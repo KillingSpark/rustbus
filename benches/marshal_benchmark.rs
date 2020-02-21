@@ -1,10 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rustbus::marshal::marshal;
 use rustbus::message::Container;
 use rustbus::message::DictMap;
 use rustbus::message::Param;
-use rustbus::unmarshal::unmarshal_header;
-use rustbus::unmarshal::unmarshal_next_message;
+use rustbus::wire::marshal::marshal;
+use rustbus::wire::unmarshal::unmarshal_header;
+use rustbus::wire::unmarshal::unmarshal_next_message;
 
 fn marsh(msg: &rustbus::Message, buf: &mut Vec<u8>) {
     marshal(msg, rustbus::message::ByteOrder::LittleEndian, &[], buf).unwrap();
@@ -13,7 +13,7 @@ fn marsh(msg: &rustbus::Message, buf: &mut Vec<u8>) {
 fn unmarshal(buf: &[u8]) {
     let (_, header) = unmarshal_header(&buf, 0).unwrap();
     let (_, _unmarshed_msg) =
-        unmarshal_next_message(&header, &buf, rustbus::unmarshal::HEADER_LEN).unwrap();
+        unmarshal_next_message(&header, &buf, rustbus::wire::unmarshal::HEADER_LEN).unwrap();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

@@ -2,9 +2,10 @@
 //! over the Conn struct.
 
 use crate::auth;
-use crate::marshal;
 use crate::message;
-use crate::unmarshal;
+use crate::wire::marshal;
+use crate::wire::unmarshal;
+use crate::wire::util;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io::Read;
@@ -319,7 +320,7 @@ impl Conn {
             unmarshal::parse_u32(&header_fields_len.to_vec(), header.byteorder)?;
 
         // but push that info into the buffer so the unmarshalling has that info too
-        marshal::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
+        util::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
 
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
 
