@@ -5,8 +5,7 @@ Rustbus implements the [dbus specification](https://dbus.freedesktop.org/doc/dbu
 that enables clients to communicate over the dbus daemon.
 
 This was created by only reading the spec at https://dbus.freedesktop.org/doc/dbus-specification.html. While I made some false assumptions when implementing the 
-spec that was mostly my fault. The document seems to be enough to write a working implementation without looking at others code. The example in src/bin/con.rs is able
-to listen to signals on the message bus without crashing/getting  disconnected by the bus. The signals parsed by this are the same as the ones dbus-monitor sees / unmarshals.
+spec that was mostly my fault. The document seems to be enough to write a working implementation without looking at others code. 
 
 ## What does this provide?
 This libary provides the means to send and receive messages over a dbus bus. This means: signals, calls, and (error)replys. It also provides some standard messages
