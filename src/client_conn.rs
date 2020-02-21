@@ -317,7 +317,7 @@ impl Conn {
         let mut header_fields_len = [0u8; 4];
         self.stream.read_exact(&mut header_fields_len[..])?;
         let (_, header_fields_len) =
-            unmarshal::parse_u32(&header_fields_len.to_vec(), header.byteorder)?;
+            util::parse_u32(&header_fields_len.to_vec(), header.byteorder)?;
 
         // but push that info into the buffer so the unmarshalling has that info too
         util::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
