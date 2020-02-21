@@ -194,7 +194,7 @@ pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<String> {
     }
     let sig_buf = &buf[1..];
     let string =
-    String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
+        String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
     Ok((len + 2, string))
 }
 

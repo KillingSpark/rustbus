@@ -12,7 +12,7 @@ pub fn marshal(
     marshal_header(msg, byteorder, header_fields, buf)?;
     pad_to_align(8, buf);
     let header_len = buf.len();
-    
+
     for p in &msg.params {
         marshal_param(p, byteorder, buf)?;
     }

@@ -79,6 +79,5 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     con.send_message(sig.clone())?;
     con.send_message(sig)?;
 
-
     Ok(())
 }
