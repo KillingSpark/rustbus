@@ -22,7 +22,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     println!("\n");
     println!("\n");
     println!("Wait for hello response");
-    let msg = rpc_con.wait_response(hello_serial)?;
+    let msg = rpc_con.wait_response(hello_serial, None)?;
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -37,7 +37,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         .unwrap();
 
     println!("Wait for name request response");
-    let msg = rpc_con.wait_response(reqname_serial)?;
+    let msg = rpc_con.wait_response(reqname_serial, None)?;
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -60,7 +60,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         .unwrap();
 
     println!("Wait for list response");
-    let msg = rpc_con.wait_response(list_serial)?;
+    let msg = rpc_con.wait_response(list_serial, None)?;
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -73,7 +73,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     loop {
         println!("Wait for incoming signals");
-        let msg = rpc_con.wait_signal()?;
+        let msg = rpc_con.wait_signal(Some(std::time::Duration::from_secs(5)))?;
         println!("Got signal: {:?}", msg);
         loop {
             let msg = rpc_con.try_get_signal();

@@ -39,7 +39,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         ))?
         .serial
         .unwrap();
-    let resp = rpc_con.wait_response(namereq_serial)?;
+    let resp = rpc_con.wait_response(namereq_serial, None)?;
     println!("Name request response: {:?}", resp);
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
@@ -66,7 +66,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     loop {
         println!("Wait for call");
-        let call = rpc_con.wait_call()?;
+        let call = rpc_con.wait_call(None)?;
         println!("Got call: {:?}", call);
         if let Some(member) = &call.member {
             let cmd = match member.as_str() {

@@ -120,7 +120,7 @@ fn send_and_recv<T: TryFrom<Vec<Param>> + std::fmt::Debug>(
     msg: Message,
 ) -> Result<(), rustbus::client_conn::Error> {
     let serial = conn.send_message(msg)?.serial.unwrap();
-    let response = conn.wait_response(serial)?;
+    let response = conn.wait_response(serial, None)?;
     let response_converted = T::try_from(response.params).map_err(|_| Error::InvalidType)?;
     println!("Got response {:?}", response_converted);
     Ok(())

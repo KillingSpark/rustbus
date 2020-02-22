@@ -18,7 +18,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         con.send_message(standard_messages::add_match("type='signal'".into()))?;
 
         let sig = loop {
-            let signal = con.wait_signal()?;
+            let signal = con.wait_signal(None)?;
             println!("Got signal: {:?}", signal);
             if signal.interface.eq(&Some("io.killing.spark".to_owned())) {
                 if signal.member.eq(&Some("TestSignal".to_owned())) {

@@ -13,6 +13,7 @@ use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::time;
 
 use nix::cmsg_space;
 use nix::sys::socket::recvmsg;
@@ -90,12 +91,16 @@ impl RpcConn {
     }
 
     /// Return a response if one is there or block until it arrives
-    pub fn wait_response(&mut self, serial: u32) -> Result<message::Message> {
+    pub fn wait_response(
+        &mut self,
+        serial: u32,
+        timeout: Option<time::Duration>,
+    ) -> Result<message::Message> {
         loop {
             if let Some(msg) = self.try_get_response(serial) {
                 return Ok(msg);
             }
-            self.refill()?;
+            self.refill(timeout)?;
         }
     }
 
@@ -105,12 +110,12 @@ impl RpcConn {
     }
 
     /// Return a sginal if one is there or block until it arrives
-    pub fn wait_signal(&mut self) -> Result<message::Message> {
+    pub fn wait_signal(&mut self, timeout: Option<time::Duration>) -> Result<message::Message> {
         loop {
             if let Some(msg) = self.try_get_signal() {
                 return Ok(msg);
             }
-            self.refill()?;
+            self.refill(timeout)?;
         }
     }
 
@@ -120,12 +125,12 @@ impl RpcConn {
     }
 
     /// Return a call if one is there or block until it arrives
-    pub fn wait_call(&mut self) -> Result<message::Message> {
+    pub fn wait_call(&mut self, timeout: Option<time::Duration>) -> Result<message::Message> {
         loop {
             if let Some(msg) = self.try_get_call() {
                 return Ok(msg);
             }
-            self.refill()?;
+            self.refill(timeout)?;
         }
     }
 
@@ -136,9 +141,9 @@ impl RpcConn {
 
     /// This blocks until a new message (that should not be ignored) arrives.
     /// The message gets placed into the correct list
-    fn refill(&mut self) -> Result<()> {
+    fn refill(&mut self, timeout: Option<time::Duration>) -> Result<()> {
         loop {
-            let msg = self.conn.get_next_message()?;
+            let msg = self.conn.get_next_message(timeout)?;
 
             if self.filter.as_ref()(&msg) {
                 match msg.typ {
@@ -208,6 +213,7 @@ pub enum Error {
     PathDoesNotExist(String),
     NoAdressFound,
     UnexpectedTypeReceived,
+    TimedOut,
 }
 
 impl std::convert::From<std::io::Error> for Error {
@@ -274,7 +280,11 @@ impl Conn {
 
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
     /// so we can process messages separatly and avoid leaking file descriptors to wrong messages
-    fn refill_buffer(&mut self, max_buffer_size: usize) -> Result<Vec<ControlMessageOwned>> {
+    fn refill_buffer(
+        &mut self,
+        max_buffer_size: usize,
+        timeout: Option<time::Duration>,
+    ) -> Result<Vec<ControlMessageOwned>> {
         let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
 
         const BUFSIZE: usize = 512;
@@ -284,24 +294,36 @@ impl Conn {
         let mut cmsgspace = cmsg_space!([RawFd; 10]);
         let flags = MsgFlags::empty();
 
+        let old_timeout = self.stream.read_timeout()?;
+        self.stream.set_read_timeout(timeout)?;
         let msg = recvmsg(
             self.stream.as_raw_fd(),
             &[iovec],
             Some(&mut cmsgspace),
             flags,
-        )?;
+        )
+        .map_err(|e| match e.as_errno() {
+            Some(nix::errno::Errno::EAGAIN) => Error::TimedOut,
+            _ => Error::NixError(e),
+        })?;
         let cmsgs = msg.cmsgs().collect();
-
+        self.stream.set_read_timeout(old_timeout)?;
         self.msg_buf_in
             .extend(&mut tmpbuf[..msg.bytes].iter().copied());
         Ok(cmsgs)
     }
 
-    /// Blocks until a message has been read from the conn
-    pub fn get_next_message(&mut self) -> Result<message::Message> {
+    /// Blocks until a message has been read from the conn or the timeout has been reached
+    pub fn get_next_message(
+        &mut self,
+        timeout: Option<time::Duration>,
+    ) -> Result<message::Message> {
         // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
         // I think thats necessary so we can later add support for unixfd sending
         let mut cmsgs = Vec::new();
+
+        //calc timeout in reference to this point in time
+        let start_time = time::Instant::now();
 
         let header = loop {
             match unmarshal::unmarshal_header(&self.msg_buf_in, 0) {
@@ -309,7 +331,10 @@ impl Conn {
                 Err(unmarshal::Error::NotEnoughBytes) => {}
                 Err(e) => return Err(Error::from(e)),
             }
-            let new_cmsgs = self.refill_buffer(unmarshal::HEADER_LEN)?;
+            let new_cmsgs = self.refill_buffer(
+                unmarshal::HEADER_LEN,
+                calc_timeout_left(&start_time, timeout)?,
+            )?;
             cmsgs.extend(new_cmsgs);
         };
 
@@ -335,7 +360,8 @@ impl Conn {
             + (header.body_len + header_fields_len + 4) as usize
             + padding_between_header_and_body; // +4 because the length of the header fields does not count
         loop {
-            let new_cmsgs = self.refill_buffer(bytes_needed)?;
+            let new_cmsgs =
+                self.refill_buffer(bytes_needed, calc_timeout_left(&start_time, timeout)?)?;
             cmsgs.extend(new_cmsgs);
             if self.msg_buf_in.len() == bytes_needed {
                 break;
@@ -419,5 +445,22 @@ pub fn get_system_bus_path() -> Result<PathBuf> {
         Ok(p)
     } else {
         Err(Error::PathDoesNotExist(ps.to_owned()))
+    }
+}
+
+fn calc_timeout_left(
+    start_time: &time::Instant,
+    timeout: Option<time::Duration>,
+) -> Result<Option<time::Duration>> {
+    match timeout {
+        Some(timeout) => {
+            let elapsed = start_time.elapsed();
+            if elapsed >= timeout {
+                return Err(Error::TimedOut);
+            }
+            let time_left = timeout - elapsed;
+            Ok(Some(time_left))
+        }
+        None => Ok(None),
     }
 }
