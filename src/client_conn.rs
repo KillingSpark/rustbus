@@ -135,15 +135,22 @@ impl RpcConn {
     }
 
     /// Send a message to the bus
-    pub fn send_message(&mut self, msg: message::Message) -> Result<message::Message> {
-        self.conn.send_message(msg)
+    pub fn send_message(
+        &mut self,
+        msg: message::Message,
+        timeout: Option<time::Duration>,
+    ) -> Result<message::Message> {
+        self.conn.send_message(msg, timeout)
     }
 
     /// This blocks until a new message (that should not be ignored) arrives.
     /// The message gets placed into the correct list
     fn refill(&mut self, timeout: Option<time::Duration>) -> Result<()> {
+        let start_time = time::Instant::now();
         loop {
-            let msg = self.conn.get_next_message(timeout)?;
+            let msg = self
+                .conn
+                .get_next_message(calc_timeout_left(&start_time, timeout)?)?;
 
             if self.filter.as_ref()(&msg) {
                 match msg.typ {
@@ -166,7 +173,8 @@ impl RpcConn {
                 match msg.typ {
                     message::MessageType::Call => {
                         let reply = crate::standard_messages::unknown_method(&msg);
-                        self.conn.send_message(reply)?;
+                        self.conn
+                            .send_message(reply, calc_timeout_left(&start_time, timeout)?)?;
                     }
                     message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
                     message::MessageType::Error => {
@@ -389,7 +397,11 @@ impl Conn {
     }
 
     /// send a message over the conn
-    pub fn send_message(&mut self, mut msg: message::Message) -> Result<message::Message> {
+    pub fn send_message(
+        &mut self,
+        mut msg: message::Message,
+        timeout: Option<time::Duration>,
+    ) -> Result<message::Message> {
         self.msg_buf_out.clear();
         if msg.serial.is_none() {
             msg.serial = Some(self.serial_counter);
@@ -405,6 +417,8 @@ impl Conn {
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
         let flags = MsgFlags::empty();
 
+        let old_timeout = self.stream.read_timeout()?;
+        self.stream.set_read_timeout(timeout)?;
         let l = sendmsg(
             self.stream.as_raw_fd(),
             &iov,
@@ -412,7 +426,7 @@ impl Conn {
             flags,
             None,
         )?;
-
+        self.stream.set_read_timeout(old_timeout)?;
         assert_eq!(l, self.msg_buf_out.len());
         Ok(msg)
     }

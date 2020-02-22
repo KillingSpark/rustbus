@@ -6,7 +6,7 @@ use rustbus::{
 fn main() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_session_bus_path()?;
     let mut con = Conn::connect_to_bus(session_path, true)?;
-    con.send_message(standard_messages::hello())?;
+    con.send_message(standard_messages::hello(), None)?;
 
     // Building a dictmap using the convert::From impls for the base types
     let mut dict_map = DictMap::new();
@@ -76,8 +76,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
             variant,
         ])
         .build();
-    con.send_message(sig.clone())?;
-    con.send_message(sig)?;
+    con.send_message(sig.clone(), None)?;
+    con.send_message(sig, None)?;
 
     Ok(())
 }

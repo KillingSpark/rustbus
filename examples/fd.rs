@@ -13,9 +13,9 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         let session_path = get_session_bus_path()?;
         let con = Conn::connect_to_bus(session_path, true)?;
         let mut con = RpcConn::new(con);
-        con.send_message(standard_messages::hello())?;
+        con.send_message(standard_messages::hello(), None)?;
 
-        con.send_message(standard_messages::add_match("type='signal'".into()))?;
+        con.send_message(standard_messages::add_match("type='signal'".into()), None)?;
 
         let sig = loop {
             let signal = con.wait_signal(None)?;
@@ -38,7 +38,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 fn send_fd() -> Result<(), rustbus::client_conn::Error> {
     let session_path = rustbus::client_conn::get_session_bus_path()?;
     let mut con = rustbus::client_conn::Conn::connect_to_bus(session_path, true)?;
-    con.send_message(rustbus::standard_messages::hello())?;
+    con.send_message(rustbus::standard_messages::hello(), None)?;
     let mut sig = MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
@@ -49,7 +49,7 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
 
     sig.raw_fds.push(0);
     sig.num_fds = Some(1);
-    con.send_message(sig)?;
+    con.send_message(sig, None)?;
 
     let sig = MessageBuilder::new()
         .signal(
@@ -58,7 +58,7 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
             "/io/killing/spark".into(),
         )
         .build();
-    con.send_message(sig)?;
+    con.send_message(sig, None)?;
 
     println!("Printing stuff fromn stdin");
     let mut line = String::new();

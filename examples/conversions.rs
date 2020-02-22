@@ -119,7 +119,7 @@ fn send_and_recv<T: TryFrom<Vec<Param>> + std::fmt::Debug>(
     conn: &mut RpcConn,
     msg: Message,
 ) -> Result<(), rustbus::client_conn::Error> {
-    let serial = conn.send_message(msg)?.serial.unwrap();
+    let serial = conn.send_message(msg, None)?.serial.unwrap();
     let response = conn.wait_response(serial, None)?;
     let response_converted = T::try_from(response.params).map_err(|_| Error::InvalidType)?;
     println!("Got response {:?}", response_converted);
@@ -130,7 +130,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_session_bus_path()?;
     let con = Conn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);
-    rpc_con.send_message(standard_messages::hello())?;
+    rpc_con.send_message(standard_messages::hello(), None)?;
     send_and_recv::<Response1>(&mut rpc_con, build_message1(42))?;
     send_and_recv::<Response2>(
         &mut rpc_con,

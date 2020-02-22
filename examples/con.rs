@@ -16,7 +16,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     }));
 
     println!("Send message: {:?}", hello_msg);
-    let hello_serial = rpc_con.send_message(hello_msg)?.serial.unwrap();
+    let hello_serial = rpc_con.send_message(hello_msg, None)?.serial.unwrap();
 
     println!("\n");
     println!("\n");
@@ -29,10 +29,10 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     println!("\n");
 
     let reqname_serial = rpc_con
-        .send_message(standard_messages::request_name(
-            "io.killing.spark".into(),
-            0,
-        ))?
+        .send_message(
+            standard_messages::request_name("io.killing.spark".into(), 0),
+            None,
+        )?
         .serial
         .unwrap();
 
@@ -55,7 +55,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     }
 
     let list_serial = rpc_con
-        .send_message(standard_messages::list_names())?
+        .send_message(standard_messages::list_names(), None)?
         .serial
         .unwrap();
 
@@ -69,7 +69,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let sig_listen_msg = standard_messages::add_match("type='signal'".into());
 
     println!("Send message: {:?}", sig_listen_msg);
-    rpc_con.send_message(sig_listen_msg)?;
+    rpc_con.send_message(sig_listen_msg, None)?;
 
     loop {
         println!("Wait for incoming signals");
