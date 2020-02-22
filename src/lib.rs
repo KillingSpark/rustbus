@@ -14,13 +14,13 @@
 //!     let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
 //!
 //!     // send the obligatory hello message
-//!     rpc_con.send_message(standard_messages::hello())?;
+//!     rpc_con.send_message(standard_messages::hello(), None)?;
 //!
 //!     // Request a bus name if you want to
 //!     rpc_con.send_message(standard_messages::request_name(
 //!         "io.killing.spark".into(),
 //!         0,
-//!     ))?;
+//!     ), None)?;
 //!
 //!     // send a signal to all bus members
 //!     let sig = MessageBuilder::new()
@@ -33,7 +33,7 @@
 //!         Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
 //!     ])
 //!     .build();
-//!     rpc_con.send_message(sig)?;
+//!     rpc_con.send_message(sig, None)?;
 //!     Ok(())
 //! }
 //! ```
