@@ -15,7 +15,10 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         let mut con = RpcConn::new(con);
         con.send_message(&mut standard_messages::hello(), None)?;
 
-        con.send_message(&mut standard_messages::add_match("type='signal'".into()), None)?;
+        con.send_message(
+            &mut standard_messages::add_match("type='signal'".into()),
+            None,
+        )?;
 
         let sig = loop {
             let signal = con.wait_signal(None)?;

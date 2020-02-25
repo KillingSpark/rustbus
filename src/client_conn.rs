@@ -411,7 +411,7 @@ impl<'msga, 'msge> Conn {
         self.msg_buf_out.clear();
         msg.serial = Some(self.serial_counter);
         self.serial_counter += 1;
-        
+
         marshal::marshal(
             &msg,
             message::ByteOrder::LittleEndian,
