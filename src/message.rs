@@ -91,8 +91,8 @@ impl<'a, 'e> Message<'a, 'e> {
     }
 
     /// Make a correctly addressed error response with the correct response serial
-    pub fn make_error_response(&self, error_name: String) -> Self {
-        Message {
+    pub fn make_error_response(&self, error_name: String, error_msg: Option<String>) -> Self {
+        let mut err_resp = Message {
             typ: MessageType::Reply,
             interface: None,
             member: None,
@@ -105,7 +105,11 @@ impl<'a, 'e> Message<'a, 'e> {
             sender: None,
             response_serial: self.serial,
             error_name: Some(error_name),
+        };
+        if let Some(text) = error_msg {
+            err_resp.push_params(vec![text.into()])
         }
+        err_resp
     }
 }
 
