@@ -28,38 +28,37 @@ The unmarshalling has been fuzzed and doesn't panic on any input so far. If you 
 # How to use it
 There are some examples in the `examples/` directory but the gist is:
 ```
-rust,no_run
-use rustbus::{get_session_bus_path, standard_messages, Conn, Container, DictMap, MessageBuilder};
+use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder};
 
-fn main() -> Result<(), rustbus::client_conn::Error> {
-    // Connect to the session bus
-    let session_path = get_session_bus_path()?;
-    let con = Conn::connect_to_bus(session_path, true)?;
+ fn main() -> Result<(), rustbus::client_conn::Error> {
+     // Connect to the session bus
+     let session_path = get_session_bus_path()?;
+     let con = Conn::connect_to_bus(session_path, true)?;
 
-    // Wrap the con in an RpcConnection which provides many convenient functions
-    let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+     // Wrap the con in an RpcConnection which provides many convenient functions
+     let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
 
-    // send the obligatory hello message
-    rpc_con.send_message(standard_messages::hello(), None)?;
+     // send the obligatory hello message
+     rpc_con.send_message(&mut standard_messages::hello(), None)?;
 
-    // Request a bus name if you want to
-    rpc_con.send_message(standard_messages::request_name(
-        "io.killing.spark".into(),
-        0,
-    ), None)?;
+     // Request a bus name if you want to
+     rpc_con.send_message(&mut standard_messages::request_name(
+         "io.killing.spark".into(),
+         0,
+     ), None)?;
 
-    // send a signal to all bus members
-    let sig = MessageBuilder::new()
-    .signal(
-        "io.killing.spark".into(),
-        "TestSignal".into(),
-        "/io/killing/spark".into(),
-    )
-    .with_params(vec![
-        Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-    ])
-    .build();
-    rpc_con.send_message(sig, None)?;
-    Ok(())
-}
+     // send a signal to all bus members
+     let mut sig = MessageBuilder::new()
+     .signal(
+         "io.killing.spark".into(),
+         "TestSignal".into(),
+         "/io/killing/spark".into(),
+     )
+     .with_params(vec![
+         Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
+     ])
+     .build();
+     rpc_con.send_message(&mut sig, None)?;
+     Ok(())
+ }
 ```
