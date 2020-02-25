@@ -1,4 +1,5 @@
 use crate::message;
+use crate::params;
 use crate::signature;
 use crate::wire::unmarshal_container::*;
 use crate::wire::util::*;
@@ -164,7 +165,7 @@ fn unmarshal_header_fields(
             Err(e) => return Err(e),
         }
     }
-    message::validate_header_fields(header.typ, &fields).map_err(|_| Error::InvalidHeaderFields)?;
+    params::validate_header_fields(header.typ, &fields).map_err(|_| Error::InvalidHeaderFields)?;
 
     Ok((header_fields_bytes as usize + 4, fields))
 }

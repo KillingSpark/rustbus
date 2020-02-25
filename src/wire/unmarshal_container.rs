@@ -1,4 +1,4 @@
-use crate::message;
+use crate::params;
 use crate::signature;
 use crate::wire::unmarshal;
 use crate::wire::unmarshal::UnmarshalResult;
@@ -10,15 +10,15 @@ pub fn unmarshal_with_sig(
     sig: &signature::Type,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<message::Param> {
+) -> UnmarshalResult<params::Param> {
     let (bytes, param) = match &sig {
         signature::Type::Base(base) => {
             let (bytes, base) = unmarshal_base(header, buf, *base, offset)?;
-            (bytes, message::Param::Base(base))
+            (bytes, params::Param::Base(base))
         }
         signature::Type::Container(cont) => {
             let (bytes, cont) = unmarshal_container(header, buf, cont, offset)?;
-            (bytes, message::Param::Container(cont))
+            (bytes, params::Param::Container(cont))
         }
     };
     Ok((bytes, param))
@@ -28,7 +28,7 @@ pub fn unmarshal_variant(
     header: &unmarshal::Header,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<message::Variant> {
+) -> UnmarshalResult<params::Variant> {
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
     let mut sig = signature::Type::parse_description(&sig_str)
         .map_err(|_| unmarshal::Error::InvalidSignature)?;
@@ -42,7 +42,7 @@ pub fn unmarshal_variant(
     let (param_bytes_used, param) = unmarshal_with_sig(header, &sig, buf, offset)?;
     Ok((
         sig_bytes_used + param_bytes_used,
-        message::Variant { sig, value: param },
+        params::Variant { sig, value: param },
     ))
 }
 
@@ -51,7 +51,7 @@ pub fn unmarshal_container(
     buf: &[u8],
     typ: &signature::Container,
     offset: usize,
-) -> UnmarshalResult<message::Container> {
+) -> UnmarshalResult<params::Container> {
     let param = match typ {
         signature::Container::Array(elem_sig) => {
             let padding = align_offset(4, buf, offset)?;
@@ -74,7 +74,7 @@ pub fn unmarshal_container(
 
             (
                 total_bytes_used,
-                message::Container::Array(message::Array {
+                params::Container::Array(params::Array {
                     element_sig: elem_sig.as_ref().clone(),
                     values: elements,
                 }),
@@ -104,7 +104,7 @@ pub fn unmarshal_container(
             }
             (
                 padding + before_elements_padding + 4 + bytes_used_counter,
-                message::Container::Dict(message::Dict {
+                params::Container::Dict(params::Dict {
                     key_sig: *key_sig,
                     value_sig: val_sig.as_ref().clone(),
                     map: elements,
@@ -125,12 +125,12 @@ pub fn unmarshal_container(
             }
             (
                 padding + bytes_used_counter,
-                message::Container::Struct(fields),
+                params::Container::Struct(fields),
             )
         }
         signature::Container::Variant => {
             let (bytes_used, variant) = unmarshal_variant(header, buf, offset)?;
-            (bytes_used, message::Container::Variant(Box::new(variant)))
+            (bytes_used, params::Container::Variant(Box::new(variant)))
         }
     };
     Ok(param)

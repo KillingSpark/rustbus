@@ -1,6 +1,7 @@
 //! Helps in building messages conveniently
 
 use crate::message;
+use crate::params;
 
 #[derive(Default)]
 pub struct MessageBuilder {
@@ -51,7 +52,7 @@ impl CallBuilder {
         self
     }
 
-    pub fn with_params(mut self, params: Vec<message::Param>) -> Self {
+    pub fn with_params(mut self, params: Vec<params::Param>) -> Self {
         self.msg.params.extend(params);
         self
     }
@@ -67,7 +68,7 @@ impl SignalBuilder {
         self
     }
 
-    pub fn with_params(mut self, params: Vec<message::Param>) -> Self {
+    pub fn with_params(mut self, params: Vec<params::Param>) -> Self {
         self.msg.params.extend(params);
         self
     }

@@ -36,7 +36,7 @@ pub struct RpcConn {
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
 /// ```rust,no_run
-/// use rustbus::{get_session_bus_path, standard_messages, Conn, Container, DictMap, MessageBuilder, MessageType, RpcConn};
+/// use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder, MessageType, RpcConn};
 ///
 /// fn main() -> Result<(), rustbus::client_conn::Error> {
 ///     let session_path = get_session_bus_path()?;

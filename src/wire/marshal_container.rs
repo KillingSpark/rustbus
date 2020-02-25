@@ -1,26 +1,27 @@
 use crate::message;
+use crate::params;
 use crate::wire::marshal_base::*;
 use crate::wire::util::*;
 
 pub fn marshal_param(
-    p: &message::Param,
+    p: &params::Param,
     byteorder: message::ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     match p {
-        message::Param::Base(b) => marshal_base_param(byteorder, &b, buf),
-        message::Param::Container(c) => marshal_container_param(&c, byteorder, buf),
+        params::Param::Base(b) => marshal_base_param(byteorder, &b, buf),
+        params::Param::Container(c) => marshal_container_param(&c, byteorder, buf),
     }
 }
 
 pub fn marshal_container_param(
-    p: &message::Container,
+    p: &params::Container,
     byteorder: message::ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     match p {
-        message::Container::Array(params) => {
-            message::validate_array(&params)?;
+        params::Container::Array(params) => {
+            params::validate_array(&params)?;
             pad_to_align(4, buf);
             let len_pos = buf.len();
             buf.push(0);
@@ -38,14 +39,14 @@ pub fn marshal_container_param(
             let len = buf.len() - content_pos;
             insert_u32(byteorder, len as u32, &mut buf[len_pos..len_pos + 4]);
         }
-        message::Container::Struct(params) => {
+        params::Container::Struct(params) => {
             pad_to_align(8, buf);
             for p in params {
                 marshal_param(&p, byteorder, buf)?;
             }
         }
-        message::Container::Dict(params) => {
-            message::validate_dict(&params)?;
+        params::Container::Dict(params) => {
+            params::validate_dict(&params)?;
             pad_to_align(4, buf);
             let len_pos = buf.len();
             buf.push(0);
@@ -63,7 +64,7 @@ pub fn marshal_container_param(
             let len = buf.len() - content_pos;
             insert_u32(byteorder, len as u32, &mut buf[len_pos..len_pos + 4]);
         }
-        message::Container::Variant(variant) => {
+        params::Container::Variant(variant) => {
             let mut sig_str = String::new();
             variant.sig.to_str(&mut sig_str);
             buf.push(sig_str.len() as u8);

@@ -1,5 +1,5 @@
 use rustbus::{
-    get_session_bus_path, message, standard_messages, Conn, Message, MessageType, RpcConn,
+    get_session_bus_path, params, standard_messages, Conn, Message, MessageType, RpcConn,
 };
 
 pub enum Commands {
@@ -79,7 +79,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                         )?;
                         continue;
                     }
-                    if let message::Param::Base(message::Base::String(val)) = &call.params[0] {
+                    if let params::Param::Base(params::Base::String(val)) = &call.params[0] {
                         Commands::Reverse(val.clone())
                     } else {
                         rpc_con.send_message(

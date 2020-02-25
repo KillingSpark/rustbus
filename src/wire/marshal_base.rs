@@ -1,15 +1,16 @@
 use crate::message;
+use crate::params;
 use crate::wire::util::*;
 
 pub fn marshal_base_param(
     byteorder: message::ByteOrder,
-    p: &message::Base,
+    p: &params::Base,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     pad_to_align(p.sig().get_alignment(), buf);
 
     match p {
-        message::Base::Boolean(b) => {
+        params::Base::Boolean(b) => {
             if *b {
                 write_u32(1, byteorder, buf);
             } else {
@@ -17,58 +18,58 @@ pub fn marshal_base_param(
             }
             Ok(())
         }
-        message::Base::Byte(i) => {
+        params::Base::Byte(i) => {
             buf.push(*i);
             Ok(())
         }
-        message::Base::Int16(i) => {
+        params::Base::Int16(i) => {
             write_u16(*i as u16, byteorder, buf);
             Ok(())
         }
-        message::Base::Uint16(i) => {
+        params::Base::Uint16(i) => {
             let raw = *i as u16;
             write_u16(raw, byteorder, buf);
             Ok(())
         }
-        message::Base::Int32(i) => {
+        params::Base::Int32(i) => {
             write_u32(*i as u32, byteorder, buf);
             Ok(())
         }
-        message::Base::Uint32(i) => {
+        params::Base::Uint32(i) => {
             let raw = *i as u32;
             write_u32(raw, byteorder, buf);
             Ok(())
         }
-        message::Base::UnixFd(i) => {
+        params::Base::UnixFd(i) => {
             let raw = *i as u32;
             write_u32(raw, byteorder, buf);
             Ok(())
         }
-        message::Base::Int64(i) => {
+        params::Base::Int64(i) => {
             write_u64(*i as u64, byteorder, buf);
             Ok(())
         }
-        message::Base::Uint64(i) => {
+        params::Base::Uint64(i) => {
             let raw = *i as u64;
             write_u64(raw, byteorder, buf);
             Ok(())
         }
-        message::Base::Double(i) => {
+        params::Base::Double(i) => {
             let raw = *i as u64;
             write_u64(raw, byteorder, buf);
             Ok(())
         }
-        message::Base::String(s) => {
+        params::Base::String(s) => {
             write_string(&s, byteorder, buf);
             Ok(())
         }
-        message::Base::Signature(s) => {
-            message::validate_signature(&s)?;
+        params::Base::Signature(s) => {
+            params::validate_signature(&s)?;
             write_signature(&s, buf);
             Ok(())
         }
-        message::Base::ObjectPath(s) => {
-            message::validate_object_path(&s)?;
+        params::Base::ObjectPath(s) => {
+            params::validate_object_path(&s)?;
             write_string(&s, byteorder, buf);
             Ok(())
         }

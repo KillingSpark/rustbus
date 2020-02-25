@@ -43,7 +43,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     println!("\n");
     println!("\n");
 
-    if let rustbus::message::Param::Base(rustbus::message::Base::Uint32(ret)) = msg.params[0] {
+    if let rustbus::params::Param::Base(rustbus::params::Base::Uint32(ret)) = msg.params[0] {
         match ret {
             standard_messages::DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER => {
                 println!("Got name");

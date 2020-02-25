@@ -1,4 +1,5 @@
 use crate::message;
+use crate::params;
 
 use crate::wire::marshal_container::marshal_param;
 use crate::wire::util::*;
@@ -120,7 +121,7 @@ fn marshal_header_field(
     pad_to_align(8, buf);
     match field {
         message::HeaderField::Path(path) => {
-            message::validate_object_path(path)?;
+            params::validate_object_path(path)?;
             buf.push(1);
             buf.push(1);
             buf.push(b'o');
@@ -129,7 +130,7 @@ fn marshal_header_field(
             write_string(&path, byteorder, buf);
         }
         message::HeaderField::Interface(int) => {
-            message::validate_interface(int)?;
+            params::validate_interface(int)?;
             buf.push(2);
             buf.push(1);
             buf.push(b's');
@@ -138,7 +139,7 @@ fn marshal_header_field(
             write_string(&int, byteorder, buf);
         }
         message::HeaderField::Member(mem) => {
-            message::validate_membername(mem)?;
+            params::validate_membername(mem)?;
             buf.push(3);
             buf.push(1);
             buf.push(b's');
@@ -147,7 +148,7 @@ fn marshal_header_field(
             write_string(&mem, byteorder, buf);
         }
         message::HeaderField::ErrorName(name) => {
-            message::validate_errorname(name)?;
+            params::validate_errorname(name)?;
             buf.push(4);
             buf.push(1);
             buf.push(b's');
@@ -164,7 +165,7 @@ fn marshal_header_field(
             write_u32(*rs, byteorder, buf);
         }
         message::HeaderField::Destination(dest) => {
-            message::validate_busname(dest)?;
+            params::validate_busname(dest)?;
             buf.push(6);
             buf.push(1);
             buf.push(b's');
@@ -173,7 +174,7 @@ fn marshal_header_field(
             write_string(&dest, byteorder, buf);
         }
         message::HeaderField::Sender(snd) => {
-            message::validate_busname(snd)?;
+            params::validate_busname(snd)?;
             buf.push(7);
             buf.push(1);
             buf.push(b's');
@@ -182,7 +183,7 @@ fn marshal_header_field(
             write_string(&snd, byteorder, buf);
         }
         message::HeaderField::Signature(sig) => {
-            message::validate_signature(sig)?;
+            params::validate_signature(sig)?;
             buf.push(8);
             buf.push(1);
             buf.push(b'g');

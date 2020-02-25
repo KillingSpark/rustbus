@@ -3,7 +3,7 @@
 //! in the src/bin directory but the gist is:
 //!
 //! ```rust,no_run
-//! use rustbus::{get_session_bus_path, standard_messages, Conn, Container, DictMap, MessageBuilder};
+//! use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder};
 //!
 //! fn main() -> Result<(), rustbus::client_conn::Error> {
 //!     // Connect to the session bus
@@ -42,13 +42,15 @@ pub mod auth;
 pub mod client_conn;
 pub mod message;
 pub mod message_builder;
+pub mod params;
 pub mod signature;
 pub mod standard_messages;
 pub mod wire;
 
 pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
-pub use message::{Container, DictMap, Message, MessageType};
+pub use message::{Message, MessageType};
 pub use message_builder::{CallBuilder, MessageBuilder, SignalBuilder};
+pub use params::{Base, Container, Param};
 
 #[cfg(test)]
 mod tests;

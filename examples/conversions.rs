@@ -1,6 +1,7 @@
 use rustbus::{
     get_session_bus_path,
-    message::{Base, Container, Error, Message, Param},
+    message::{Error, Message},
+    params::{Base, Container, Param},
     standard_messages, Conn, MessageBuilder, RpcConn,
 };
 use std::convert::TryFrom;
