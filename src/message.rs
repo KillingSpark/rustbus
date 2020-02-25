@@ -114,6 +114,10 @@ impl<'a, 'e> Message<'a, 'e> {
         }
         err_resp
     }
+
+    pub fn sig(&self) -> Vec<signature::Type> {
+        self.params.iter().map(|p| p.sig()).collect()
+    }
 }
 
 /// The different errors that can occur when dealing with messages
