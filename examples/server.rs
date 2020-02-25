@@ -7,8 +7,8 @@ pub enum Commands {
     Reverse(String),
 }
 
-impl Commands {
-    fn execute(&self, call: &Message) -> Message {
+impl<'a, 'e> Commands {
+    fn execute(&self, call: &Message<'a, 'e>) -> Message<'a, 'e> {
         match self {
             Commands::Echo => {
                 let mut reply = call.make_response();

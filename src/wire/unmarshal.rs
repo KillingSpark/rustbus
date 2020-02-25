@@ -71,11 +71,11 @@ pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
     ))
 }
 
-pub fn unmarshal_next_message(
+pub fn unmarshal_next_message<'a, 'e>(
     header: &Header,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<message::Message> {
+) -> UnmarshalResult<message::Message<'a, 'e>> {
     let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
     let offset = offset + fields_bytes_used;
 

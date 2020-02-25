@@ -5,12 +5,12 @@ use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::unmarshal_base::unmarshal_base;
 use crate::wire::util::*;
 
-pub fn unmarshal_with_sig(
+pub fn unmarshal_with_sig<'a, 'e>(
     header: &unmarshal::Header,
     sig: &signature::Type,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<params::Param> {
+) -> UnmarshalResult<params::Param<'a, 'e>> {
     let (bytes, param) = match &sig {
         signature::Type::Base(base) => {
             let (bytes, base) = unmarshal_base(header, buf, *base, offset)?;
@@ -24,11 +24,11 @@ pub fn unmarshal_with_sig(
     Ok((bytes, param))
 }
 
-pub fn unmarshal_variant(
+pub fn unmarshal_variant<'a, 'e>(
     header: &unmarshal::Header,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<params::Variant> {
+) -> UnmarshalResult<params::Variant<'a, 'e>> {
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
     let mut sig = signature::Type::parse_description(&sig_str)
         .map_err(|_| unmarshal::Error::InvalidSignature)?;
@@ -46,12 +46,12 @@ pub fn unmarshal_variant(
     ))
 }
 
-pub fn unmarshal_container(
+pub fn unmarshal_container<'a, 'e>(
     header: &unmarshal::Header,
     buf: &[u8],
     typ: &signature::Container,
     offset: usize,
-) -> UnmarshalResult<params::Container> {
+) -> UnmarshalResult<params::Container<'a, 'e>> {
     let param = match typ {
         signature::Container::Array(elem_sig) => {
             let padding = align_offset(4, buf, offset)?;

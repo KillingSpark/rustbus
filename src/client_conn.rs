@@ -24,10 +24,10 @@ use nix::sys::socket::MsgFlags;
 use nix::sys::uio::IoVec;
 
 /// Convenience wrapper around the lowlevel connection
-pub struct RpcConn {
-    signals: VecDeque<message::Message>,
-    calls: VecDeque<message::Message>,
-    responses: HashMap<u32, message::Message>,
+pub struct RpcConn<'msga, 'msge> {
+    signals: VecDeque<message::Message<'msga, 'msge>>,
+    calls: VecDeque<message::Message<'msga, 'msge>>,
+    responses: HashMap<u32, message::Message<'msga, 'msge>>,
     conn: Conn,
     filter: Box<MessageFilter>,
 }
@@ -70,7 +70,7 @@ pub struct RpcConn {
 /// ```
 pub type MessageFilter = dyn Fn(&message::Message) -> bool;
 
-impl RpcConn {
+impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     pub fn new(conn: Conn) -> Self {
         RpcConn {
             signals: VecDeque::new(),
@@ -86,7 +86,7 @@ impl RpcConn {
     }
 
     /// Return a response if one is there but dont block
-    pub fn try_get_response(&mut self, serial: u32) -> Option<message::Message> {
+    pub fn try_get_response(&mut self, serial: u32) -> Option<message::Message<'msga, 'msge>> {
         self.responses.remove(&serial)
     }
 
@@ -95,7 +95,7 @@ impl RpcConn {
         &mut self,
         serial: u32,
         timeout: Option<time::Duration>,
-    ) -> Result<message::Message> {
+    ) -> Result<message::Message<'msga, 'msge>> {
         loop {
             if let Some(msg) = self.try_get_response(serial) {
                 return Ok(msg);
@@ -105,12 +105,15 @@ impl RpcConn {
     }
 
     /// Return a signal if one is there but dont block
-    pub fn try_get_signal(&mut self) -> Option<message::Message> {
+    pub fn try_get_signal(&mut self) -> Option<message::Message<'msga, 'msge>> {
         self.signals.pop_front()
     }
 
     /// Return a sginal if one is there or block until it arrives
-    pub fn wait_signal(&mut self, timeout: Option<time::Duration>) -> Result<message::Message> {
+    pub fn wait_signal(
+        &mut self,
+        timeout: Option<time::Duration>,
+    ) -> Result<message::Message<'msga, 'msge>> {
         loop {
             if let Some(msg) = self.try_get_signal() {
                 return Ok(msg);
@@ -120,12 +123,15 @@ impl RpcConn {
     }
 
     /// Return a call if one is there but dont block
-    pub fn try_get_call(&mut self) -> Option<message::Message> {
+    pub fn try_get_call(&mut self) -> Option<message::Message<'msga, 'msge>> {
         self.calls.pop_front()
     }
 
     /// Return a call if one is there or block until it arrives
-    pub fn wait_call(&mut self, timeout: Option<time::Duration>) -> Result<message::Message> {
+    pub fn wait_call(
+        &mut self,
+        timeout: Option<time::Duration>,
+    ) -> Result<message::Message<'msga, 'msge>> {
         loop {
             if let Some(msg) = self.try_get_call() {
                 return Ok(msg);
@@ -137,9 +143,9 @@ impl RpcConn {
     /// Send a message to the bus
     pub fn send_message(
         &mut self,
-        msg: message::Message,
+        msg: message::Message<'msga, 'msge>,
         timeout: Option<time::Duration>,
-    ) -> Result<message::Message> {
+    ) -> Result<message::Message<'msga, 'msge>> {
         self.conn.send_message(msg, timeout)
     }
 
@@ -248,7 +254,7 @@ impl std::convert::From<nix::Error> for Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-impl Conn {
+impl<'msga, 'msge> Conn {
     /// Connect to a unix socket and choose a byteorder
     pub fn connect_to_bus_with_byteorder(
         path: PathBuf,
@@ -325,7 +331,7 @@ impl Conn {
     pub fn get_next_message(
         &mut self,
         timeout: Option<time::Duration>,
-    ) -> Result<message::Message> {
+    ) -> Result<message::Message<'msga, 'msge>> {
         // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
         // I think thats necessary so we can later add support for unixfd sending
         let mut cmsgs = Vec::new();
@@ -399,9 +405,9 @@ impl Conn {
     /// send a message over the conn
     pub fn send_message(
         &mut self,
-        mut msg: message::Message,
+        mut msg: message::Message<'msga, 'msge>,
         timeout: Option<time::Duration>,
-    ) -> Result<message::Message> {
+    ) -> Result<message::Message<'msga, 'msge>> {
         self.msg_buf_out.clear();
         if msg.serial.is_none() {
             msg.serial = Some(self.serial_counter);

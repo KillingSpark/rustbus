@@ -4,30 +4,35 @@ use crate::message;
 use crate::params;
 
 #[derive(Default)]
-pub struct MessageBuilder {
-    msg: message::Message,
+pub struct MessageBuilder<'a, 'e> {
+    msg: message::Message<'a, 'e>,
 }
 
-pub struct CallBuilder {
-    msg: message::Message,
+pub struct CallBuilder<'a, 'e> {
+    msg: message::Message<'a, 'e>,
 }
-pub struct SignalBuilder {
-    msg: message::Message,
+pub struct SignalBuilder<'a, 'e> {
+    msg: message::Message<'a, 'e>,
 }
 
-impl MessageBuilder {
-    pub fn new() -> MessageBuilder {
+impl<'a, 'e> MessageBuilder<'a, 'e> {
+    pub fn new() -> MessageBuilder<'a, 'e> {
         MessageBuilder {
             msg: message::Message::new(),
         }
     }
 
-    pub fn call(mut self, member: String) -> CallBuilder {
+    pub fn call(mut self, member: String) -> CallBuilder<'a, 'e> {
         self.msg.typ = message::MessageType::Call;
         self.msg.member = Some(member);
         CallBuilder { msg: self.msg }
     }
-    pub fn signal(mut self, interface: String, member: String, object: String) -> SignalBuilder {
+    pub fn signal(
+        mut self,
+        interface: String,
+        member: String,
+        object: String,
+    ) -> SignalBuilder<'a, 'e> {
         self.msg.typ = message::MessageType::Signal;
         self.msg.member = Some(member);
         self.msg.interface = Some(interface);
@@ -36,7 +41,7 @@ impl MessageBuilder {
     }
 }
 
-impl CallBuilder {
+impl<'a, 'e> CallBuilder<'a, 'e> {
     pub fn on(mut self, object_path: String) -> Self {
         self.msg.object = Some(object_path);
         self
@@ -52,28 +57,28 @@ impl CallBuilder {
         self
     }
 
-    pub fn with_params(mut self, params: Vec<params::Param>) -> Self {
+    pub fn with_params(mut self, params: Vec<params::Param<'a, 'e>>) -> Self {
         self.msg.params.extend(params);
         self
     }
 
-    pub fn build(self) -> message::Message {
+    pub fn build(self) -> message::Message<'a, 'e> {
         self.msg
     }
 }
 
-impl SignalBuilder {
+impl<'a, 'e> SignalBuilder<'a, 'e> {
     pub fn to(mut self, destination: String) -> Self {
         self.msg.destination = Some(destination);
         self
     }
 
-    pub fn with_params(mut self, params: Vec<params::Param>) -> Self {
+    pub fn with_params(mut self, params: Vec<params::Param<'a, 'e>>) -> Self {
         self.msg.params.extend(params);
         self
     }
 
-    pub fn build(self) -> message::Message {
+    pub fn build(self) -> message::Message<'a, 'e> {
         self.msg
     }
 }

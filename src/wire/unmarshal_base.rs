@@ -5,12 +5,12 @@ use crate::wire::unmarshal::Header;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::util::*;
 
-pub fn unmarshal_base(
+pub fn unmarshal_base<'a>(
     header: &Header,
     buf: &[u8],
     typ: signature::Base,
     offset: usize,
-) -> UnmarshalResult<params::Base> {
+) -> UnmarshalResult<params::Base<'a>> {
     let padding = align_offset(typ.get_alignment(), buf, offset)?;
 
     match typ {

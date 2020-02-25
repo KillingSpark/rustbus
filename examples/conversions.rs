@@ -43,7 +43,7 @@ struct Response2 {
 }
 
 // helper for conversion from our struct to rustbus::message::Param
-impl std::convert::From<Request2> for Param {
+impl<'a, 'e> std::convert::From<Request2> for Param<'a, 'e> {
     fn from(r: Request2) -> Self {
         Container::Struct(vec![r.a.into(), r.b.into(), r.c.into()]).into()
     }
@@ -51,16 +51,16 @@ impl std::convert::From<Request2> for Param {
 
 // wrapper for make conversion from rustbus::message::Param to string
 // bool or ordinal types
-fn convert<'a, T: TryFrom<&'a Base>>(p: &'a Param) -> Result<T, Error> {
+fn convert<'a, 'pa, 'pe, T: TryFrom<&'a Base<'pa>>>(p: &'a Param<'pa, 'pe>) -> Result<T, Error> {
     if let Param::Base(base) = p {
         return T::try_from(base).map_err(|_| Error::InvalidType);
     }
     Err(Error::InvalidType)
 }
 
-impl TryFrom<Vec<Param>> for Response1 {
+impl<'a, 'e> TryFrom<Vec<Param<'a, 'e>>> for Response1 {
     type Error = Error;
-    fn try_from(p: Vec<Param>) -> Result<Response1, Self::Error> {
+    fn try_from(p: Vec<Param<'a, 'e>>) -> Result<Response1, Self::Error> {
         if p.len() == 1 {
             if let Param::Container(c) = &p[0] {
                 if let Container::Struct(params) = c {
@@ -77,9 +77,9 @@ impl TryFrom<Vec<Param>> for Response1 {
     }
 }
 
-impl TryFrom<Vec<Param>> for Response2 {
+impl<'a, 'e> TryFrom<Vec<Param<'a, 'e>>> for Response2 {
     type Error = Error;
-    fn try_from(p: Vec<Param>) -> Result<Response2, Self::Error> {
+    fn try_from(p: Vec<Param<'a, 'e>>) -> Result<Response2, Self::Error> {
         if p.len() == 1 {
             if let Param::Container(c) = &p[0] {
                 if let Container::Struct(params) = c {
@@ -96,7 +96,7 @@ impl TryFrom<Vec<Param>> for Response2 {
     }
 }
 
-fn build_message1(value: u32) -> Message {
+fn build_message1<'a, 'e>(value: u32) -> Message<'a, 'e> {
     MessageBuilder::new()
         .call("request1".into())
         .on("/io/killing/spark".into())
@@ -106,7 +106,7 @@ fn build_message1(value: u32) -> Message {
         .build()
 }
 
-fn build_message2(value: Request2) -> Message {
+fn build_message2<'a, 'e>(value: Request2) -> Message<'a, 'e> {
     MessageBuilder::new()
         .call("request1".into())
         .on("/io/killing/spark".into())
@@ -116,9 +116,9 @@ fn build_message2(value: Request2) -> Message {
         .build()
 }
 
-fn send_and_recv<T: TryFrom<Vec<Param>> + std::fmt::Debug>(
-    conn: &mut RpcConn,
-    msg: Message,
+fn send_and_recv<'a, 'e, T: TryFrom<Vec<Param<'a, 'e>>> + std::fmt::Debug>(
+    conn: &mut RpcConn<'a, 'e>,
+    msg: Message<'a, 'e>,
 ) -> Result<(), rustbus::client_conn::Error> {
     let serial = conn.send_message(msg, None)?.serial.unwrap();
     let response = conn.wait_response(serial, None)?;

@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rustbus::message::Container;
-use rustbus::message::DictMap;
-use rustbus::message::Param;
+use rustbus::params::Container;
+use rustbus::params::DictMap;
+use rustbus::params::Param;
 use rustbus::wire::marshal::marshal;
 use rustbus::wire::unmarshal::unmarshal_header;
 use rustbus::wire::unmarshal::unmarshal_next_message;
@@ -20,11 +20,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut params: Vec<Param> = Vec::new();
 
     let mut dict = DictMap::new();
-    dict.insert("A".to_owned().into(), 1234567i32.into());
-    dict.insert("B".to_owned().into(), 1234567i32.into());
-    dict.insert("C".to_owned().into(), 1234567i32.into());
-    dict.insert("D".to_owned().into(), 1234567i32.into());
-    dict.insert("E".to_owned().into(), 1234567i32.into());
+    dict.insert("A".into(), 1234567i32.into());
+    dict.insert("B".into(), 1234567i32.into());
+    dict.insert("C".into(), 1234567i32.into());
+    dict.insert("D".into(), 1234567i32.into());
+    dict.insert("E".into(), 1234567i32.into());
 
     use std::convert::TryFrom;
     let dict: Param = Container::try_from(dict).unwrap().into();

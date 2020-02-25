@@ -3,7 +3,7 @@
 use crate::message;
 use crate::message_builder::MessageBuilder;
 
-pub fn hello() -> message::Message {
+pub fn hello<'a, 'e>() -> message::Message<'a, 'e> {
     MessageBuilder::new()
         .call("Hello".into())
         .on("/org/freedesktop/DBus".into())
@@ -12,7 +12,7 @@ pub fn hello() -> message::Message {
         .build()
 }
 
-pub fn ping(dest: String) -> message::Message {
+pub fn ping<'a, 'e>(dest: String) -> message::Message<'a, 'e> {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -21,7 +21,7 @@ pub fn ping(dest: String) -> message::Message {
         .build()
 }
 
-pub fn ping_bus() -> message::Message {
+pub fn ping_bus<'a, 'e>() -> message::Message<'a, 'e> {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -29,7 +29,7 @@ pub fn ping_bus() -> message::Message {
         .build()
 }
 
-pub fn list_names() -> message::Message {
+pub fn list_names<'a, 'e>() -> message::Message<'a, 'e> {
     MessageBuilder::new()
         .call("ListNames".into())
         .on("/org/freedesktop/DBus".into())
@@ -48,7 +48,7 @@ pub const DBUS_REQUEST_NAME_REPLY_EXISTS: u32 = 3;
 pub const DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER: u32 = 4;
 
 /// Request a name on the bus
-pub fn request_name(name: String, flags: u32) -> message::Message {
+pub fn request_name<'a, 'e>(name: String, flags: u32) -> message::Message<'a, 'e> {
     MessageBuilder::new()
         .call("RequestName".into())
         .on("/org/freedesktop/DBus".into())
@@ -59,7 +59,7 @@ pub fn request_name(name: String, flags: u32) -> message::Message {
 }
 
 /// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
-pub fn add_match(match_rule: String) -> message::Message {
+pub fn add_match<'a, 'e>(match_rule: String) -> message::Message<'a, 'e> {
     MessageBuilder::new()
         .call("AddMatch".into())
         .on("/org/freedesktop/DBus".into())
@@ -70,7 +70,7 @@ pub fn add_match(match_rule: String) -> message::Message {
 }
 
 /// Error message to tell the caller that this method is not known by your server
-pub fn unknown_method(call: &message::Message) -> message::Message {
+pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> message::Message<'a, 'e> {
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.UnknownMethod".to_owned());
     reply.push_params(vec![format!(
         "No calls to {}.{} are accepted for object {}",
@@ -83,7 +83,10 @@ pub fn unknown_method(call: &message::Message) -> message::Message {
 }
 
 /// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
-pub fn invalid_args(call: &message::Message, sig: Option<&str>) -> message::Message {
+pub fn invalid_args<'a, 'e>(
+    call: &message::Message<'a, 'e>,
+    sig: Option<&str>,
+) -> message::Message<'a, 'e> {
     let mut reply = call.make_error_response("org.freedesktop.DBus.Error.InvalidArgs".to_owned());
     reply.push_params(vec![format!(
         "Invalid arguments for calls to {}.{} on object {} {}",

@@ -116,7 +116,7 @@ pub fn validate_signature(sig: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_array(array: &Array) -> Result<()> {
+pub fn validate_array<'a, 'e>(array: &Array<'a, 'e>) -> Result<()> {
     // TODO check that all elements have the same type
     if array.values.is_empty() {
         return Ok(());
