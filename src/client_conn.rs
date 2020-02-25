@@ -409,10 +409,9 @@ impl<'msga, 'msge> Conn {
         timeout: Option<time::Duration>,
     ) -> Result<u32> {
         self.msg_buf_out.clear();
-        if msg.serial.is_none() {
-            msg.serial = Some(self.serial_counter);
-            self.serial_counter += 1;
-        }
+        msg.serial = Some(self.serial_counter);
+        self.serial_counter += 1;
+        
         marshal::marshal(
             &msg,
             message::ByteOrder::LittleEndian,
