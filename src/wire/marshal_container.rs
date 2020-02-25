@@ -40,7 +40,7 @@ fn marshal_array(
 }
 
 fn marshal_struct(
-    params: &Vec<params::Param>,
+    params: &[params::Param],
     byteorder: message::ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {

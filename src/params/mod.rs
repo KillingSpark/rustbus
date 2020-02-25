@@ -1,7 +1,7 @@
 mod conversion;
-mod params;
+mod types;
 mod validation;
 
 pub use conversion::*;
-pub use params::*;
+pub use types::*;
 pub use validation::*;
