@@ -189,11 +189,11 @@ impl HeaderFlags {
     }
 
     pub fn set(self, flags: &mut u8) {
-        *flags = *flags | self.into_raw()
+        *flags |= self.into_raw()
     }
 
     pub fn unset(self, flags: &mut u8) {
-        *flags = *flags & (0xFF - self.into_raw())
+        *flags &= 0xFF - self.into_raw()
     }
     pub fn toggle(self, flags: &mut u8) {
         if self.is_set(*flags) {

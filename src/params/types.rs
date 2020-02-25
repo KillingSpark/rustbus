@@ -275,6 +275,10 @@ impl<'a, 'e> Container<'a, 'e> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn sig(&self) -> signature::Type {
         let sig: signature::Container = self.into();
         signature::Type::Container(sig)
