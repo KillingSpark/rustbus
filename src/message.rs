@@ -17,17 +17,23 @@ pub enum MessageType {
 #[derive(Debug, Clone)]
 pub struct Message<'a, 'e> {
     pub typ: MessageType,
+    pub flags: u8,
+
+    // dynamic header
     pub interface: Option<String>,
     pub member: Option<String>,
     pub object: Option<String>,
     pub destination: Option<String>,
-    pub params: Vec<Param<'a, 'e>>,
     pub serial: Option<u32>,
-    pub response_serial: Option<u32>,
     pub sender: Option<String>,
     pub error_name: Option<String>,
-
+    pub response_serial: Option<u32>,
     pub num_fds: Option<u32>,
+
+    // body
+    pub params: Vec<Param<'a, 'e>>,
+
+    // out of band data
     pub raw_fds: Vec<RawFd>,
 }
 
@@ -53,6 +59,7 @@ impl<'a, 'e> Message<'a, 'e> {
             response_serial: None,
             sender: None,
             error_name: None,
+            flags: 0,
         }
     }
 
@@ -90,6 +97,7 @@ impl<'a, 'e> Message<'a, 'e> {
             sender: None,
             response_serial: self.serial,
             error_name: None,
+            flags: 0,
         }
     }
 
@@ -108,11 +116,22 @@ impl<'a, 'e> Message<'a, 'e> {
             sender: None,
             response_serial: self.serial,
             error_name: Some(error_name),
+            flags: 0,
         };
         if let Some(text) = error_msg {
             err_resp.push_param(text.into())
         }
         err_resp
+    }
+
+    pub fn set_flag(&mut self, flag: HeaderFlags) {
+        flag.set(&mut self.flags)
+    }
+    pub fn unset_flag(&mut self, flag: HeaderFlags) {
+        flag.unset(&mut self.flags)
+    }
+    pub fn toggle_flag(&mut self, flag: HeaderFlags) {
+        flag.toggle(&mut self.flags)
     }
 
     pub fn sig(&self) -> Vec<signature::Type> {
@@ -149,10 +168,40 @@ pub enum ByteOrder {
     BigEndian,
 }
 
+#[derive(Copy, Clone)]
 pub enum HeaderFlags {
     NoReplyExpected,
     NoAutoStart,
     AllowInteractiveAuthorization,
+}
+
+impl HeaderFlags {
+    pub fn into_raw(self) -> u8 {
+        match self {
+            HeaderFlags::NoReplyExpected => 1,
+            HeaderFlags::NoAutoStart => 2,
+            HeaderFlags::AllowInteractiveAuthorization => 4,
+        }
+    }
+
+    pub fn is_set(self, flags: u8) -> bool {
+        flags & self.into_raw() == 1
+    }
+
+    pub fn set(self, flags: &mut u8) {
+        *flags = *flags | self.into_raw()
+    }
+
+    pub fn unset(self, flags: &mut u8) {
+        *flags = *flags & (0xFF - self.into_raw())
+    }
+    pub fn toggle(self, flags: &mut u8) {
+        if self.is_set(*flags) {
+            self.unset(flags)
+        } else {
+            self.set(flags)
+        }
+    }
 }
 
 /// The different header fields a message may or maynot have

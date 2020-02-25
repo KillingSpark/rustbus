@@ -48,9 +48,7 @@ fn marshal_header(
     };
     buf.push(msg_type);
 
-    // TODO Flags
-    let flags = 0;
-    buf.push(flags);
+    buf.push(msg.flags);
 
     // Version
     buf.push(1);

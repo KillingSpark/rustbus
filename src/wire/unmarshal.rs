@@ -95,6 +95,7 @@ pub fn unmarshal_next_message<'a, 'e>(
             typ: header.typ,
             serial: Some(header.serial),
             raw_fds: Vec::new(),
+            flags: header.flags,
         };
         collect_header_fields(&fields, &mut msg);
         Ok((padding + fields_bytes_used, msg))
@@ -136,6 +137,7 @@ pub fn unmarshal_next_message<'a, 'e>(
             typ: header.typ,
             serial: Some(header.serial),
             raw_fds: Vec::new(),
+            flags: header.flags,
         };
         collect_header_fields(&fields, &mut msg);
         Ok((padding + fields_bytes_used + body_bytes_used, msg))
