@@ -71,6 +71,9 @@ impl<'a, 'e> Message<'a, 'e> {
     pub fn push_params(&mut self, params: Vec<Param<'a, 'e>>) {
         self.params.extend(params);
     }
+    pub fn push_param(&mut self, param: Param<'a, 'e>) {
+        self.params.push(param);
+    }
 
     /// Make a correctly addressed response with the correct response serial
     pub fn make_response(&self) -> Self {
@@ -107,7 +110,7 @@ impl<'a, 'e> Message<'a, 'e> {
             error_name: Some(error_name),
         };
         if let Some(text) = error_msg {
-            err_resp.push_params(vec![text.into()])
+            err_resp.push_param(text.into())
         }
         err_resp
     }
