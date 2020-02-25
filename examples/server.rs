@@ -30,15 +30,12 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let con = Conn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);
 
-    rpc_con.send_message(standard_messages::hello(), None)?;
+    rpc_con.send_message(&mut standard_messages::hello(), None)?;
 
-    let namereq_serial = rpc_con
-        .send_message(
-            standard_messages::request_name("io.killing.spark".into(), 0),
-            None,
-        )?
-        .serial
-        .unwrap();
+    let namereq_serial = rpc_con.send_message(
+        &mut standard_messages::request_name("io.killing.spark".into(), 0),
+        None,
+    )?;
     let resp = rpc_con.wait_response(namereq_serial, None)?;
     println!("Name request response: {:?}", resp);
 
@@ -74,7 +71,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                 "Reverse" => {
                     if call.params.len() != 1 {
                         rpc_con.send_message(
-                            standard_messages::invalid_args(&call, Some("String")),
+                            &mut standard_messages::invalid_args(&call, Some("String")),
                             None,
                         )?;
                         continue;
@@ -83,7 +80,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                         Commands::Reverse(val.clone())
                     } else {
                         rpc_con.send_message(
-                            standard_messages::invalid_args(&call, Some("String")),
+                            &mut standard_messages::invalid_args(&call, Some("String")),
                             None,
                         )?;
                         continue;
@@ -91,13 +88,13 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                 }
                 _ => {
                     // This shouldn't happen with the filters defined above
-                    rpc_con.send_message(standard_messages::unknown_method(&call), None)?;
+                    rpc_con.send_message(&mut standard_messages::unknown_method(&call), None)?;
                     continue;
                 }
             };
-            let reply = cmd.execute(&call);
+            let mut reply = cmd.execute(&call);
             println!("Reply: {:?}", reply);
-            rpc_con.send_message(reply, None)?;
+            rpc_con.send_message(&mut reply, None)?;
             println!("Reply sent");
         }
     }

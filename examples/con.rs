@@ -5,7 +5,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let con = Conn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);
 
-    let hello_msg = standard_messages::hello();
+    let mut hello_msg = standard_messages::hello();
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
         MessageType::Call => false,
@@ -16,7 +16,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     }));
 
     println!("Send message: {:?}", hello_msg);
-    let hello_serial = rpc_con.send_message(hello_msg, None)?.serial.unwrap();
+    let hello_serial = rpc_con.send_message(&mut hello_msg, None)?;
 
     println!("\n");
     println!("\n");
@@ -28,13 +28,10 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     println!("\n");
     println!("\n");
 
-    let reqname_serial = rpc_con
-        .send_message(
-            standard_messages::request_name("io.killing.spark".into(), 0),
-            None,
-        )?
-        .serial
-        .unwrap();
+    let reqname_serial = rpc_con.send_message(
+        &mut standard_messages::request_name("io.killing.spark".into(), 0),
+        None,
+    )?;
 
     println!("Wait for name request response");
     let msg = rpc_con.wait_response(reqname_serial, None)?;
@@ -54,10 +51,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         panic!("Wrong args: {:?}", msg.params);
     }
 
-    let list_serial = rpc_con
-        .send_message(standard_messages::list_names(), None)?
-        .serial
-        .unwrap();
+    let list_serial = rpc_con.send_message(&mut standard_messages::list_names(), None)?;
 
     println!("Wait for list response");
     let msg = rpc_con.wait_response(list_serial, None)?;
@@ -66,10 +60,10 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     println!("\n");
     println!("\n");
 
-    let sig_listen_msg = standard_messages::add_match("type='signal'".into());
+    let mut sig_listen_msg = standard_messages::add_match("type='signal'".into());
 
     println!("Send message: {:?}", sig_listen_msg);
-    rpc_con.send_message(sig_listen_msg, None)?;
+    rpc_con.send_message(&mut sig_listen_msg, None)?;
 
     loop {
         println!("Wait for incoming signals");

@@ -40,12 +40,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     .into();
 
     for _ in 0..10 {
-        params.push("TesttestTesttest".to_owned().into());
+        params.push("TesttestTesttest".into());
         params.push(0xFFFFFFFFFFFFFFFFu64.into());
         params.push(
             Container::Struct(vec![
                 0xFFFFFFFFFFFFFFFFu64.into(),
-                "TesttestTesttest".to_owned().into(),
+                "TesttestTesttest".into(),
             ])
             .into(),
         );

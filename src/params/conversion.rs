@@ -150,8 +150,6 @@ impl<'a> std::convert::TryFrom<&Base<'a>> for i64 {
     }
 }
 
-
-
 //
 //
 // Param TO
@@ -192,6 +190,11 @@ impl<'a, 'e> std::convert::From<bool> for Param<'a, 'e> {
 impl<'a, 'e> std::convert::From<String> for Param<'a, 'e> {
     fn from(s: String) -> Self {
         Param::Base(Base::String(s))
+    }
+}
+impl<'a, 'e> std::convert::From<&'e str> for Param<'a, 'e> {
+    fn from(s: &'e str) -> Self {
+        Param::Base(Base::StringRef(s))
     }
 }
 impl<'a, 'e> std::convert::From<u8> for Param<'a, 'e> {

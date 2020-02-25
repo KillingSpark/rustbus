@@ -118,9 +118,9 @@ fn build_message2<'a, 'e>(value: Request2) -> Message<'a, 'e> {
 
 fn send_and_recv<'a, 'e, T: TryFrom<Vec<Param<'a, 'e>>> + std::fmt::Debug>(
     conn: &mut RpcConn<'a, 'e>,
-    msg: Message<'a, 'e>,
+    msg: &mut Message<'a, 'e>,
 ) -> Result<(), rustbus::client_conn::Error> {
-    let serial = conn.send_message(msg, None)?.serial.unwrap();
+    let serial = conn.send_message(msg, None)?;
     let response = conn.wait_response(serial, None)?;
     let response_converted = T::try_from(response.params).map_err(|_| Error::InvalidType)?;
     println!("Got response {:?}", response_converted);
@@ -131,11 +131,11 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_session_bus_path()?;
     let con = Conn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);
-    rpc_con.send_message(standard_messages::hello(), None)?;
-    send_and_recv::<Response1>(&mut rpc_con, build_message1(42))?;
+    rpc_con.send_message(&mut standard_messages::hello(), None)?;
+    send_and_recv::<Response1>(&mut rpc_con, &mut build_message1(42))?;
     send_and_recv::<Response2>(
         &mut rpc_con,
-        build_message2(Request2 {
+        &mut build_message2(Request2 {
             a: 42,
             b: 24,
             c: "test".into(),

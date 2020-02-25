@@ -143,9 +143,9 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     /// Send a message to the bus
     pub fn send_message(
         &mut self,
-        msg: message::Message<'msga, 'msge>,
+        msg: &mut message::Message<'msga, 'msge>,
         timeout: Option<time::Duration>,
-    ) -> Result<message::Message<'msga, 'msge>> {
+    ) -> Result<u32> {
         self.conn.send_message(msg, timeout)
     }
 
@@ -178,9 +178,9 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
             } else {
                 match msg.typ {
                     message::MessageType::Call => {
-                        let reply = crate::standard_messages::unknown_method(&msg);
+                        let mut reply = crate::standard_messages::unknown_method(&msg);
                         self.conn
-                            .send_message(reply, calc_timeout_left(&start_time, timeout)?)?;
+                            .send_message(&mut reply, calc_timeout_left(&start_time, timeout)?)?;
                     }
                     message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
                     message::MessageType::Error => {
@@ -405,9 +405,9 @@ impl<'msga, 'msge> Conn {
     /// send a message over the conn
     pub fn send_message(
         &mut self,
-        mut msg: message::Message<'msga, 'msge>,
+        msg: &mut message::Message<'msga, 'msge>,
         timeout: Option<time::Duration>,
-    ) -> Result<message::Message<'msga, 'msge>> {
+    ) -> Result<u32> {
         self.msg_buf_out.clear();
         if msg.serial.is_none() {
             msg.serial = Some(self.serial_counter);
@@ -434,7 +434,7 @@ impl<'msga, 'msge> Conn {
         )?;
         self.stream.set_read_timeout(old_timeout)?;
         assert_eq!(l, self.msg_buf_out.len());
-        Ok(msg)
+        Ok(msg.serial.unwrap())
     }
 }
 
