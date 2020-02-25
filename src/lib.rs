@@ -2,7 +2,7 @@
 //! Rustbus is a dbus library that allows for RPC on services on the bus or to implement your own service that listens on the bus. There are some examples
 //! in the src/bin directory but the gist is:
 //!
-//! ```
+//! ```rust,no_run
 //! use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder};
 //!
 //! fn main() -> Result<(), rustbus::client_conn::Error> {
