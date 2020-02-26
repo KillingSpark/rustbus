@@ -70,9 +70,9 @@ fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    buf.clear();
-    marsh(&msg, &mut buf);
-    c.bench_function("unmarshal", |b| b.iter(|| unmarshal(black_box(&buf))));
+    //buf.clear();
+    //marsh(&msg, &mut buf);
+    //c.bench_function("unmarshal", |b| b.iter(|| unmarshal(black_box(&buf))));
 }
 
 criterion_group!(benches, criterion_benchmark);
