@@ -62,36 +62,50 @@ enum Token {
     Variant,
 }
 
-fn make_tokens(sig: &str) -> Result<Vec<Token>> {
-    let mut tokens = Vec::new();
+fn char_to_token(c: char) -> Result<Token> {
+    let t = match c {
+        '(' => Token::Structstart,
+        ')' => Token::Structend,
+        'a' => Token::Array,
+        'b' => Token::Boolean,
+        'y' => Token::Byte,
+        'n' => Token::Int16,
+        'q' => Token::Uint16,
+        'i' => Token::Int32,
+        'u' => Token::Uint32,
+        'h' => Token::UnixFd,
+        'x' => Token::Int64,
+        't' => Token::Uint64,
+        'd' => Token::Double,
+        's' => Token::String,
+        'o' => Token::ObjectPath,
+        'g' => Token::Signature,
+        '{' => Token::DictEntryStart,
+        '}' => Token::DictEntryEnd,
+        'v' => Token::Variant,
+        _ => return Err(Error::InvalidSignature),
+    };
+    Ok(t)
+}
 
-    for c in sig.chars().filter(|c| *c != ' ' && *c != '\t') {
-        let token = match c {
-            '(' => Token::Structstart,
-            ')' => Token::Structend,
-            'a' => Token::Array,
-            'b' => Token::Boolean,
-            'y' => Token::Byte,
-            'n' => Token::Int16,
-            'q' => Token::Uint16,
-            'i' => Token::Int32,
-            'u' => Token::Uint32,
-            'h' => Token::UnixFd,
-            'x' => Token::Int64,
-            't' => Token::Uint64,
-            'd' => Token::Double,
-            's' => Token::String,
-            'o' => Token::ObjectPath,
-            'g' => Token::Signature,
-            '{' => Token::DictEntryStart,
-            '}' => Token::DictEntryEnd,
-            'v' => Token::Variant,
-            _ => return Err(Error::InvalidSignature),
-        };
-        tokens.push(token);
+struct TokenIter<I: Iterator<Item = char>> {
+    chars: I,
+}
+
+impl<I: Iterator<Item = char>> Iterator for TokenIter<I> {
+    type Item = Result<Token>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(c) = self.chars.next() {
+            Some(char_to_token(c))
+        } else {
+            None
+        }
     }
+}
 
-    Ok(tokens)
+fn make_tokens<I: Iterator<Item = char>>(sig: I) -> TokenIter<I> {
+    TokenIter { chars: sig }
 }
 
 impl Container {
@@ -174,15 +188,18 @@ impl Type {
         if sig.len() > 255 {
             return Err(Error::SignatureTooLong);
         }
-
-        let mut tokens = make_tokens(sig)?;
-        if tokens.is_empty() {
+        if sig.is_empty() {
             return Err(Error::EmptySignature);
         }
+
+        let mut tokens = make_tokens(sig.chars());
         let mut types = Vec::new();
-        while !tokens.is_empty() {
-            let t = Self::parse_next_type(&mut tokens)?;
-            types.push(t);
+        loop {
+            if let Some(t) = Self::parse_next_type(&mut tokens, None)? {
+                types.push(t);
+            } else {
+                break;
+            }
         }
         for t in &types {
             Self::check_nesting_depth(t, 0, 0)?;
@@ -227,130 +244,104 @@ impl Type {
         }
     }
 
-    fn parse_next_type(tokens: &mut Vec<Token>) -> Result<Type> {
-        if tokens.is_empty() {
-            return Err(Error::InvalidSignature);
-        }
-        match tokens[0] {
-            Token::Structstart => {
-                tokens.remove(0);
-                let types = Self::parse_struct(tokens)?;
-                if tokens.is_empty() {
-                    return Err(Error::InvalidSignature);
+    fn parse_next_type<I: Iterator<Item = Result<Token>>>(
+        tokens: &mut I,
+        delim: Option<Token>,
+    ) -> Result<Option<Type>> {
+        if let Some(token) = tokens.next() {
+            let token = token?;
+            match token {
+                Token::Structstart => {
+                    let types = Self::parse_struct(tokens)?;
+                    Ok(Some(Type::Container(Container::Struct(types))))
                 }
-                tokens.remove(0);
-                Ok(Type::Container(Container::Struct(types)))
-            }
-            Token::Array => {
-                tokens.remove(0);
-                let elem_type = Self::parse_next_type(tokens)?;
-                if let Type::Container(Container::Dict(_, _)) = &elem_type {
-                    // if the array contains dictentries this is a dict
-                    Ok(elem_type)
-                } else {
-                    Ok(Type::Container(Container::Array(Box::new(elem_type))))
+                Token::Structend => {
+                    if Some(token) == delim {
+                        Ok(None)
+                    } else {
+                        Err(Error::InvalidSignature)
+                    }
                 }
-            }
+                Token::Array => {
+                    let elem_type = Self::parse_next_type(tokens, None)?;
+                    match elem_type {
+                        Some(Type::Container(Container::Dict(_, _))) => Ok(elem_type),
+                        Some(elem_type) => {
+                            Ok(Some(Type::Container(Container::Array(Box::new(elem_type)))))
+                        }
+                        None => Err(Error::InvalidSignature),
+                    }
+                }
+                Token::DictEntryStart => {
+                    let key_type = Self::parse_next_base(tokens)?;
+                    if let Some(value_type) = Self::parse_next_type(tokens, None)? {
+                        if tokens.next() != Some(Ok(Token::DictEntryEnd)) {
+                            return Err(Error::InvalidSignature);
+                        }
+                        Ok(Some(Type::Container(Container::Dict(
+                            key_type,
+                            Box::new(value_type),
+                        ))))
+                    } else {
+                        Err(Error::InvalidSignature)
+                    }
+                }
 
-            Token::Byte => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Byte))
+                Token::Byte => Ok(Some(Type::Base(Base::Byte))),
+                Token::Boolean => Ok(Some(Type::Base(Base::Boolean))),
+                Token::Int16 => Ok(Some(Type::Base(Base::Int16))),
+                Token::Uint16 => Ok(Some(Type::Base(Base::Uint16))),
+                Token::Int32 => Ok(Some(Type::Base(Base::Int32))),
+                Token::Uint32 => Ok(Some(Type::Base(Base::Uint32))),
+                Token::Int64 => Ok(Some(Type::Base(Base::Int64))),
+                Token::Uint64 => Ok(Some(Type::Base(Base::Uint64))),
+                Token::Double => Ok(Some(Type::Base(Base::Double))),
+                Token::String => Ok(Some(Type::Base(Base::String))),
+                Token::ObjectPath => Ok(Some(Type::Base(Base::ObjectPath))),
+                Token::Signature => Ok(Some(Type::Base(Base::Signature))),
+                Token::Variant => Ok(Some(Type::Container(Container::Variant))),
+                _ => Err(Error::InvalidSignature),
             }
-            Token::Boolean => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Boolean))
+        } else {
+            if delim.is_none() {
+                Ok(None)
+            } else {
+                Err(Error::InvalidSignature)
             }
-            Token::Int16 => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Int16))
-            }
-            Token::Uint16 => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Uint16))
-            }
-            Token::Int32 => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Int32))
-            }
-            Token::Uint32 => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Uint32))
-            }
-            Token::Int64 => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Int64))
-            }
-            Token::Uint64 => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Uint64))
-            }
-            Token::Double => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Double))
-            }
-            Token::String => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::String))
-            }
-            Token::ObjectPath => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::ObjectPath))
-            }
-            Token::Signature => {
-                tokens.remove(0);
-                Ok(Type::Base(Base::Signature))
-            }
-            Token::Variant => {
-                tokens.remove(0);
-                Ok(Type::Container(Container::Variant))
-            }
-            Token::DictEntryStart => {
-                tokens.remove(0);
-                let key_type = Self::parse_next_base(tokens)?;
-                let value_type = Self::parse_next_type(tokens)?;
-                if tokens.is_empty() {
-                    return Err(Error::InvalidSignature);
-                }
-                if tokens[0] != Token::DictEntryEnd {
-                    return Err(Error::InvalidSignature);
-                }
-                tokens.remove(0);
-                Ok(Type::Container(Container::Dict(
-                    key_type,
-                    Box::new(value_type),
-                )))
-            }
-
-            _ => Err(Error::InvalidSignature),
         }
     }
 
-    fn parse_next_base(tokens: &mut Vec<Token>) -> Result<Base> {
-        let token = tokens.remove(0);
-        match token {
-            Token::Byte => Ok(Base::Byte),
-            Token::Int16 => Ok(Base::Int16),
-            Token::Uint16 => Ok(Base::Uint16),
-            Token::Int32 => Ok(Base::Int32),
-            Token::Uint32 => Ok(Base::Uint32),
-            Token::Int64 => Ok(Base::Int64),
-            Token::Uint64 => Ok(Base::Uint64),
-            Token::String => Ok(Base::String),
-            Token::ObjectPath => Ok(Base::ObjectPath),
-            Token::Signature => Ok(Base::Signature),
-            Token::Double => Ok(Base::Double),
-            Token::UnixFd => Ok(Base::UnixFd),
-            _ => Err(Error::InvalidSignature),
+    fn parse_next_base<I: Iterator<Item = Result<Token>>>(tokens: &mut I) -> Result<Base> {
+        if let Some(token) = tokens.next() {
+            let token = token?;
+            match token {
+                Token::Byte => Ok(Base::Byte),
+                Token::Int16 => Ok(Base::Int16),
+                Token::Uint16 => Ok(Base::Uint16),
+                Token::Int32 => Ok(Base::Int32),
+                Token::Uint32 => Ok(Base::Uint32),
+                Token::Int64 => Ok(Base::Int64),
+                Token::Uint64 => Ok(Base::Uint64),
+                Token::String => Ok(Base::String),
+                Token::ObjectPath => Ok(Base::ObjectPath),
+                Token::Signature => Ok(Base::Signature),
+                Token::Double => Ok(Base::Double),
+                Token::UnixFd => Ok(Base::UnixFd),
+                _ => Err(Error::InvalidSignature),
+            }
+        } else {
+            Err(Error::InvalidSignature)
         }
     }
 
-    fn parse_struct(tokens: &mut Vec<Token>) -> Result<Vec<Type>> {
+    fn parse_struct<I: Iterator<Item = Result<Token>>>(tokens: &mut I) -> Result<Vec<Type>> {
         let mut types = Vec::new();
-        while !tokens.is_empty() {
-            if tokens[0] == Token::Structend {
+        loop {
+            if let Some(t) = Self::parse_next_type(tokens, Some(Token::Structend))? {
+                types.push(t);
+            } else {
                 break;
             }
-            types.push(Self::parse_next_type(tokens)?);
         }
         Ok(types)
     }
