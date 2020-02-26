@@ -1,6 +1,6 @@
 use rustbus::{
-    get_session_bus_path, params::DictMap, signature,
-    standard_messages, Conn, Container, MessageBuilder,
+    get_session_bus_path, params::DictMap, signature, standard_messages, Conn, Container,
+    MessageBuilder,
 };
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
