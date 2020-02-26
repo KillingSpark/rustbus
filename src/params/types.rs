@@ -134,7 +134,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         let dict = Dict {
             key_sig,
             value_sig,
-            map: map.into_iter().map(|(k,v)| (k.into(), v.into())).collect(),
+            map: map.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
         };
 
         validate_dict(&dict)?;
