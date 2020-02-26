@@ -121,13 +121,8 @@ pub fn validate_array<'a, 'e>(array: &Array<'a, 'e>) -> Result<()> {
     if array.values.is_empty() {
         return Ok(());
     }
-    let mut first_sig = String::new();
-    array.element_sig.to_str(&mut first_sig);
-    let mut element_sig = String::new();
     for el in &array.values {
-        element_sig.clear();
-        el.make_signature(&mut element_sig);
-        if !element_sig.eq(&first_sig) {
+        if !array.element_sig.eq(&el.sig()) {
             return Err(Error::ArrayElementTypesDiffer);
         }
     }
@@ -139,26 +134,15 @@ pub fn validate_dict(dict: &Dict) -> Result<()> {
     if dict.map.is_empty() {
         return Ok(());
     }
-    // check key sigs
-    let mut first_sig = String::new();
-    dict.key_sig.to_str(&mut first_sig);
-    let mut element_sig = String::new();
+    let key_sig = signature::Type::Base(dict.key_sig);
     for el in dict.map.keys() {
-        element_sig.clear();
-        el.make_signature(&mut element_sig);
-        if !element_sig.eq(&first_sig) {
+        if !key_sig.eq(&el.sig()) {
             return Err(Error::DictKeyTypesDiffer);
         }
     }
 
-    // check value sigs
-    let mut first_sig = String::new();
-    dict.value_sig.to_str(&mut first_sig);
-    let mut element_sig = String::new();
     for el in dict.map.values() {
-        element_sig.clear();
-        el.make_signature(&mut element_sig);
-        if !element_sig.eq(&first_sig) {
+        if !dict.value_sig.eq(&el.sig()) {
             return Err(Error::DictValueTypesDiffer);
         }
     }
