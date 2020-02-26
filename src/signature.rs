@@ -194,12 +194,8 @@ impl Type {
 
         let mut tokens = make_tokens(sig.chars());
         let mut types = Vec::new();
-        loop {
-            if let Some(t) = Self::parse_next_type(&mut tokens, None)? {
-                types.push(t);
-            } else {
-                break;
-            }
+        while let Some(t) = Self::parse_next_type(&mut tokens, None)? {
+            types.push(t);
         }
         for t in &types {
             Self::check_nesting_depth(t, 0, 0)?;
@@ -302,12 +298,12 @@ impl Type {
                 Token::Variant => Ok(Some(Type::Container(Container::Variant))),
                 _ => Err(Error::InvalidSignature),
             }
+        } else if delim.is_none() {
+            // we are just parsing types and are not within a struct
+            Ok(None)
         } else {
-            if delim.is_none() {
-                Ok(None)
-            } else {
-                Err(Error::InvalidSignature)
-            }
+            // we are in a struct and need to stop at a delimiter
+            Err(Error::InvalidSignature)
         }
     }
 
@@ -336,12 +332,8 @@ impl Type {
 
     fn parse_struct<I: Iterator<Item = Result<Token>>>(tokens: &mut I) -> Result<Vec<Type>> {
         let mut types = Vec::new();
-        loop {
-            if let Some(t) = Self::parse_next_type(tokens, Some(Token::Structend))? {
-                types.push(t);
-            } else {
-                break;
-            }
+        while let Some(t) = Self::parse_next_type(tokens, Some(Token::Structend))? {
+            types.push(t);
         }
         Ok(types)
     }
