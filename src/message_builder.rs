@@ -57,8 +57,8 @@ impl<'a, 'e> CallBuilder<'a, 'e> {
         self
     }
 
-    pub fn with_params(mut self, params: Vec<params::Param<'a, 'e>>) -> Self {
-        self.msg.params.extend(params);
+    pub fn with_params<P: Into<params::Param<'a, 'e>>>(mut self, params: Vec<P>) -> Self {
+        self.msg.push_params(params);
         self
     }
 

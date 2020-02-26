@@ -18,7 +18,7 @@ impl<'a, 'e> Commands {
             Commands::Reverse(val) => {
                 let mut reply = call.make_response();
                 let reverse = val.chars().rev().collect::<String>();
-                reply.push_param(reverse.into());
+                reply.push_param(reverse);
                 reply
             }
         }

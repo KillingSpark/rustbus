@@ -53,7 +53,7 @@ pub fn request_name<'a, 'e>(name: String, flags: u32) -> message::Message<'a, 'e
         .call("RequestName".into())
         .on("/org/freedesktop/DBus".into())
         .with_interface("org.freedesktop.DBus".into())
-        .with_params(vec![name.into(), flags.into()])
+        .with_params::<crate::params::Param>(vec![name.into(), flags.into()])
         .at("org.freedesktop.DBus".into())
         .build()
 }
@@ -64,7 +64,7 @@ pub fn add_match<'a, 'e>(match_rule: String) -> message::Message<'a, 'e> {
         .call("AddMatch".into())
         .on("/org/freedesktop/DBus".into())
         .with_interface("org.freedesktop.DBus".into())
-        .with_params(vec![match_rule.into()])
+        .with_params(vec![match_rule])
         .at("org.freedesktop.DBus".into())
         .build()
 }

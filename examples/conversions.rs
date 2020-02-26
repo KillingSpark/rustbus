@@ -102,7 +102,7 @@ fn build_message1<'a, 'e>(value: u32) -> Message<'a, 'e> {
         .on("/io/killing/spark".into())
         .with_interface("io.killing.spark".into())
         .at("io.killing.spark".into())
-        .with_params(vec![value.into()])
+        .with_params(vec![value])
         .build()
 }
 
@@ -112,7 +112,7 @@ fn build_message2<'a, 'e>(value: Request2) -> Message<'a, 'e> {
         .on("/io/killing/spark".into())
         .with_interface("io.killing.spark".into())
         .at("io.killing.spark".into())
-        .with_params(vec![value.into()])
+        .with_params(vec![value])
         .build()
 }
 

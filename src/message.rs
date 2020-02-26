@@ -75,11 +75,12 @@ impl<'a, 'e> Message<'a, 'e> {
     pub fn set_destination(&mut self, dest: String) {
         self.destination = Some(dest);
     }
-    pub fn push_params(&mut self, params: Vec<Param<'a, 'e>>) {
-        self.params.extend(params);
+    pub fn push_params<P: Into<Param<'a, 'e>>>(&mut self, params: Vec<P>) {
+        self.params
+            .extend(params.into_iter().map(std::convert::Into::into));
     }
-    pub fn push_param(&mut self, param: Param<'a, 'e>) {
-        self.params.push(param);
+    pub fn push_param<P: Into<Param<'a, 'e>>>(&mut self, param: P) {
+        self.params.push(param.into());
     }
 
     /// Make a correctly addressed response with the correct response serial
@@ -119,7 +120,7 @@ impl<'a, 'e> Message<'a, 'e> {
             flags: 0,
         };
         if let Some(text) = error_msg {
-            err_resp.push_param(text.into())
+            err_resp.push_param(text)
         }
         err_resp
     }
