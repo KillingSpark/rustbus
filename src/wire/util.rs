@@ -12,32 +12,20 @@ pub fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
 
 pub fn write_u16(val: u16, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
     match byteorder {
-        message::ByteOrder::LittleEndian => {
-            buf.extend(&val.to_le_bytes()[..])
-        }
-        message::ByteOrder::BigEndian => {
-            buf.extend(&val.to_be_bytes()[..])
-        }
+        message::ByteOrder::LittleEndian => buf.extend(&val.to_le_bytes()[..]),
+        message::ByteOrder::BigEndian => buf.extend(&val.to_be_bytes()[..]),
     }
 }
 pub fn write_u32(val: u32, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
     match byteorder {
-        message::ByteOrder::LittleEndian => {
-            buf.extend(&val.to_le_bytes()[..])
-        }
-        message::ByteOrder::BigEndian => {
-            buf.extend(&val.to_be_bytes()[..])
-        }
+        message::ByteOrder::LittleEndian => buf.extend(&val.to_le_bytes()[..]),
+        message::ByteOrder::BigEndian => buf.extend(&val.to_be_bytes()[..]),
     }
 }
 pub fn write_u64(val: u64, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
     match byteorder {
-        message::ByteOrder::LittleEndian => {
-            buf.extend(&val.to_le_bytes()[..])
-        }
-        message::ByteOrder::BigEndian => {
-            buf.extend(&val.to_be_bytes()[..])
-        }
+        message::ByteOrder::LittleEndian => buf.extend(&val.to_le_bytes()[..]),
+        message::ByteOrder::BigEndian => buf.extend(&val.to_be_bytes()[..]),
     }
 }
 
