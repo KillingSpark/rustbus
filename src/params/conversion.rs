@@ -171,65 +171,15 @@ impl<'a, 'e> std::convert::From<&Param<'a, 'e>> for signature::Type {
 //
 //
 
-impl<'a, 'e> std::convert::From<Base<'a>> for Param<'a, 'e> {
-    fn from(s: Base<'a>) -> Self {
-        Param::Base(s)
-    }
-}
-impl<'a, 'e> std::convert::From<Container<'a, 'e>> for Param<'a, 'e> {
-    fn from(s: Container<'a, 'e>) -> Self {
-        Param::Container(s)
+impl<'a, 'e, B: Into<Base<'a>>> std::convert::From<B> for Param<'a, 'e> {
+    fn from(s: B) -> Self {
+        Param::Base(s.into())
     }
 }
 
-impl<'a, 'e> std::convert::From<bool> for Param<'a, 'e> {
-    fn from(s: bool) -> Self {
-        Param::Base(Base::Boolean(s))
-    }
-}
-impl<'a, 'e> std::convert::From<String> for Param<'a, 'e> {
-    fn from(s: String) -> Self {
-        Param::Base(Base::String(s))
-    }
-}
-impl<'a, 'e> std::convert::From<&'e str> for Param<'a, 'e> {
-    fn from(s: &'e str) -> Self {
-        Param::Base(Base::StringRef(s))
-    }
-}
-impl<'a, 'e> std::convert::From<u8> for Param<'a, 'e> {
-    fn from(s: u8) -> Self {
-        Param::Base(Base::Byte(s))
-    }
-}
-impl<'a, 'e> std::convert::From<u16> for Param<'a, 'e> {
-    fn from(s: u16) -> Self {
-        Param::Base(Base::Uint16(s))
-    }
-}
-impl<'a, 'e> std::convert::From<u32> for Param<'a, 'e> {
-    fn from(s: u32) -> Self {
-        Param::Base(Base::Uint32(s))
-    }
-}
-impl<'a, 'e> std::convert::From<u64> for Param<'a, 'e> {
-    fn from(s: u64) -> Self {
-        Param::Base(Base::Uint64(s))
-    }
-}
-impl<'a, 'e> std::convert::From<i16> for Param<'a, 'e> {
-    fn from(s: i16) -> Self {
-        Param::Base(Base::Int16(s))
-    }
-}
-impl<'a, 'e> std::convert::From<i32> for Param<'a, 'e> {
-    fn from(s: i32) -> Self {
-        Param::Base(Base::Int32(s))
-    }
-}
-impl<'a, 'e> std::convert::From<i64> for Param<'a, 'e> {
-    fn from(s: i64) -> Self {
-        Param::Base(Base::Int64(s))
+impl<'a, 'e> std::convert::From<Container<'a, 'e>> for Param<'a, 'e> {
+    fn from(s: Container<'a, 'e>) -> Self {
+        Param::Container(s)
     }
 }
 
@@ -301,11 +251,6 @@ impl<'a, 'e> std::convert::TryFrom<DictMap<'a, 'e>> for Container<'a, 'e> {
 //
 //
 
-impl<'a> std::convert::From<bool> for Base<'a> {
-    fn from(s: bool) -> Self {
-        Base::Boolean(s)
-    }
-}
 impl<'a> std::convert::From<String> for Base<'a> {
     fn from(s: String) -> Self {
         Base::String(s)
@@ -314,6 +259,11 @@ impl<'a> std::convert::From<String> for Base<'a> {
 impl<'a> std::convert::From<&'a str> for Base<'a> {
     fn from(s: &'a str) -> Self {
         Base::StringRef(s)
+    }
+}
+impl<'a> std::convert::From<bool> for Base<'a> {
+    fn from(s: bool) -> Self {
+        Base::Boolean(s)
     }
 }
 impl<'a> std::convert::From<u8> for Base<'a> {
@@ -349,6 +299,46 @@ impl<'a> std::convert::From<i32> for Base<'a> {
 impl<'a> std::convert::From<i64> for Base<'a> {
     fn from(s: i64) -> Self {
         Base::Int64(s)
+    }
+}
+impl<'a> std::convert::From<&'a bool> for Base<'a> {
+    fn from(s: &'a bool) -> Self {
+        Base::BooleanRef(s)
+    }
+}
+impl<'a> std::convert::From<&'a u8> for Base<'a> {
+    fn from(s: &'a u8) -> Self {
+        Base::ByteRef(s)
+    }
+}
+impl<'a> std::convert::From<&'a u16> for Base<'a> {
+    fn from(s: &'a u16) -> Self {
+        Base::Uint16Ref(s)
+    }
+}
+impl<'a> std::convert::From<&'a u32> for Base<'a> {
+    fn from(s: &'a u32) -> Self {
+        Base::Uint32Ref(s)
+    }
+}
+impl<'a> std::convert::From<&'a u64> for Base<'a> {
+    fn from(s: &'a u64) -> Self {
+        Base::Uint64Ref(s)
+    }
+}
+impl<'a> std::convert::From<&'a i16> for Base<'a> {
+    fn from(s: &'a i16) -> Self {
+        Base::Int16Ref(s)
+    }
+}
+impl<'a> std::convert::From<&'a i32> for Base<'a> {
+    fn from(s: &'a i32) -> Self {
+        Base::Int32Ref(s)
+    }
+}
+impl<'a> std::convert::From<&'a i64> for Base<'a> {
+    fn from(s: &'a i64) -> Self {
+        Base::Int64Ref(s)
     }
 }
 
