@@ -1,5 +1,5 @@
 use rustbus::{
-    get_session_bus_path, params::DictMap, params::Param, params::Variant, signature,
+    get_session_bus_path, params::DictMap, signature,
     standard_messages, Conn, Container, MessageBuilder,
 };
 
@@ -16,6 +16,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     // To create a more complex object, you have to write a bit more specific code
     let struct1 = Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]);
+    // But if you only have one type in there you can use a shorthand
+    let struct2 = Container::make_struct(vec![162254319i32, 162254319i32]);
 
     // To create a dict or array a type is needed. You can use the string representation
     let dict2 = Container::make_dict("s", "(iiiiibbyy)", DictMap::new()).unwrap();
@@ -45,20 +47,14 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     // You can also avoid specifing the signature entirely. This requires at least one element to be present, else try_from will fail
     use std::convert::TryFrom;
-    let element: Param =
-        Container::Struct(vec![162254319i32.into(), "Inferred type".to_owned().into()]).into();
-    let arr5 = Container::try_from(vec![element]).unwrap();
+    let element = Container::Struct(vec![162254319i32.into(), "Inferred type".to_owned().into()]);
+    let arr5 = Container::try_from(vec![element.into()]).unwrap();
 
-    let variant_param: Param = Container::Struct(vec![
+    // creating variants is very easy
+    let variant = Container::make_variant(Container::Struct(vec![
         162254319i32.into(),
         "Variant content".to_owned().into(),
-    ])
-    .into();
-    let variant: Param = Container::Variant(Box::new(Variant {
-        sig: variant_param.sig(),
-        value: variant_param,
-    }))
-    .into();
+    ]));
 
     // Now we can build a message from all of these
     let sig = MessageBuilder::new()
@@ -70,13 +66,14 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         .with_params(vec![
             arr1.into(),
             struct1.into(),
+            struct2.into(),
             arr2.into(),
             arr3.into(),
             arr4.into(),
             arr5.into(),
             dict1.into(),
             dict2.into(),
-            variant,
+            variant.into(),
         ])
         .build();
     con.send_message(&mut sig.clone(), None)?;

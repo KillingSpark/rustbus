@@ -68,6 +68,19 @@ pub enum Container<'e, 'a: 'e> {
 }
 
 impl<'e, 'a: 'e> Container<'a, 'e> {
+    pub fn make_struct<P: Into<Param<'a, 'e>>>(elements: Vec<P>) -> Container<'a, 'e> {
+        Container::Struct(elements.into_iter().map(std::convert::Into::into).collect())
+    }
+
+    pub fn make_variant<P: Into<Param<'a, 'e>>>(element: P) -> Container<'a, 'e> {
+        let param: Param = element.into();
+
+        Container::Variant(Box::new(Variant {
+            sig: param.sig(),
+            value: param,
+        }))
+    }
+
     pub fn make_array<P: Into<Param<'a, 'e>>>(
         element_sig: &str,
         elements: Vec<P>,
