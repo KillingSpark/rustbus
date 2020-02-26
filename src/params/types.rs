@@ -68,9 +68,9 @@ pub enum Container<'e, 'a: 'e> {
 }
 
 impl<'e, 'a: 'e> Container<'a, 'e> {
-    pub fn make_array(
+    pub fn make_array<P: Into<Param<'a, 'e>>>(
         element_sig: &str,
-        elements: Vec<Param<'a, 'e>>,
+        elements: Vec<P>,
     ) -> Result<Container<'a, 'e>> {
         let mut sigs =
             signature::Type::parse_description(element_sig).map_err(Error::InvalidSignature)?;
@@ -83,13 +83,13 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         Self::make_array_with_sig(sig, elements)
     }
 
-    pub fn make_array_with_sig(
+    pub fn make_array_with_sig<P: Into<Param<'a, 'e>>>(
         element_sig: signature::Type,
-        elements: Vec<Param<'a, 'e>>,
+        elements: Vec<P>,
     ) -> Result<Container<'a, 'e>> {
         let arr: Array<'a, 'e> = Array {
             element_sig,
-            values: elements,
+            values: elements.into_iter().map(std::convert::Into::into).collect(),
         };
 
         validate_array(&arr)?;
@@ -97,10 +97,10 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         Ok(Container::Array(arr))
     }
 
-    pub fn make_dict(
+    pub fn make_dict<K: Into<Base<'e>>, V: Into<Param<'a, 'e>>>(
         key_sig: &str,
         val_sig: &str,
-        map: DictMap<'a, 'e>,
+        map: std::collections::HashMap<K, V>,
     ) -> Result<Container<'a, 'e>> {
         let mut valsigs =
             signature::Type::parse_description(val_sig).map_err(Error::InvalidSignature)?;
@@ -126,15 +126,15 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         Self::make_dict_with_sig(key_sig, value_sig, map)
     }
 
-    pub fn make_dict_with_sig(
+    pub fn make_dict_with_sig<K: Into<Base<'e>>, V: Into<Param<'a, 'e>>>(
         key_sig: signature::Base,
         value_sig: signature::Type,
-        map: DictMap<'a, 'e>,
+        map: std::collections::HashMap<K, V>,
     ) -> Result<Container<'a, 'e>> {
         let dict = Dict {
             key_sig,
             value_sig,
-            map,
+            map: map.into_iter().map(|(k,v)| (k.into(), v.into())).collect(),
         };
 
         validate_dict(&dict)?;

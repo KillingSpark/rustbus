@@ -20,25 +20,28 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     // To create a dict or array a type is needed. You can use the string representation
     let dict2 = Container::make_dict("s", "(iiiiibbyy)", DictMap::new()).unwrap();
 
-    let arr1 = Container::make_array("s", vec!["ABCDE".to_owned().into()]).unwrap();
+    let arr1 = Container::make_array("s", vec!["ABCDE"]).unwrap();
 
     // of course you can also build arrays with structs (and any deeper nesting you want)
     let arr2 = Container::make_array(
         "(is)",
         vec![
-            Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-            Container::Struct(vec![305419896i32.into(), "CCDD".to_owned().into()]).into(),
+            Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]),
+            Container::Struct(vec![305419896i32.into(), "CCDD".to_owned().into()]),
         ],
     )
     .unwrap();
 
     // The shorthand using the string notation really comes in handy when the types get ridiculous
-    let arr3 = Container::make_array("(a{i(sisisis)}((si)uby))", vec![]).unwrap();
+    let arr3 = Container::make_array::<rustbus::params::Param>("(a{i(sisisis)}((si)uby))", vec![])
+        .unwrap();
 
     // But if you want you can create the signature yourself
-    let arr4 =
-        Container::make_array_with_sig(signature::Type::Base(signature::Base::String), vec![])
-            .unwrap();
+    let arr4 = Container::make_array_with_sig::<rustbus::params::Param>(
+        signature::Type::Base(signature::Base::String),
+        vec![],
+    )
+    .unwrap();
 
     // You can also avoid specifing the signature entirely. This requires at least one element to be present, else try_from will fail
     use std::convert::TryFrom;
