@@ -29,13 +29,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     use std::convert::TryFrom;
     let dict: Param = Container::try_from(dict).unwrap().into();
 
-    let array: Param = Container::try_from(vec![
-        0xFFFFFFFFFFFFFFFFu64.into(),
-        0xFFFFFFFFFFFFFFFFu64.into(),
-        0xFFFFFFFFFFFFFFFFu64.into(),
-        0xFFFFFFFFFFFFFFFFu64.into(),
-        0xFFFFFFFFFFFFFFFFu64.into(),
-    ])
+    let array: Param = Container::try_from(
+        (0..1024)
+            .map(|i| format!("{}{}{}{}{}{}{}{}{}", i, i, i, i, i, i, i, i, i))
+            .map(std::convert::Into::into)
+            .collect::<Vec<_>>(),
+    )
     .unwrap()
     .into();
 
