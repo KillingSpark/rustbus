@@ -1,12 +1,12 @@
 use crate::params;
 use crate::signature;
+use crate::message::ByteOrder;
 use crate::wire::unmarshal::Error;
-use crate::wire::unmarshal::Header;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::util::*;
 
 pub fn unmarshal_base<'a>(
-    header: &Header,
+    byteorder: ByteOrder,
     buf: &[u8],
     typ: signature::Base,
     offset: usize,
@@ -23,55 +23,55 @@ pub fn unmarshal_base<'a>(
         signature::Base::Uint16 => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 2];
-            let (bytes, val) = parse_u16(slice, header.byteorder)?;
+            let (bytes, val) = parse_u16(slice, byteorder)?;
             Ok((bytes + padding, params::Base::Uint16(val)))
         }
         signature::Base::Int16 => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 2];
-            let (bytes, val) = parse_u16(slice, header.byteorder)?;
+            let (bytes, val) = parse_u16(slice, byteorder)?;
             Ok((bytes + padding, params::Base::Int16(val as i16)))
         }
         signature::Base::Uint32 => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 4];
-            let (bytes, val) = parse_u32(slice, header.byteorder)?;
+            let (bytes, val) = parse_u32(slice, byteorder)?;
             Ok((bytes + padding, params::Base::Uint32(val)))
         }
         signature::Base::UnixFd => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 4];
-            let (bytes, val) = parse_u32(slice, header.byteorder)?;
+            let (bytes, val) = parse_u32(slice, byteorder)?;
             Ok((bytes + padding, params::Base::UnixFd(val)))
         }
         signature::Base::Int32 => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 4];
-            let (bytes, val) = parse_u32(slice, header.byteorder)?;
+            let (bytes, val) = parse_u32(slice, byteorder)?;
             Ok((bytes + padding, params::Base::Int32(val as i32)))
         }
         signature::Base::Uint64 => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 8];
-            let (bytes, val) = parse_u64(slice, header.byteorder)?;
+            let (bytes, val) = parse_u64(slice, byteorder)?;
             Ok((bytes + padding, params::Base::Uint64(val)))
         }
         signature::Base::Int64 => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 8];
-            let (bytes, val) = parse_u64(slice, header.byteorder)?;
+            let (bytes, val) = parse_u64(slice, byteorder)?;
             Ok((bytes + padding, params::Base::Int64(val as i64)))
         }
         signature::Base::Double => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 8];
-            let (bytes, val) = parse_u64(slice, header.byteorder)?;
+            let (bytes, val) = parse_u64(slice, byteorder)?;
             Ok((bytes + padding, params::Base::Double(val)))
         }
         signature::Base::Boolean => {
             let offset = offset + padding;
             let slice = &buf[offset..offset + 4];
-            let (bytes, val) = parse_u32(slice, header.byteorder)?;
+            let (bytes, val) = parse_u32(slice, byteorder)?;
             match val {
                 0 => Ok((bytes + padding, params::Base::Boolean(false))),
                 1 => Ok((bytes + padding, params::Base::Boolean(true))),
@@ -80,13 +80,13 @@ pub fn unmarshal_base<'a>(
         }
         signature::Base::String => {
             let offset = offset + padding;
-            let (bytes, string) = unmarshal_string(header, &buf[offset..])?;
+            let (bytes, string) = unmarshal_string(byteorder, &buf[offset..])?;
             Ok((bytes + padding, params::Base::String(string)))
         }
         signature::Base::ObjectPath => {
             // TODO validate
             let offset = offset + padding;
-            let (bytes, string) = unmarshal_string(header, &buf[offset..])?;
+            let (bytes, string) = unmarshal_string(byteorder, &buf[offset..])?;
             Ok((bytes + padding, params::Base::ObjectPath(string)))
         }
         signature::Base::Signature => {

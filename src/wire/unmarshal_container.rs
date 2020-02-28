@@ -1,23 +1,24 @@
 use crate::params;
 use crate::signature;
+use crate::message::ByteOrder;
 use crate::wire::unmarshal;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::unmarshal_base::unmarshal_base;
 use crate::wire::util::*;
 
 pub fn unmarshal_with_sig<'a, 'e>(
-    header: &unmarshal::Header,
+    byteorder: ByteOrder,
     sig: &signature::Type,
     buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<params::Param<'a, 'e>> {
     let (bytes, param) = match &sig {
         signature::Type::Base(base) => {
-            let (bytes, base) = unmarshal_base(header, buf, *base, offset)?;
+            let (bytes, base) = unmarshal_base(byteorder, buf, *base, offset)?;
             (bytes, params::Param::Base(base))
         }
         signature::Type::Container(cont) => {
-            let (bytes, cont) = unmarshal_container(header, buf, cont, offset)?;
+            let (bytes, cont) = unmarshal_container(byteorder, buf, cont, offset)?;
             (bytes, params::Param::Container(cont))
         }
     };
@@ -25,7 +26,7 @@ pub fn unmarshal_with_sig<'a, 'e>(
 }
 
 pub fn unmarshal_variant<'a, 'e>(
-    header: &unmarshal::Header,
+    byteorder: ByteOrder,
     buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<params::Variant<'a, 'e>> {
@@ -39,7 +40,7 @@ pub fn unmarshal_variant<'a, 'e>(
     let sig = sig.remove(0);
     let offset = offset + sig_bytes_used;
 
-    let (param_bytes_used, param) = unmarshal_with_sig(header, &sig, buf, offset)?;
+    let (param_bytes_used, param) = unmarshal_with_sig(byteorder, &sig, buf, offset)?;
     Ok((
         sig_bytes_used + param_bytes_used,
         params::Variant { sig, value: param },
@@ -47,7 +48,7 @@ pub fn unmarshal_variant<'a, 'e>(
 }
 
 pub fn unmarshal_container<'a, 'e>(
-    header: &unmarshal::Header,
+    byteorder: ByteOrder,
     buf: &[u8],
     typ: &signature::Container,
     offset: usize,
@@ -56,7 +57,7 @@ pub fn unmarshal_container<'a, 'e>(
         signature::Container::Array(elem_sig) => {
             let padding = align_offset(4, buf, offset)?;
             let offset = offset + padding;
-            let (_, bytes_in_array) = parse_u32(&buf[offset..], header.byteorder)?;
+            let (_, bytes_in_array) = parse_u32(&buf[offset..], byteorder)?;
             let offset = offset + 4;
 
             let first_elem_padding = align_offset(elem_sig.get_alignment(), buf, offset)?;
@@ -66,7 +67,7 @@ pub fn unmarshal_container<'a, 'e>(
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_array as usize {
                 let (bytes_used, element) =
-                    unmarshal_with_sig(header, &elem_sig, buf, offset + bytes_used_counter)?;
+                    unmarshal_with_sig(byteorder, &elem_sig, buf, offset + bytes_used_counter)?;
                 elements.push(element);
                 bytes_used_counter += bytes_used;
             }
@@ -83,7 +84,7 @@ pub fn unmarshal_container<'a, 'e>(
         signature::Container::Dict(key_sig, val_sig) => {
             let padding = align_offset(4, buf, offset)?;
             let offset = offset + padding;
-            let (_, bytes_in_dict) = parse_u32(&buf[offset..], header.byteorder)?;
+            let (_, bytes_in_dict) = parse_u32(&buf[offset..], byteorder)?;
             let offset = offset + 4;
 
             let before_elements_padding = align_offset(8, buf, offset)?;
@@ -95,10 +96,10 @@ pub fn unmarshal_container<'a, 'e>(
                 let element_padding = align_offset(8, buf, offset + bytes_used_counter)?;
                 bytes_used_counter += element_padding;
                 let (key_bytes, key) =
-                    unmarshal_base(header, buf, *key_sig, offset + bytes_used_counter)?;
+                    unmarshal_base(byteorder, buf, *key_sig, offset + bytes_used_counter)?;
                 bytes_used_counter += key_bytes;
                 let (val_bytes, val) =
-                    unmarshal_with_sig(header, val_sig, buf, offset + bytes_used_counter)?;
+                    unmarshal_with_sig(byteorder, val_sig, buf, offset + bytes_used_counter)?;
                 bytes_used_counter += val_bytes;
                 elements.insert(key, val);
             }
@@ -119,7 +120,7 @@ pub fn unmarshal_container<'a, 'e>(
             let mut bytes_used_counter = 0;
             for field_sig in sigs {
                 let (bytes_used, field) =
-                    unmarshal_with_sig(header, field_sig, buf, offset + bytes_used_counter)?;
+                    unmarshal_with_sig(byteorder, field_sig, buf, offset + bytes_used_counter)?;
                 fields.push(field);
                 bytes_used_counter += bytes_used;
             }
@@ -129,7 +130,7 @@ pub fn unmarshal_container<'a, 'e>(
             )
         }
         signature::Container::Variant => {
-            let (bytes_used, variant) = unmarshal_variant(header, buf, offset)?;
+            let (bytes_used, variant) = unmarshal_variant(byteorder, buf, offset)?;
             (bytes_used, params::Container::Variant(Box::new(variant)))
         }
     };

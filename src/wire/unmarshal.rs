@@ -120,7 +120,7 @@ pub fn unmarshal_next_message<'a, 'e>(
         let mut body_bytes_used = 0;
         for param_sig in sigs {
             let (bytes, new_param) =
-                unmarshal_with_sig(header, &param_sig, buf, offset + body_bytes_used)?;
+                unmarshal_with_sig(header.byteorder, &param_sig, buf, offset + body_bytes_used)?;
             params.push(new_param);
             body_bytes_used += bytes;
         }
@@ -200,7 +200,7 @@ fn unmarshal_header_field(
     let (field_bytes_used, field) = match typ {
         1 => match sig {
             signature::Type::Base(signature::Base::ObjectPath) => {
-                let (b, objpath) = unmarshal_string(header, &buf[offset..])?;
+                let (b, objpath) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 // TODO validate
                 (b, Ok(message::HeaderField::Path(objpath)))
             }
@@ -208,21 +208,21 @@ fn unmarshal_header_field(
         },
         2 => match sig {
             signature::Type::Base(signature::Base::String) => {
-                let (b, int) = unmarshal_string(header, &buf[offset..])?;
+                let (b, int) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(message::HeaderField::Interface(int)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         3 => match sig {
             signature::Type::Base(signature::Base::String) => {
-                let (b, mem) = unmarshal_string(header, &buf[offset..])?;
+                let (b, mem) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(message::HeaderField::Member(mem)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         4 => match sig {
             signature::Type::Base(signature::Base::String) => {
-                let (b, name) = unmarshal_string(header, &buf[offset..])?;
+                let (b, name) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(message::HeaderField::ErrorName(name)))
             }
             _ => (0, Err(Error::WrongSignature)),
@@ -236,14 +236,14 @@ fn unmarshal_header_field(
         },
         6 => match sig {
             signature::Type::Base(signature::Base::String) => {
-                let (b, dest) = unmarshal_string(header, &buf[offset..])?;
+                let (b, dest) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(message::HeaderField::Destination(dest)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         7 => match sig {
             signature::Type::Base(signature::Base::String) => {
-                let (b, snd) = unmarshal_string(header, &buf[offset..])?;
+                let (b, snd) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(message::HeaderField::Sender(snd)))
             }
             _ => (0, Err(Error::WrongSignature)),

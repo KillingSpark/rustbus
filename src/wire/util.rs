@@ -199,8 +199,8 @@ pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<String> {
     Ok((len + 2, string))
 }
 
-pub fn unmarshal_string(header: &unmarshal::Header, buf: &[u8]) -> UnmarshalResult<String> {
-    let len = parse_u32(buf, header.byteorder)?.1 as usize;
+pub fn unmarshal_string(byteorder: message::ByteOrder, buf: &[u8]) -> UnmarshalResult<String> {
+    let len = parse_u32(buf, byteorder)?.1 as usize;
     if buf.len() < len + 5 {
         return Err(unmarshal::Error::NotEnoughBytes);
     }
