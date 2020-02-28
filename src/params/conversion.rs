@@ -2,11 +2,335 @@ use super::*;
 use crate::message::Error;
 use crate::signature;
 
+impl<'a, 'e> Param<'a, 'e> {
+    pub fn to_container(self) -> Result<Container<'a, 'e>, Param<'a, 'e>> {
+        match self {
+            Param::Base(_) => Err(self),
+            Param::Container(c) => Ok(c),
+        }
+    }
+    pub fn as_base(&'a self) -> Option<&'a Base<'a>> {
+        match self {
+            Param::Base(b) => Some(b),
+            Param::Container(_) => None,
+        }
+    }
+    pub fn as_base_mut(&'a mut self) -> Option<&'a mut Base<'a>> {
+        match self {
+            Param::Base(b) => Some(b),
+            Param::Container(_) => None,
+        }
+    }
+    pub fn as_slice(&'a self) -> Option<&'a [Param]> {
+        match self {
+            Param::Container(Container::Array(arr)) => Some(arr.values.as_slice()),
+            Param::Container(Container::ArrayRef(arr)) => Some(&arr.values),
+            Param::Container(Container::Struct(arr)) => Some(&arr),
+            Param::Container(Container::StructRef(arr)) => Some(arr),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&'a self) -> Option<&'a str> {
+        match self {
+            Param::Base(Base::String(b)) => Some(b),
+            Param::Base(Base::StringRef(b)) => Some(b),
+            _ => None,
+        }
+    }
+
+    // unsiged ints
+
+    pub fn as_u64(&'a self) -> Option<&'a u64> {
+        match self {
+            Param::Base(Base::Uint64(b)) => Some(b),
+            Param::Base(Base::Uint64Ref(b)) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_u32(&'a self) -> Option<&'a u32> {
+        match self {
+            Param::Base(Base::Uint32(b)) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_u16(&'a self) -> Option<&'a u16> {
+        match self {
+            Param::Base(Base::Uint16(b)) => Some(b),
+            _ => None,
+        }
+    }
+
+    // signed ints
+
+    pub fn as_i64(&'a self) -> Option<&'a i64> {
+        match self {
+            Param::Base(Base::Int64(b)) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_i32(&'a self) -> Option<&'a i32> {
+        match self {
+            Param::Base(Base::Int32(b)) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_i16(&'a self) -> Option<&'a i16> {
+        match self {
+            Param::Base(Base::Int16(b)) => Some(b),
+            _ => None,
+        }
+    }
+
+    // special stuff
+
+    pub fn as_byte(&'a self) -> Option<&'a u8> {
+        match self {
+            Param::Base(Base::Byte(b)) => Some(b),
+            Param::Base(Base::ByteRef(b)) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_bool(&'a self) -> Option<&'a bool> {
+        match self {
+            Param::Base(Base::Boolean(b)) => Some(b),
+            Param::Base(Base::BooleanRef(b)) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_unix_fd_idx(&'a self) -> Option<&'a u32> {
+        match self {
+            Param::Base(Base::UnixFd(b)) => Some(b),
+            Param::Base(Base::UnixFdRef(b)) => Some(b),
+            _ => None,
+        }
+    }
+
+    pub fn to_string(self) -> Result<String, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::String(s)) => Ok(s),
+            _ => Err(self),
+        }
+    }
+
+    pub fn to_str(self) -> Result<&'a str, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::StringRef(s)) => Ok(s),
+            _ => Err(self),
+        }
+    }
+    
+    pub fn to_u64(self) -> Result<u64, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Uint64(s)) => Ok(s),
+            Param::Base(Base::Uint64Ref(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_u32(self) -> Result<u32, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Uint32(s)) => Ok(s),
+            Param::Base(Base::Uint32Ref(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_u16(self) -> Result<u16, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Uint16(s)) => Ok(s),
+            Param::Base(Base::Uint16Ref(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_i64(self) -> Result<i64, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Int64(s)) => Ok(s),
+            Param::Base(Base::Int64Ref(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_i32(self) -> Result<i32, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Int32(s)) => Ok(s),
+            Param::Base(Base::Int32Ref(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_i16(self) -> Result<i16, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Int16(s)) => Ok(s),
+            Param::Base(Base::Int16Ref(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_byte(self) -> Result<u8, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Byte(s)) => Ok(s),
+            Param::Base(Base::ByteRef(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_bool(self) -> Result<bool, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Boolean(s)) => Ok(s),
+            Param::Base(Base::BooleanRef(s)) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+}
+
 //
 //
 // Base TO
 //
 //
+
+impl<'a> Base<'a> {
+    pub fn as_str(&'a self) -> Option<&'a str> {
+        match self {
+            Base::String(b) => Some(b),
+            Base::StringRef(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    // unsiged ints
+
+    pub fn as_u64(&'a self) -> Option<&'a u64> {
+        match self {
+            Base::Uint64(b) => Some(b),
+            Base::Uint64Ref(b) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_u32(&'a self) -> Option<&'a u32> {
+        match self {
+            Base::Uint32(b) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_u16(&'a self) -> Option<&'a u16> {
+        match self {
+            Base::Uint16(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    // signed ints
+
+    pub fn as_i64(&'a self) -> Option<&'a i64> {
+        match self {
+            Base::Int64(b) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_i32(&'a self) -> Option<&'a i32> {
+        match self {
+            Base::Int32(b) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_i16(&'a self) -> Option<&'a i16> {
+        match self {
+            Base::Int16(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    // special stuff
+
+    pub fn as_byte(&'a self) -> Option<&'a u8> {
+        match self {
+            Base::Byte(b) => Some(b),
+            Base::ByteRef(b) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_bool(&'a self) -> Option<&'a bool> {
+        match self {
+            Base::Boolean(b) => Some(b),
+            Base::BooleanRef(b) => Some(b),
+            _ => None,
+        }
+    }
+    pub fn as_unix_fd_idx(&'a self) -> Option<&'a u32> {
+        match self {
+            Base::UnixFd(b) => Some(b),
+            Base::UnixFdRef(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    pub fn to_string(self) -> Result<String, Self> {
+        match self {
+            Base::String(s) => Ok(s),
+            _ => Err(self),
+        }
+    }
+
+    pub fn to_str(self) -> Result<&'a str, Self> {
+        match self {
+            Base::StringRef(s) => Ok(s),
+            _ => Err(self),
+        }
+    }
+    
+    pub fn to_u64(self) -> Result<u64, Self> {
+        match self {
+            Base::Uint64(s) => Ok(s),
+            Base::Uint64Ref(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_u32(self) -> Result<u32, Self> {
+        match self {
+            Base::Uint32(s) => Ok(s),
+            Base::Uint32Ref(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_u16(self) -> Result<u16, Self> {
+        match self {
+            Base::Uint16(s) => Ok(s),
+            Base::Uint16Ref(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_i64(self) -> Result<i64, Self> {
+        match self {
+            Base::Int64(s) => Ok(s),
+            Base::Int64Ref(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_i32(self) -> Result<i32, Self> {
+        match self {
+            Base::Int32(s) => Ok(s),
+            Base::Int32Ref(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_i16(self) -> Result<i16, Self> {
+        match self {
+            Base::Int16(s) => Ok(s),
+            Base::Int16Ref(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_byte(self) -> Result<u8, Self> {
+        match self {
+            Base::Byte(s) => Ok(s),
+            Base::ByteRef(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+    pub fn to_bool(self) -> Result<bool, Self> {
+        match self {
+            Base::Boolean(s) => Ok(s),
+            Base::BooleanRef(s) => Ok(*s),
+            _ => Err(self),
+        }
+    }
+}
 
 impl<'a> std::convert::From<&Base<'a>> for signature::Base {
     fn from(b: &Base) -> crate::signature::Base {

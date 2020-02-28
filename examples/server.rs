@@ -1,6 +1,4 @@
-use rustbus::{
-    params, standard_messages, Message, MessageType, RpcConn,
-};
+use rustbus::{standard_messages, Message, MessageType, RpcConn};
 
 pub enum Commands {
     Echo,
@@ -73,8 +71,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                         )?;
                         continue;
                     }
-                    if let params::Param::Base(params::Base::String(val)) = &call.params[0] {
-                        Commands::Reverse(val.clone())
+                    if let Some(val) = call.params[0].as_str() {
+                        Commands::Reverse(val.to_owned())
                     } else {
                         rpc_con.send_message(
                             &mut standard_messages::invalid_args(&call, Some("String")),
