@@ -29,14 +29,17 @@ fn criterion_benchmark(c: &mut Criterion) {
     use std::convert::TryFrom;
     let dict: Param = Container::try_from(dict).unwrap().into();
 
-    let array: Param = Container::try_from(
+    let array: Param = Container::make_array(
+        "s",
         (0..1024)
             .map(|i| format!("{}{}{}{}{}{}{}{}{}", i, i, i, i, i, i, i, i, i))
-            .map(std::convert::Into::into)
             .collect::<Vec<_>>(),
     )
     .unwrap()
     .into();
+
+    let ref_array: &[Param] = &["ABCD".into()];
+    let ref_array: Param = Container::make_array_ref("s", ref_array).unwrap().into();
 
     for _ in 0..10 {
         params.push("TesttestTesttest".into());
@@ -50,6 +53,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         );
         params.push(dict.clone());
         params.push(array.clone());
+        params.push(ref_array.clone());
     }
 
     let mut msg = rustbus::message_builder::MessageBuilder::new()

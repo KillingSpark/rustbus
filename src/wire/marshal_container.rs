@@ -1,5 +1,6 @@
 use crate::message;
 use crate::params;
+use crate::signature;
 use crate::wire::marshal_base::*;
 use crate::wire::util::*;
 
@@ -15,11 +16,11 @@ pub fn marshal_param(
 }
 
 fn marshal_array(
-    array: &params::Array,
+    array: &[params::Param],
+    sig: &signature::Type,
     byteorder: message::ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    params::validate_array(array)?;
     pad_to_align(4, buf);
     let len_pos = buf.len();
     buf.push(0);
@@ -29,9 +30,9 @@ fn marshal_array(
 
     // we need to pad here because the padding between length and first element does not count
     // into the length
-    pad_to_align(array.element_sig.get_alignment(), buf);
+    pad_to_align(sig.get_alignment(), buf);
     let content_pos = buf.len();
-    for p in &array.values {
+    for p in array {
         marshal_param(&p, byteorder, buf)?;
     }
     let len = buf.len() - content_pos;
@@ -65,11 +66,10 @@ fn marshal_variant(
 }
 
 fn marshal_dict(
-    dict: &params::Dict,
+    dict: &params::DictMap,
     byteorder: message::ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    params::validate_dict(&dict)?;
     pad_to_align(4, buf);
     let len_pos = buf.len();
     buf.push(0);
@@ -79,7 +79,7 @@ fn marshal_dict(
     pad_to_align(8, buf);
 
     let content_pos = buf.len();
-    for (key, value) in &dict.map {
+    for (key, value) in dict {
         pad_to_align(8, buf);
         marshal_base_param(byteorder, &key, buf)?;
         marshal_param(&value, byteorder, buf)?;
@@ -96,10 +96,12 @@ pub fn marshal_container_param(
 ) -> message::Result<()> {
     match p {
         params::Container::Array(params) => {
-            marshal_array(params, byteorder, buf)?;
+            params::validate_array(&params.values, &params.element_sig)?;
+            marshal_array(&params.values, &params.element_sig, byteorder, buf)?;
         }
         params::Container::ArrayRef(params) => {
-            marshal_array(*params, byteorder, buf)?;
+            params::validate_array(&params.values, &params.element_sig)?;
+            marshal_array(&params.values, &params.element_sig, byteorder, buf)?;
         }
         params::Container::Struct(params) => {
             marshal_struct(params, byteorder, buf)?;
@@ -108,15 +110,14 @@ pub fn marshal_container_param(
             marshal_struct(params, byteorder, buf)?;
         }
         params::Container::Dict(params) => {
-            marshal_dict(params, byteorder, buf)?;
+            params::validate_dict(&params.map, params.key_sig, &params.value_sig)?;
+            marshal_dict(&params.map, byteorder, buf)?;
         }
         params::Container::DictRef(params) => {
-            marshal_dict(params, byteorder, buf)?;
+            params::validate_dict(&params.map, params.key_sig, &params.value_sig)?;
+            marshal_dict(params.map, byteorder, buf)?;
         }
         params::Container::Variant(variant) => {
-            marshal_variant(variant, byteorder, buf)?;
-        }
-        params::Container::VariantRef(variant) => {
             marshal_variant(variant, byteorder, buf)?;
         }
     }

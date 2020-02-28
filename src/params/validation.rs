@@ -1,6 +1,7 @@
 use super::*;
 use crate::message::*;
 use crate::signature;
+use crate::params;
 
 pub fn validate_object_path(op: &str) -> Result<()> {
     if op.is_empty() {
@@ -116,33 +117,37 @@ pub fn validate_signature(sig: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_array<'a, 'e>(array: &Array<'a, 'e>) -> Result<()> {
+pub fn validate_array<'a, 'e>(array: &[Param<'a, 'e>], sig: &signature::Type) -> Result<()> {
     // TODO check that all elements have the same type
-    if array.values.is_empty() {
+    if array.is_empty() {
         return Ok(());
     }
-    for el in &array.values {
-        if !array.element_sig.eq(&el.sig()) {
+    for el in array {
+        if !sig.eq(&el.sig()) {
             return Err(Error::ArrayElementTypesDiffer);
         }
     }
     Ok(())
 }
 
-pub fn validate_dict(dict: &Dict) -> Result<()> {
+pub fn validate_dict(
+    dict: &params::DictMap,
+    key_sig: signature::Base,
+    val_sig: &signature::Type,
+) -> Result<()> {
     // TODO check that all elements have the same type
-    if dict.map.is_empty() {
+    if dict.is_empty() {
         return Ok(());
     }
-    let key_sig = signature::Type::Base(dict.key_sig);
-    for el in dict.map.keys() {
+    let key_sig = signature::Type::Base(key_sig);
+    for el in dict.keys() {
         if !key_sig.eq(&el.sig()) {
             return Err(Error::DictKeyTypesDiffer);
         }
     }
 
-    for el in dict.map.values() {
-        if !dict.value_sig.eq(&el.sig()) {
+    for el in dict.values() {
+        if !val_sig.eq(&el.sig()) {
             return Err(Error::DictValueTypesDiffer);
         }
     }

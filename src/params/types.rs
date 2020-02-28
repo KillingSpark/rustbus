@@ -61,10 +61,9 @@ pub enum Container<'e, 'a: 'e> {
     Dict(Dict<'a, 'e>),
     Variant(Box<Variant<'a, 'e>>),
     // By ref
-    ArrayRef(&'a Array<'a, 'e>),
-    StructRef(&'a Vec<Param<'a, 'e>>),
-    DictRef(&'a Dict<'a, 'e>),
-    VariantRef(&'a Variant<'a, 'e>),
+    ArrayRef(ArrayRef<'a, 'e>),
+    StructRef(&'a [Param<'a, 'e>]),
+    DictRef(DictRef<'a, 'e>),
 }
 
 impl<'e, 'a: 'e> Container<'a, 'e> {
@@ -79,6 +78,35 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
             sig: param.sig(),
             value: param,
         }))
+    }
+
+    pub fn make_array_ref(
+        element_sig: &str,
+        elements: &'a [Param<'a, 'e>],
+    ) -> Result<Container<'a, 'e>> {
+        let mut sigs =
+            signature::Type::parse_description(element_sig).map_err(Error::InvalidSignature)?;
+
+        if sigs.len() != 1 {
+            return Err(Error::InvalidSignatureTooManyTypes);
+        }
+
+        let sig = sigs.remove(0);
+        Self::make_array_ref_with_sig(sig, elements)
+    }
+
+    pub fn make_array_ref_with_sig(
+        element_sig: signature::Type,
+        elements: &'a [Param<'a, 'e>],
+    ) -> Result<Container<'a, 'e>> {
+        let arr: ArrayRef<'a, 'e> = ArrayRef {
+            element_sig,
+            values: elements,
+        };
+
+        validate_array(&arr.values, &arr.element_sig)?;
+
+        Ok(Container::ArrayRef(arr))
     }
 
     pub fn make_array<P: Into<Param<'a, 'e>>>(
@@ -105,7 +133,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
             values: elements.into_iter().map(std::convert::Into::into).collect(),
         };
 
-        validate_array(&arr)?;
+        validate_array(&arr.values, &arr.element_sig)?;
 
         Ok(Container::Array(arr))
     }
@@ -150,7 +178,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
             map: map.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
         };
 
-        validate_dict(&dict)?;
+        validate_dict(&dict.map, dict.key_sig, &dict.value_sig)?;
 
         Ok(Container::Dict(dict))
     }
@@ -169,10 +197,23 @@ pub struct Array<'a, 'e: 'a> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ArrayRef<'a, 'e: 'a> {
+    pub element_sig: signature::Type,
+    pub values: &'a [Param<'a, 'e>],
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Dict<'a, 'e: 'a> {
     pub key_sig: signature::Base,
     pub value_sig: signature::Type,
     pub map: DictMap<'a, 'e>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct DictRef<'a, 'e: 'a> {
+    pub key_sig: signature::Base,
+    pub value_sig: signature::Type,
+    pub map: &'a DictMap<'a, 'e>,
 }
 
 impl<'a, 'e> Param<'a, 'e> {
@@ -269,9 +310,6 @@ impl<'a, 'e> Container<'a, 'e> {
                 }
                 buf.push(')');
             }
-            Container::VariantRef(_) => {
-                buf.push('v');
-            }
         }
     }
 
@@ -284,7 +322,6 @@ impl<'a, 'e> Container<'a, 'e> {
             Container::Struct(elements) => elements.len(),
             Container::StructRef(elements) => elements.len(),
             Container::Variant(_) => 1,
-            Container::VariantRef(_) => 1,
         }
     }
 

@@ -10,12 +10,12 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     // Building a dictmap using the convert::From impls for the base types
     let mut dict_map = DictMap::new();
-    dict_map.insert("Key1".to_owned().into(), 100i32.into());
-    dict_map.insert("Key2".to_owned().into(), 200i32.into());
+    dict_map.insert("Key1".into(), 100i32.into());
+    dict_map.insert("Key2".into(), 200i32.into());
     let dict1 = Container::make_dict("s", "i", dict_map).unwrap();
 
     // To create a more complex object, you have to write a bit more specific code
-    let struct1 = Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]);
+    let struct1 = Container::Struct(vec![162254319i32.into(), "AABB".into()]);
     // But if you only have one type in there you can use a shorthand
     let struct2 = Container::make_struct(vec![162254319i32, 162254319i32]);
 
@@ -28,32 +28,31 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let arr2 = Container::make_array(
         "(is)",
         vec![
-            Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]),
-            Container::Struct(vec![305419896i32.into(), "CCDD".to_owned().into()]),
+            Container::Struct(vec![162254319i32.into(), "AABB".into()]),
+            Container::Struct(vec![305419896i32.into(), "CCDD".into()]),
         ],
     )
     .unwrap();
 
     // The shorthand using the string notation really comes in handy when the types get ridiculous
-    let arr3 = Container::make_array::<rustbus::params::Param>("(a{i(sisisis)}((si)uby))", vec![])
-        .unwrap();
+    let arr3 = Container::make_array_ref("(a{i(sisisis)}((si)uby))", &[]).unwrap();
 
     // But if you want you can create the signature yourself
-    let arr4 = Container::make_array_with_sig::<rustbus::params::Param>(
+    let arr4 = Container::make_array_ref_with_sig(
         signature::Type::Base(signature::Base::String),
-        vec![],
+        &[],
     )
     .unwrap();
 
     // You can also avoid specifing the signature entirely. This requires at least one element to be present, else try_from will fail
     use std::convert::TryFrom;
-    let element = Container::Struct(vec![162254319i32.into(), "Inferred type".to_owned().into()]);
+    let element = Container::Struct(vec![162254319i32.into(), "Inferred type".into()]);
     let arr5 = Container::try_from(vec![element.into()]).unwrap();
 
     // creating variants is very easy
     let variant = Container::make_variant(Container::Struct(vec![
         162254319i32.into(),
-        "Variant content".to_owned().into(),
+        "Variant content".into(),
     ]));
 
     // Now we can build a message from all of these

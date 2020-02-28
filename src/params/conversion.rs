@@ -198,7 +198,7 @@ impl<'a, 'e> std::convert::TryFrom<(signature::Type, Vec<Param<'a, 'e>>)> for Co
             element_sig: parts.0,
             values: parts.1,
         };
-        validate_array(&arr)?;
+        validate_array(&arr.values, &arr.element_sig)?;
         Ok(Container::Array(arr))
     }
 }
@@ -224,7 +224,7 @@ impl<'a, 'e> std::convert::TryFrom<(signature::Base, signature::Type, DictMap<'a
             value_sig: parts.1,
             map: parts.2,
         };
-        validate_dict(&dict)?;
+        validate_dict(&dict.map, dict.key_sig, &dict.value_sig)?;
         Ok(Container::Dict(dict))
     }
 }
@@ -368,7 +368,6 @@ impl<'a, 'e> std::convert::From<&Container<'a, 'e>> for signature::Container {
             Container::StructRef(params) => {
                 signature::Container::Struct(params.iter().map(|param| param.into()).collect())
             }
-            Container::VariantRef(_) => signature::Container::Variant,
         }
     }
 }
