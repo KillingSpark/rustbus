@@ -82,22 +82,26 @@ pub fn insert_u64(byteorder: message::ByteOrder, val: u64, buf: &mut [u8]) {
     }
 }
 
-pub fn write_string(val: &str, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
-    let len = val.len() as u32;
-    write_u32(len, byteorder, buf);
+fn extend_with_memcopy(val: &str, buf: &mut Vec<u8>) {
     buf.reserve(val.len() + 1);
     unsafe {
         let target = buf.as_mut_ptr().add(buf.len());
         std::ptr::copy(val.as_ptr(), target, val.len());
         buf.set_len(buf.len() + val.len());
     }
+}
+
+pub fn write_string(val: &str, byteorder: message::ByteOrder, buf: &mut Vec<u8>) {
+    let len = val.len() as u32;
+    write_u32(len, byteorder, buf);
+    extend_with_memcopy(val, buf);
     buf.push(0);
 }
 
 pub fn write_signature(val: &str, buf: &mut Vec<u8>) {
     let len = val.len() as u8;
     buf.push(len);
-    buf.extend(val.bytes());
+    extend_with_memcopy(val, buf);
     buf.push(0);
 }
 
