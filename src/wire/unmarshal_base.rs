@@ -1,6 +1,6 @@
+use crate::message::ByteOrder;
 use crate::params;
 use crate::signature;
-use crate::message::ByteOrder;
 use crate::wire::unmarshal::Error;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::util::*;

@@ -459,5 +459,8 @@ fn test_struct_iter() {
     }
 
     assert_eq!(&[0, 2, 1, 3], ints.as_slice());
-    assert_eq!(&["TestTest".to_owned(), "InnerTestTest".to_owned()], strings.as_slice());
+    assert_eq!(
+        &["TestTest".to_owned(), "InnerTestTest".to_owned()],
+        strings.as_slice()
+    );
 }
