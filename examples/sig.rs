@@ -8,28 +8,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let mut con = Conn::connect_to_bus(session_path, true)?;
     con.send_message(&mut standard_messages::hello(), None)?;
 
-    // Building a dictmap using the convert::From impls for the base types
-    let mut dict_map = DictMap::new();
-    dict_map.insert("Key1".into(), 100i32.into());
-    dict_map.insert("Key2".into(), 200i32.into());
-    let dict1 = Container::make_dict("s", "i", dict_map.into_iter()).unwrap();
-
-    // To create a more complex object, you have to write a bit more specific code
-    let struct1 = Container::Struct(vec![162254319i32.into(), "AABB".into()]);
-    // But if you only have one type in there you can use a shorthand
-    let struct2 = Container::make_struct(vec![162254319i32, 162254319i32]);
-    // If you only have a few types there are shorthands for that too
-    let mut struct3 = Container::make_struct3(162254319i32, 162254319u64, "Mixed Parameters");
-    // If you have more parameters for that you can also push them one by one
-    struct3.push(1234i64).unwrap();
-    struct3.push(309845738u32).unwrap();
-    struct3
-        .push("Owned Strings are fine too btw".to_owned())
-        .unwrap();
-
-    // To create a dict or array a type is needed. You can use the string representation
-    let dict2 = Container::make_dict("s", "(iiiiibbyy)", (0..124).map(|v| (v, v + 1))).unwrap();
-
+    // To create a dict or array a signature is needed. You can use the string representation
+    let dict3 = Container::make_dict("i", "i", (0..124i32).map(|v| (v, v + 1))).unwrap();
     let arr1 = Container::make_array("s", vec!["ABCDE"].into_iter()).unwrap();
 
     // of course you can also build arrays with structs (and any deeper nesting you want)
@@ -56,7 +36,40 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let element = Container::Struct(vec![162254319i32.into(), "Inferred type".into()]);
     let arr5 = Container::try_from(vec![element.into()]).unwrap();
 
-    // creating variants is very easy
+    // Building a dictmap implicitly using the convert::From impls for the base types. This means giving up ownership ober the map
+    // (You can clone it of course, to keep a copy around!)
+    let mut dict_map: std::collections::HashMap<&str, i32> = std::collections::HashMap::new();
+    dict_map.insert("Key1", 100i32);
+    dict_map.insert("Key2", 200i32);
+    let _dict1 = Container::make_dict("s", "i", dict_map.clone().into_iter()).unwrap();
+    let dict1 = Container::make_dict("s", "i", dict_map.into_iter()).unwrap();
+
+    // Building a dictmap explicitly using the convert::From impls for the base types, and not giving up ownership
+    let mut dict_map = DictMap::new();
+    dict_map.insert("Key1".into(), 100i32.into());
+    dict_map.insert("Key2".into(), 200i32.into());
+    let dict2 = Container::make_dict_ref("s", "i", &dict_map).unwrap();
+
+    // To create a more complex object, you have to write a bit more specific code
+    let struct1 = Container::Struct(vec![
+        162254319i32.into(),
+        "AABB".into(),
+        true.into(),
+        false.into(),
+        "MyOwnedString".to_owned().into(),
+    ]);
+    // But if you only have one type in there you can use a shorthand
+    let struct2 = Container::make_struct(vec![162254319i32, 162254319i32]);
+    // If you only have a few types there are shorthands for that too
+    let mut struct3 = Container::make_struct3(162254319i32, 162254319u64, "Mixed Parameters");
+    // If you have more parameters for that you can also push them one by one if you prefer that over struct1
+    struct3.push(1234i64).unwrap();
+    struct3.push(309845738u32).unwrap();
+    struct3
+        .push("Owned Strings are fine too btw".to_owned())
+        .unwrap();
+
+    // creating variants is very easy, just pass any Param into Container::make_variant
     let variant = Container::make_variant(Container::Struct(vec![
         162254319i32.into(),
         "Variant content".into(),
@@ -80,6 +93,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
             arr5.into(),
             dict1.into(),
             dict2.into(),
+            dict3.into(),
             variant.into(),
         ])
         .build();

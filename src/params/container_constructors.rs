@@ -188,4 +188,48 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
 
         Ok(Container::Dict(dict))
     }
+    pub fn make_dict_ref(
+        key_sig: &str,
+        val_sig: &str,
+        map: &'a DictMap,
+    ) -> Result<Container<'a, 'e>> {
+        let mut valsigs =
+            signature::Type::parse_description(val_sig).map_err(Error::InvalidSignature)?;
+
+        if valsigs.len() != 1 {
+            return Err(Error::InvalidSignatureTooManyTypes);
+        }
+
+        let value_sig = valsigs.remove(0);
+        let mut keysigs =
+            signature::Type::parse_description(key_sig).map_err(Error::InvalidSignature)?;
+
+        if keysigs.len() != 1 {
+            return Err(Error::InvalidSignatureTooManyTypes);
+        }
+        let key_sig = keysigs.remove(0);
+        let key_sig = if let signature::Type::Base(sig) = key_sig {
+            sig
+        } else {
+            return Err(Error::InvalidSignatureShouldBeBase);
+        };
+
+        Self::make_dict_ref_with_sig(key_sig, value_sig, map)
+    }
+
+    pub fn make_dict_ref_with_sig(
+        key_sig: signature::Base,
+        value_sig: signature::Type,
+        map: &'a DictMap,
+    ) -> Result<Container<'a, 'e>> {
+        let dict = DictRef {
+            key_sig,
+            value_sig,
+            map,
+        };
+
+        validate_dict(&dict.map, dict.key_sig, &dict.value_sig)?;
+
+        Ok(Container::DictRef(dict))
+    }
 }
