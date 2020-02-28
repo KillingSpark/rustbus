@@ -30,7 +30,7 @@ impl<'a> MessageIter<'a> {
         }
     }
 
-    pub fn next(&'a mut self) -> Option<Result<ParamIter<'a>, Error>> {
+    pub fn next_iter(&'a mut self) -> Option<Result<ParamIter<'a>, Error>> {
         if self.counter >= self.sig.len() {
             None
         } else {
@@ -261,7 +261,7 @@ impl<'a, 'parent> ArrayIter<'a> {
         let consumed = *self.current_offset - self.start_offset;
         debug_assert!(consumed <= self.consume_max_bytes);
         if consumed >= self.consume_max_bytes {
-            return None;
+            None
         } else {
             ParamIter::new(
                 self.element_sig,
@@ -278,7 +278,7 @@ impl<'a, 'parent> DictIter<'a> {
         let consumed = *self.current_offset - self.start_offset;
         debug_assert!(consumed <= self.consume_max_bytes);
         if consumed >= self.consume_max_bytes {
-            return None;
+            None
         } else {
             Some(Ok(ParamIter::DictEntry(DictEntryIter {
                 byteorder: self.byteorder,
@@ -368,8 +368,8 @@ fn make_new_dict_iter<'a>(
         source,
         start_offset: *offset,
         current_offset: offset,
-        key_sig: key_sig,
-        val_sig: val_sig,
+        key_sig,
+        val_sig,
 
         consume_max_bytes: array_len_bytes as usize,
     })
