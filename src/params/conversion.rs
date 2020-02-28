@@ -119,7 +119,7 @@ impl<'a, 'e> Param<'a, 'e> {
             _ => Err(self),
         }
     }
-    
+
     pub fn to_u64(self) -> Result<u64, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Uint64(s)) => Ok(s),
@@ -273,7 +273,7 @@ impl<'a> Base<'a> {
             _ => Err(self),
         }
     }
-    
+
     pub fn to_u64(self) -> Result<u64, Self> {
         match self {
             Base::Uint64(s) => Ok(s),

@@ -89,7 +89,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
         con.wait_response(serial, timeout)?;
         Ok(con)
     }
-    
+
     pub fn system_conn(timeout: Option<time::Duration>) -> Result<Self> {
         let session_path = get_system_bus_path()?;
         let con = Conn::connect_to_bus(session_path, true)?;
