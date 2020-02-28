@@ -18,19 +18,28 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let struct1 = Container::Struct(vec![162254319i32.into(), "AABB".into()]);
     // But if you only have one type in there you can use a shorthand
     let struct2 = Container::make_struct(vec![162254319i32, 162254319i32]);
+    // If you only have a few types there are shorthands for that too
+    let mut struct3 = Container::make_struct3(162254319i32, 162254319u64, "Mixed Parameters");
+    // If you have more parameters for that you can also push them one by one
+    struct3.push(1234i64).unwrap();
+    struct3.push(309845738u32).unwrap();
+    struct3
+        .push("Owned Strings are fine too btw".to_owned())
+        .unwrap();
 
     // To create a dict or array a type is needed. You can use the string representation
     let dict2 = Container::make_dict("s", "(iiiiibbyy)", DictMap::new()).unwrap();
 
-    let arr1 = Container::make_array("s", vec!["ABCDE"]).unwrap();
+    let arr1 = Container::make_array("s", &mut vec!["ABCDE"].into_iter()).unwrap();
 
     // of course you can also build arrays with structs (and any deeper nesting you want)
     let arr2 = Container::make_array(
         "(is)",
-        vec![
+        &mut vec![
             Container::Struct(vec![162254319i32.into(), "AABB".into()]),
             Container::Struct(vec![305419896i32.into(), "CCDD".into()]),
-        ],
+        ]
+        .into_iter(),
     )
     .unwrap();
 
@@ -64,6 +73,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
             arr1.into(),
             struct1.into(),
             struct2.into(),
+            struct3.into(),
             arr2.into(),
             arr3.into(),
             arr4.into(),

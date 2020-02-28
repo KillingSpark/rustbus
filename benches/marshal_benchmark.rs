@@ -31,9 +31,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let array: Param = Container::make_array(
         "s",
-        (0..1024)
-            .map(|i| format!("{}{}{}{}{}{}{}{}{}", i, i, i, i, i, i, i, i, i))
-            .collect::<Vec<_>>(),
+        &mut (0..1024).map(|i| format!("{}{}{}{}{}{}{}{}{}", i, i, i, i, i, i, i, i, i)),
     )
     .unwrap()
     .into();
