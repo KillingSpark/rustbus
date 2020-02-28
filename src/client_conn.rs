@@ -81,6 +81,24 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
         }
     }
 
+    pub fn session_conn(timeout: Option<time::Duration>) -> Result<Self> {
+        let session_path = get_session_bus_path()?;
+        let con = Conn::connect_to_bus(session_path, true)?;
+        let mut con = Self::new(con);
+        let serial = con.send_message(&mut crate::standard_messages::hello(), None)?;
+        con.wait_response(serial, timeout)?;
+        Ok(con)
+    }
+    
+    pub fn system_conn(timeout: Option<time::Duration>) -> Result<Self> {
+        let session_path = get_system_bus_path()?;
+        let con = Conn::connect_to_bus(session_path, true)?;
+        let mut con = Self::new(con);
+        let serial = con.send_message(&mut crate::standard_messages::hello(), None)?;
+        con.wait_response(serial, timeout)?;
+        Ok(con)
+    }
+
     pub fn set_filter(&mut self, filter: Box<MessageFilter>) {
         self.filter = filter;
     }

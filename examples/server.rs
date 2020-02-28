@@ -1,5 +1,5 @@
 use rustbus::{
-    get_session_bus_path, params, standard_messages, Conn, Message, MessageType, RpcConn,
+    params, standard_messages, Message, MessageType, RpcConn,
 };
 
 pub enum Commands {
@@ -26,11 +26,8 @@ impl<'a, 'e> Commands {
 }
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
-    let session_path = get_session_bus_path()?;
-    let con = Conn::connect_to_bus(session_path, true)?;
-    let mut rpc_con = RpcConn::new(con);
-
-    rpc_con.send_message(&mut standard_messages::hello(), None)?;
+    // sends the obligatory hello message
+    let mut rpc_con = RpcConn::session_conn(None)?;
 
     let namereq_serial = rpc_con.send_message(
         &mut standard_messages::request_name("io.killing.spark".into(), 0),
