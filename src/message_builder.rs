@@ -2,6 +2,7 @@
 
 use crate::message;
 use crate::params;
+use crate::params::Param;
 
 #[derive(Default)]
 pub struct MessageBuilder<'a, 'e> {
@@ -64,6 +65,21 @@ impl<'a, 'e> CallBuilder<'a, 'e> {
 
     pub fn build(self) -> message::Message<'a, 'e> {
         self.msg
+    }
+
+    pub fn add_param<P: Into<Param<'a, 'e>>>(&mut self, p: P) {
+        self.msg.add_param(p);
+    }
+    pub fn add_param2<P1: Into<Param<'a, 'e>>, P2: Into<Param<'a, 'e>>>(&mut self, p1: P1, p2: P2) {
+        self.msg.add_param2(p1, p2);
+    }
+    pub fn add_param3<P1: Into<Param<'a, 'e>>, P2: Into<Param<'a, 'e>>, P3: Into<Param<'a, 'e>>>(
+        &mut self,
+        p1: P1,
+        p2: P2,
+        p3: P3,
+    ) {
+        self.msg.add_param3(p1, p2, p3);
     }
 }
 

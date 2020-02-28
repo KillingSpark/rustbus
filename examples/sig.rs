@@ -76,7 +76,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     ]));
 
     // Now we can build a message from all of these
-    let sig = MessageBuilder::new()
+    let mut sig = MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
             "TestSignal".into(),
@@ -91,14 +91,15 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
             arr3.into(),
             arr4.into(),
             arr5.into(),
-            dict1.into(),
-            dict2.into(),
-            dict3.into(),
             variant.into(),
         ])
         .build();
-    con.send_message(&mut sig.clone(), None)?;
-    con.send_message(&mut sig.clone(), None)?;
+
+    // Or we can add parameters later if we want to
+    sig.add_param3(dict1, dict2, dict3);
+
+    con.send_message(&mut sig, None)?;
+    con.send_message(&mut sig, None)?;
 
     Ok(())
 }

@@ -138,6 +138,24 @@ impl<'a, 'e> Message<'a, 'e> {
     pub fn sig(&self) -> Vec<signature::Type> {
         self.params.iter().map(|p| p.sig()).collect()
     }
+
+    pub fn add_param<P: Into<Param<'a, 'e>>>(&mut self, p: P) {
+        self.params.push(p.into());
+    }
+    pub fn add_param2<P1: Into<Param<'a, 'e>>, P2: Into<Param<'a, 'e>>>(&mut self, p1: P1, p2: P2) {
+        self.params.push(p1.into());
+        self.params.push(p2.into());
+    }
+    pub fn add_param3<P1: Into<Param<'a, 'e>>, P2: Into<Param<'a, 'e>>, P3: Into<Param<'a, 'e>>>(
+        &mut self,
+        p1: P1,
+        p2: P2,
+        p3: P3,
+    ) {
+        self.params.push(p1.into());
+        self.params.push(p2.into());
+        self.params.push(p3.into());
+    }
 }
 
 /// The different errors that can occur when dealing with messages
