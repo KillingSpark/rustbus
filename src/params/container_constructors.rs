@@ -111,9 +111,9 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         Ok(Container::ArrayRef(arr))
     }
 
-    pub fn make_array<P: Into<Param<'a, 'e>>>(
+    pub fn make_array<P: Into<Param<'a, 'e>>, I: Iterator<Item = P>>(
         element_sig: &str,
-        elements: &mut dyn Iterator<Item = P>,
+        elements: I,
     ) -> Result<Container<'a, 'e>> {
         let mut sigs =
             signature::Type::parse_description(element_sig).map_err(Error::InvalidSignature)?;
@@ -126,9 +126,9 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         Self::make_array_with_sig(sig, elements)
     }
 
-    pub fn make_array_with_sig<P: Into<Param<'a, 'e>>>(
+    pub fn make_array_with_sig<P: Into<Param<'a, 'e>>, I: Iterator<Item = P>>(
         element_sig: signature::Type,
-        elements: &mut dyn Iterator<Item = P>,
+        elements: I,
     ) -> Result<Container<'a, 'e>> {
         let arr: Array<'a, 'e> = Array {
             element_sig,
@@ -140,10 +140,10 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         Ok(Container::Array(arr))
     }
 
-    pub fn make_dict<K: Into<Base<'e>>, V: Into<Param<'a, 'e>>>(
+    pub fn make_dict<K: Into<Base<'e>>, V: Into<Param<'a, 'e>>, I: Iterator<Item = (K, V)>>(
         key_sig: &str,
         val_sig: &str,
-        map: std::collections::HashMap<K, V>,
+        map: I,
     ) -> Result<Container<'a, 'e>> {
         let mut valsigs =
             signature::Type::parse_description(val_sig).map_err(Error::InvalidSignature)?;
@@ -169,15 +169,19 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         Self::make_dict_with_sig(key_sig, value_sig, map)
     }
 
-    pub fn make_dict_with_sig<K: Into<Base<'e>>, V: Into<Param<'a, 'e>>>(
+    pub fn make_dict_with_sig<
+        K: Into<Base<'e>>,
+        V: Into<Param<'a, 'e>>,
+        I: Iterator<Item = (K, V)>,
+    >(
         key_sig: signature::Base,
         value_sig: signature::Type,
-        map: std::collections::HashMap<K, V>,
+        map: I,
     ) -> Result<Container<'a, 'e>> {
         let dict = Dict {
             key_sig,
             value_sig,
-            map: map.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+            map: map.map(|(k, v)| (k.into(), v.into())).collect(),
         };
 
         validate_dict(&dict.map, dict.key_sig, &dict.value_sig)?;

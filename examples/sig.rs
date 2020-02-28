@@ -12,7 +12,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let mut dict_map = DictMap::new();
     dict_map.insert("Key1".into(), 100i32.into());
     dict_map.insert("Key2".into(), 200i32.into());
-    let dict1 = Container::make_dict("s", "i", dict_map).unwrap();
+    let dict1 = Container::make_dict("s", "i", dict_map.into_iter()).unwrap();
 
     // To create a more complex object, you have to write a bit more specific code
     let struct1 = Container::Struct(vec![162254319i32.into(), "AABB".into()]);
@@ -28,9 +28,9 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         .unwrap();
 
     // To create a dict or array a type is needed. You can use the string representation
-    let dict2 = Container::make_dict("s", "(iiiiibbyy)", DictMap::new()).unwrap();
+    let dict2 = Container::make_dict("s", "(iiiiibbyy)", (0..124).map(|v| (v, v + 1))).unwrap();
 
-    let arr1 = Container::make_array("s", &mut vec!["ABCDE"].into_iter()).unwrap();
+    let arr1 = Container::make_array("s", vec!["ABCDE"].into_iter()).unwrap();
 
     // of course you can also build arrays with structs (and any deeper nesting you want)
     let arr2 = Container::make_array(
