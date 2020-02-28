@@ -1,7 +1,7 @@
 use super::*;
 use crate::message::*;
-use crate::signature;
 use crate::params;
+use crate::signature;
 
 pub fn validate_object_path(op: &str) -> Result<()> {
     if op.is_empty() {

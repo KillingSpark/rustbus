@@ -38,11 +38,9 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let arr3 = Container::make_array_ref("(a{i(sisisis)}((si)uby))", &[]).unwrap();
 
     // But if you want you can create the signature yourself
-    let arr4 = Container::make_array_ref_with_sig(
-        signature::Type::Base(signature::Base::String),
-        &[],
-    )
-    .unwrap();
+    let arr4 =
+        Container::make_array_ref_with_sig(signature::Type::Base(signature::Base::String), &[])
+            .unwrap();
 
     // You can also avoid specifing the signature entirely. This requires at least one element to be present, else try_from will fail
     use std::convert::TryFrom;
