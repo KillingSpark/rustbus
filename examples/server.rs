@@ -85,6 +85,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                 }
                 _ => {
                     // This shouldn't happen with the filters defined above
+                    // If a call is filtered out, an error like this one is automatically send to the source, so this is technically unecessary
+                    // but we like robust software!
                     rpc_con.send_message(&mut standard_messages::unknown_method(&call), None)?;
                     continue;
                 }
