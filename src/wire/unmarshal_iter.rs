@@ -187,6 +187,12 @@ impl<'a, 'parent> ParamIter<'a> {
         }
     }
 
+    pub fn is_base(&self) -> bool {
+        match self {
+            ParamIter::Base(_) => true,
+            _ => false,
+        }
+    }
     pub fn base(self) -> Option<params::Base<'a>> {
         match self {
             ParamIter::Base(b) => Some(b),
@@ -406,9 +412,9 @@ fn test_struct_iter() {
         "TestTest".into(),
         2i32.into(),
         params::Container::make_struct::<params::Param>(vec![
-            0i32.into(),
-            "TestTest".into(),
-            2i32.into(),
+            1i32.into(),
+            "InnerTestTest".into(),
+            3i32.into(),
         ])
         .into(),
     ]);
@@ -429,16 +435,29 @@ fn test_struct_iter() {
         .unwrap();
 
     let mut ints = Vec::new();
-    let mut strings = Vec::new();
-    while let Some(base) = iter.recurse() {
-        match base.unwrap().base().unwrap() {
-            params::Base::Int32(i) => ints.push(i),
-            params::Base::StringRef(sp) => strings.push(sp.to_owned()),
-            params::Base::String(s) => strings.push(s),
-            _ => unimplemented!(),
+    let mut strings: Vec<String> = Vec::new();
+    while let Some(s) = iter.recurse() {
+        let mut sub_iter = s.unwrap();
+        if sub_iter.is_base() {
+            match &sub_iter.base() {
+                Some(params::Base::Int32(i)) => ints.push(*i),
+                Some(params::Base::StringRef(sp)) => strings.push(sp.to_string()),
+                Some(params::Base::String(s)) => strings.push(s.to_owned()),
+                _ => unimplemented!(),
+            }
+        } else {
+            while let Some(base) = sub_iter.recurse() {
+                match base.unwrap().base() {
+                    Some(params::Base::Int32(i)) => ints.push(i),
+                    Some(params::Base::StringRef(sp)) => strings.push(sp.to_owned()),
+                    Some(params::Base::String(s)) => strings.push(s),
+                    None => {}
+                    _ => unimplemented!(),
+                }
+            }
         }
     }
 
-    assert_eq!(&[0, 2], ints.as_slice());
-    assert_eq!(&["TestTest".to_owned()], strings.as_slice());
+    assert_eq!(&[0, 2, 1, 3], ints.as_slice());
+    assert_eq!(&["TestTest".to_owned(), "InnerTestTest".to_owned()], strings.as_slice());
 }
