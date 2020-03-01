@@ -420,6 +420,13 @@ impl<'msga, 'msge> Conn {
         Ok(msg)
     }
 
+    /// get the next new serial
+    pub fn alloc_serial(&mut self) -> u32 {
+        let serial = self.serial_counter;
+        self.serial_counter += 1;
+        serial
+    }
+
     /// send a message over the conn
     pub fn send_message(
         &mut self,
@@ -427,8 +434,14 @@ impl<'msga, 'msge> Conn {
         timeout: Option<time::Duration>,
     ) -> Result<u32> {
         self.msg_buf_out.clear();
-        msg.serial = Some(self.serial_counter);
-        self.serial_counter += 1;
+        let (remove_later, serial) = if let Some(serial) = msg.serial {
+            (false, serial)
+        } else {
+            let serial = self.serial_counter;
+            self.serial_counter += 1;
+            msg.serial = Some(serial);
+            (true, serial)
+        };
 
         marshal::marshal(
             &msg,
@@ -451,7 +464,12 @@ impl<'msga, 'msge> Conn {
         )?;
         self.stream.set_read_timeout(old_timeout)?;
         assert_eq!(l, self.msg_buf_out.len());
-        Ok(msg.serial.unwrap())
+
+        if remove_later {
+            msg.serial = None;
+        }
+
+        Ok(serial)
     }
 }
 
