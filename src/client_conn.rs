@@ -81,6 +81,11 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
         }
     }
 
+    /// get the next new serial
+    pub fn alloc_serial(&mut self) -> u32 {
+        self.conn.alloc_serial()
+    }
+
     pub fn session_conn(timeout: Option<time::Duration>) -> Result<Self> {
         let session_path = get_session_bus_path()?;
         let con = Conn::connect_to_bus(session_path, true)?;
