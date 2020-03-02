@@ -5,10 +5,8 @@ use crate::auth;
 use crate::message;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
-use crate::wire::util;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::io::Read;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
 use std::os::unix::net::UnixStream;
@@ -231,6 +229,8 @@ pub struct Conn {
     byteorder: message::ByteOrder,
 
     msg_buf_in: Vec<u8>,
+    cmsgs_in: Vec<ControlMessageOwned>,
+
     msg_buf_out: Vec<u8>,
 
     serial_counter: u32,
@@ -303,11 +303,24 @@ impl<'msga, 'msge> Conn {
             socket_path: path,
             stream,
             msg_buf_in: Vec::new(),
+            cmsgs_in: Vec::new(),
             msg_buf_out: Vec::new(),
             byteorder,
 
             serial_counter: 1,
         })
+    }
+
+    pub fn can_read_from_source(&self) -> nix::Result<bool> {
+        let mut fdset = nix::sys::select::FdSet::new();
+        let fd = self.stream.as_raw_fd();
+        fdset.insert(fd);
+
+        use nix::sys::time::TimeValLike;
+        let mut zero_timeout = nix::sys::time::TimeVal::microseconds(0);
+
+        nix::sys::select::select(None, Some(&mut fdset), None, None, Some(&mut zero_timeout))?;
+        Ok(fdset.contains(fd))
     }
 
     /// Connect to a unix socket. The default little endian byteorder is used
@@ -321,7 +334,7 @@ impl<'msga, 'msge> Conn {
         &mut self,
         max_buffer_size: usize,
         timeout: Option<time::Duration>,
-    ) -> Result<Vec<ControlMessageOwned>> {
+    ) -> Result<()> {
         let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
 
         const BUFSIZE: usize = 512;
@@ -343,47 +356,22 @@ impl<'msga, 'msge> Conn {
             Some(nix::errno::Errno::EAGAIN) => Error::TimedOut,
             _ => Error::NixError(e),
         })?;
-        let cmsgs = msg.cmsgs().collect();
         self.stream.set_read_timeout(old_timeout)?;
         self.msg_buf_in
             .extend(&mut tmpbuf[..msg.bytes].iter().copied());
-        Ok(cmsgs)
+        self.cmsgs_in.extend(msg.cmsgs());
+        Ok(())
     }
 
-    /// Blocks until a message has been read from the conn or the timeout has been reached
-    pub fn get_next_message(
-        &mut self,
-        timeout: Option<time::Duration>,
-    ) -> Result<message::Message<'msga, 'msge>> {
-        // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
-        // I think thats necessary so we can later add support for unixfd sending
-        let mut cmsgs = Vec::new();
-
-        //calc timeout in reference to this point in time
-        let start_time = time::Instant::now();
-
-        let header = loop {
-            match unmarshal::unmarshal_header(&self.msg_buf_in, 0) {
-                Ok((_, header)) => break header,
-                Err(unmarshal::Error::NotEnoughBytes) => {}
-                Err(e) => return Err(Error::from(e)),
-            }
-            let new_cmsgs = self.refill_buffer(
-                unmarshal::HEADER_LEN,
-                calc_timeout_left(&start_time, timeout)?,
-            )?;
-            cmsgs.extend(new_cmsgs);
-        };
-
-        // read the 4 bytes that tell us how big the header fields are because that info is not included in the header
-        let mut header_fields_len = [0u8; 4];
-        self.stream.read_exact(&mut header_fields_len[..])?;
-        let (_, header_fields_len) =
-            util::parse_u32(&header_fields_len.to_vec(), header.byteorder)?;
-
-        // but push that info into the buffer so the unmarshalling has that info too
-        util::write_u32(header_fields_len, header.byteorder, &mut self.msg_buf_in);
-
+    pub fn bytes_needed_for_current_message(&self) -> Result<usize> {
+        if self.msg_buf_in.len() < 16 {
+            return Ok(16);
+        }
+        let (_, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
+        let (_, header_fields_len) = crate::wire::util::parse_u32(
+            &self.msg_buf_in[unmarshal::HEADER_LEN..],
+            header.byteorder,
+        )?;
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
 
         let padding_between_header_and_body = 8 - ((complete_header_size) % 8);
@@ -393,25 +381,66 @@ impl<'msga, 'msge> Conn {
             padding_between_header_and_body
         };
 
-        let bytes_needed = unmarshal::HEADER_LEN
-            + (header.body_len + header_fields_len + 4) as usize
-            + padding_between_header_and_body; // +4 because the length of the header fields does not count
-        loop {
-            let new_cmsgs =
-                self.refill_buffer(bytes_needed, calc_timeout_left(&start_time, timeout)?)?;
-            cmsgs.extend(new_cmsgs);
-            if self.msg_buf_in.len() == bytes_needed {
-                break;
-            }
+        let bytes_needed = complete_header_size as usize
+            + padding_between_header_and_body
+            + header.body_len as usize;
+        Ok(bytes_needed)
+    }
+
+    // Checks if the internal buffer currently holds a complete message
+    pub fn buffer_contains_whole_message(&self) -> Result<bool> {
+        if self.msg_buf_in.len() < 16 {
+            return Ok(false);
         }
+        let bytes_needed = self.bytes_needed_for_current_message();
+        match bytes_needed {
+            Err(e) => {
+                if let Error::UnmarshalError(unmarshal::Error::NotEnoughBytes) = e {
+                    Ok(false)
+                } else {
+                    Err(e)
+                }
+            }
+            Ok(bytes_needed) => Ok(self.msg_buf_in.len() >= bytes_needed),
+        }
+    }
+    /// Blocks until a message has been read from the conn or the timeout has been reached
+    pub fn read_whole_message(&mut self, timeout: Option<time::Duration>) -> Result<()> {
+        // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
+        // I think thats necessary so we can later add support for unixfd sending
+        //calc timeout in reference to this point in time
+        let start_time = time::Instant::now();
+
+        while !self.buffer_contains_whole_message()? {
+            self.refill_buffer(
+                self.bytes_needed_for_current_message()?,
+                calc_timeout_left(&start_time, timeout)?,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Blocks until one read towards the message has been performed from the conn or the timeout has been reached
+    pub fn read_once(&mut self, timeout: Option<time::Duration>) -> Result<()> {
+        self.refill_buffer(self.bytes_needed_for_current_message()?, timeout)?;
+        Ok(())
+    }
+
+    /// Blocks until a message has been read from the conn or the timeout has been reached
+    pub fn get_next_message(
+        &mut self,
+        timeout: Option<time::Duration>,
+    ) -> Result<message::Message<'msga, 'msge>> {
+        self.read_whole_message(timeout)?;
+        let (_, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
         let (bytes_used, mut msg) =
             unmarshal::unmarshal_next_message(&header, &self.msg_buf_in, unmarshal::HEADER_LEN)?;
-        if bytes_needed != bytes_used + unmarshal::HEADER_LEN {
+        if self.msg_buf_in.len() != bytes_used + unmarshal::HEADER_LEN {
             return Err(Error::UnmarshalError(unmarshal::Error::NotAllBytesUsed));
         }
         self.msg_buf_in.clear();
 
-        for cmsg in cmsgs {
+        for cmsg in &self.cmsgs_in {
             match cmsg {
                 ControlMessageOwned::ScmRights(fds) => {
                     msg.raw_fds.extend(fds);
@@ -422,6 +451,7 @@ impl<'msga, 'msge> Conn {
                 }
             }
         }
+        self.cmsgs_in.clear();
         Ok(msg)
     }
 
