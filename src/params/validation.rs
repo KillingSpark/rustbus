@@ -46,7 +46,7 @@ pub fn validate_interface(int: &str) -> Result<()> {
         if element.is_empty() {
             return Err(Error::InvalidInterface);
         }
-        if let Some(true) = element.chars().nth(0).map(|c| c.is_numeric()) {
+        if let Some(true) = element.chars().next().map(|c| c.is_numeric()) {
             return Err(Error::InvalidInterface);
         }
         let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
@@ -70,7 +70,7 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         return Err(Error::InvalidBusname);
     }
 
-    let (unique, bn) = if bn.chars().nth(0).unwrap() == ':' {
+    let (unique, bn) = if bn.chars().next().unwrap() == ':' {
         (true, &bn[1..])
     } else {
         (false, &bn[..])
@@ -85,7 +85,7 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         if element.is_empty() {
             return Err(Error::InvalidBusname);
         }
-        if !unique && element.chars().nth(0).map(|c| c.is_numeric()) == Some(true) {
+        if !unique && element.chars().next().map(|c| c.is_numeric()) == Some(true) {
             return Err(Error::InvalidBusname);
         }
         let alphanum_or_underscore_or_dash = element

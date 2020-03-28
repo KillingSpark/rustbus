@@ -558,8 +558,8 @@ impl<'a, 'e> std::convert::TryFrom<DictMap<'a, 'e>> for Container<'a, 'e> {
         if elems.is_empty() {
             return Err(Error::EmptyDict);
         }
-        let key_sig = elems.keys().nth(0).unwrap().sig();
-        let value_sig = elems.values().nth(0).unwrap().sig();
+        let key_sig = elems.keys().next().unwrap().sig();
+        let value_sig = elems.values().next().unwrap().sig();
 
         if let signature::Type::Base(key_sig) = key_sig {
             Container::try_from((key_sig, value_sig, elems))
