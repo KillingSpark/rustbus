@@ -1,6 +1,6 @@
 use crate::*;
 
-static MACHINE_ID_FILE_PATH: &'static str = "/tmp/dbus_machine_uuid";
+static MACHINE_ID_FILE_PATH: &str = "/tmp/dbus_machine_uuid";
 
 /// Can be used in the RpcConn filters to allow for peer messages
 pub fn filter_peer(msg: &Message) -> bool {
@@ -32,7 +32,7 @@ fn create_and_store_machine_uuid() -> Result<(), std::io::Error> {
 
     let mut rand_file = std::fs::File::open("/dev/urandom").unwrap();
     use std::io::Read;
-    rand_file.read(&mut rand[..]).unwrap();
+    rand_file.read_exact(&mut rand[..]).unwrap();
 
     let rand1 = rand[0] as u64
         | ((rand[1] as u64) << 8)
