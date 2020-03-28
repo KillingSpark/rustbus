@@ -42,8 +42,10 @@ fn create_and_store_machine_uuid() -> Result<(), std::io::Error> {
         | ((rand[5] as u64) << 40)
         | ((rand[6] as u64) << 48)
         | ((rand[7] as u64) << 56);
-    let rand2 =
-        rand[8] as u32 | ((rand[9] as u32) << 8) | ((rand[1] as u32) << 16) | ((rand[11] as u32) << 24);
+    let rand2 = rand[8] as u32
+        | ((rand[9] as u32) << 8)
+        | ((rand[1] as u32) << 16)
+        | ((rand[11] as u32) << 24);
 
     let uuid = format!("{:08X}{:04X}{:04X}", rand1, rand2, secs);
     println!("{}", uuid);

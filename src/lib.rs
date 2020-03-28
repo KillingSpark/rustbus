@@ -43,10 +43,10 @@ pub mod client_conn;
 pub mod message;
 pub mod message_builder;
 pub mod params;
+pub mod peer;
 pub mod signature;
 pub mod standard_messages;
 pub mod wire;
-pub mod peer;
 
 pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
 pub use message::{Message, MessageType};
