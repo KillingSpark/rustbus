@@ -36,19 +36,23 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
         MessageType::Call => {
-            let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
-                && msg.interface.eq(&Some("io.killing.spark".into()));
-
-            let right_member = if let Some(member) = &msg.member {
-                member.eq("Echo") || member.eq("Reverse")
+            if rustbus::peer::filter_peer(msg) {
+                true
             } else {
-                false
-            };
-            let keep = right_interface_object && right_member;
-            if !keep {
-                println!("Discard: {:?}", msg);
+                let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
+                    && msg.interface.eq(&Some("io.killing.spark".into()));
+
+                let right_member = if let Some(member) = &msg.member {
+                    member.eq("Echo") || member.eq("Reverse")
+                } else {
+                    false
+                };
+                let keep = right_interface_object && right_member;
+                if !keep {
+                    println!("Discard: {:?}", msg);
+                }
+                keep
             }
-            keep
         }
         MessageType::Invalid => false,
         MessageType::Error => true,
@@ -59,6 +63,9 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     loop {
         println!("Wait for call");
         let call = rpc_con.wait_call(None)?;
+        if rustbus::peer::handle_peer_message(&call, rpc_con.conn_mut(), None).unwrap() {
+            continue;
+        }
         println!("Got call: {:?}", call);
         if let Some(member) = &call.member {
             let cmd = match member.as_str() {

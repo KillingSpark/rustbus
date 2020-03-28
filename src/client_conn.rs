@@ -79,6 +79,10 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
         }
     }
 
+    pub fn conn_mut(&mut self) -> &mut Conn {
+        &mut self.conn
+    }
+
     /// get the next new serial
     pub fn alloc_serial(&mut self) -> u32 {
         self.conn.alloc_serial()
