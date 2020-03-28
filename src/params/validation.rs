@@ -19,7 +19,7 @@ pub fn validate_object_path(op: &str) -> Result<()> {
             if element.is_empty() {
                 return Err(Error::InvalidObjectPath);
             }
-            if let Some(true) = element.chars().nth(0).map(|c| c.is_numeric()) {
+            if let Some(true) = element.chars().next().map(|c| c.is_numeric()) {
                 return Err(Error::InvalidObjectPath);
             }
             let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
@@ -70,7 +70,7 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         return Err(Error::InvalidBusname);
     }
 
-    let (unique, bn) = if bn.chars().next().unwrap() == ':' {
+    let (unique, bn) = if bn.starts_with(':') {
         (true, &bn[1..])
     } else {
         (false, &bn[..])
