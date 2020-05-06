@@ -61,6 +61,7 @@ fn marshal_variant(
     var.sig.to_str(&mut sig_str);
     buf.push(sig_str.len() as u8);
     buf.extend(sig_str.bytes());
+    buf.push(0);
     marshal_param(&var.value, byteorder, buf)?;
     Ok(())
 }
