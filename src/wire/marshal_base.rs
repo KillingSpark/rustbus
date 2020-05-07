@@ -65,7 +65,7 @@ fn marshal_objectpath(
     write_string(&s, byteorder, buf);
     Ok(())
 }
-fn marshal_signature(s: &str, buf: &mut Vec<u8>) -> message::Result<()> {
+pub(super) fn marshal_signature(s: &str, buf: &mut Vec<u8>) -> message::Result<()> {
     params::validate_signature(&s)?;
     write_signature(&s, buf);
     Ok(())
