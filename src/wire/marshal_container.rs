@@ -59,8 +59,7 @@ fn marshal_variant(
 ) -> message::Result<()> {
     let mut sig_str = String::new();
     var.sig.to_str(&mut sig_str);
-    buf.push(sig_str.len() as u8);
-    buf.extend(sig_str.bytes());
+    marshal_signature(&sig_str, buf)?;
     marshal_param(&var.value, byteorder, buf)?;
     Ok(())
 }
