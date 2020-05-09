@@ -7,18 +7,17 @@ use crate::wire::marshal;
 use crate::wire::unmarshal;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
+use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::time;
 
 use nix::cmsg_space;
-use nix::sys::socket::recvmsg;
-use nix::sys::socket::sendmsg;
-use nix::sys::socket::ControlMessage;
-use nix::sys::socket::ControlMessageOwned;
-use nix::sys::socket::MsgFlags;
+use nix::sys::socket::{
+    self, connect, recvmsg, sendmsg, socket, ControlMessage, ControlMessageOwned, MsgFlags,
+    SockAddr, UnixAddr,
+};
 use nix::sys::uio::IoVec;
 
 /// Convenience wrapper around the lowlevel connection
@@ -227,7 +226,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
 /// A lowlevel abstraction over the raw unix socket
 #[derive(Debug)]
 pub struct Conn {
-    socket_path: PathBuf,
+    socket_addr: UnixAddr,
     stream: UnixStream,
 
     byteorder: message::ByteOrder,
@@ -252,7 +251,7 @@ pub enum Error {
     NameTaken,
     AddressTypeNotSupported(String),
     PathDoesNotExist(String),
-    NoAdressFound,
+    NoAddressFound,
     UnexpectedTypeReceived,
     TimedOut,
 }
@@ -284,11 +283,19 @@ type Result<T> = std::result::Result<T, Error>;
 impl<'msga, 'msge> Conn {
     /// Connect to a unix socket and choose a byteorder
     pub fn connect_to_bus_with_byteorder(
-        path: PathBuf,
+        addr: UnixAddr,
         byteorder: message::ByteOrder,
         with_unix_fd: bool,
     ) -> Result<Conn> {
-        let mut stream = UnixStream::connect(&path)?;
+        let sock = socket(
+            socket::AddressFamily::Unix,
+            socket::SockType::Stream,
+            socket::SockFlag::empty(),
+            None,
+        )?;
+        let sock_addr = SockAddr::Unix(addr);
+        connect(sock, &sock_addr)?;
+        let mut stream = unsafe { UnixStream::from_raw_fd(sock) };
         match auth::do_auth(&mut stream)? {
             auth::AuthResult::Ok => {}
             auth::AuthResult::Rejected => return Err(Error::AuthFailed),
@@ -304,7 +311,7 @@ impl<'msga, 'msge> Conn {
         auth::send_begin(&mut stream)?;
 
         Ok(Conn {
-            socket_path: path,
+            socket_addr: addr,
             stream,
             msg_buf_in: Vec::new(),
             cmsgs_in: Vec::new(),
@@ -328,8 +335,8 @@ impl<'msga, 'msge> Conn {
     }
 
     /// Connect to a unix socket. The default little endian byteorder is used
-    pub fn connect_to_bus(path: PathBuf, with_unix_fd: bool) -> Result<Conn> {
-        Self::connect_to_bus_with_byteorder(path, message::ByteOrder::LittleEndian, with_unix_fd)
+    pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> Result<Conn> {
+        Self::connect_to_bus_with_byteorder(addr, message::ByteOrder::LittleEndian, with_unix_fd)
     }
 
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
@@ -512,31 +519,38 @@ impl<'msga, 'msge> Conn {
     }
 }
 
-/// Convenience function that returns a path to the session bus according to the env var $DBUS_SESSION_BUS_ADDRESS
-pub fn get_session_bus_path() -> Result<PathBuf> {
+/// Convenience function that returns the UnixAddr of the session bus according to the env
+/// var $DBUS_SESSION_BUS_ADDRESS.
+pub fn get_session_bus_path() -> Result<UnixAddr> {
     if let Ok(envvar) = std::env::var("DBUS_SESSION_BUS_ADDRESS") {
         if envvar.starts_with("unix:path=") {
             let ps = envvar.trim_start_matches("unix:path=");
             let p = PathBuf::from(&ps);
             if p.exists() {
-                Ok(p)
+                Ok(UnixAddr::new(&p)?)
             } else {
                 Err(Error::PathDoesNotExist(ps.to_owned()))
             }
+        } else if envvar.starts_with("unix:abstract=") {
+            let mut ps = envvar.trim_start_matches("unix:abstract=").to_string();
+            let end_path_offset = ps.find(',').unwrap_or_else(|| ps.len());
+            let ps: String = ps.drain(..end_path_offset).collect();
+            let path_buf = ps.as_bytes();
+            Ok(UnixAddr::new_abstract(&path_buf)?)
         } else {
             Err(Error::AddressTypeNotSupported(envvar))
         }
     } else {
-        Err(Error::NoAdressFound)
+        Err(Error::NoAddressFound)
     }
 }
 
 /// Convenience function that returns a path to the system bus at /run/dbus/systemd_bus_socket
-pub fn get_system_bus_path() -> Result<PathBuf> {
+pub fn get_system_bus_path() -> Result<UnixAddr> {
     let ps = "/run/dbus/system_bus_socket";
     let p = PathBuf::from(&ps);
     if p.exists() {
-        Ok(p)
+        Ok(UnixAddr::new(&p)?)
     } else {
         Err(Error::PathDoesNotExist(ps.to_owned()))
     }
