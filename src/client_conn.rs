@@ -572,3 +572,31 @@ fn calc_timeout_left(
         None => Ok(None),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use nix::sys::socket::UnixAddr;
+    use std::env;
+
+    #[test]
+    fn test_get_session_bus_path() {
+        let dbus_key = "DBUS_SESSION_BUS_ADDRESS";
+        let path = "unix:path=/tmp/dbus-test-not-exist";
+        let abstract_path = "unix:abstract=/tmp/dbus-test";
+        let abstract_path_with_keys = "unix:abstract=/tmp/dbus-test,guid=aaaaaaaa,test=bbbbbbbb";
+
+        env::set_var(dbus_key, path);
+        let addr = get_session_bus_path();
+        assert!(addr.is_err());
+
+        env::set_var(dbus_key, abstract_path);
+        let addr = get_session_bus_path().unwrap();
+        assert_eq!(addr, UnixAddr::new_abstract(b"/tmp/dbus-test").unwrap());
+
+        env::set_var(dbus_key, abstract_path_with_keys);
+        let addr = get_session_bus_path().unwrap();
+        assert_eq!(addr, UnixAddr::new_abstract(b"/tmp/dbus-test").unwrap());
+    }
+}
