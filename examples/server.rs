@@ -1,4 +1,4 @@
-use rustbus::{standard_messages, Message, MessageType, RpcConn};
+use rustbus::{client_conn::Timeout, standard_messages, Message, MessageType, RpcConn};
 
 pub enum Commands {
     Echo,
@@ -25,13 +25,13 @@ impl<'a, 'e> Commands {
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
     // sends the obligatory hello message
-    let mut rpc_con = RpcConn::session_conn(None)?;
+    let mut rpc_con = RpcConn::session_conn(Timeout::Infinite)?;
 
     let namereq_serial = rpc_con.send_message(
         &mut standard_messages::request_name("io.killing.spark".into(), 0),
-        None,
+        Timeout::Infinite,
     )?;
-    let resp = rpc_con.wait_response(namereq_serial, None)?;
+    let resp = rpc_con.wait_response(namereq_serial, Timeout::Infinite)?;
     println!("Name request response: {:?}", resp);
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
@@ -62,8 +62,9 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     loop {
         println!("Wait for call");
-        let call = rpc_con.wait_call(None)?;
-        if rustbus::peer::handle_peer_message(&call, rpc_con.conn_mut(), None).unwrap() {
+        let call = rpc_con.wait_call(Timeout::Infinite)?;
+        if rustbus::peer::handle_peer_message(&call, rpc_con.conn_mut(), Timeout::Infinite).unwrap()
+        {
             continue;
         }
         println!("Got call: {:?}", call);
@@ -74,7 +75,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                     if call.params.len() != 1 {
                         rpc_con.send_message(
                             &mut standard_messages::invalid_args(&call, Some("String")),
-                            None,
+                            Timeout::Infinite,
                         )?;
                         continue;
                     }
@@ -83,7 +84,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                     } else {
                         rpc_con.send_message(
                             &mut standard_messages::invalid_args(&call, Some("String")),
-                            None,
+                            Timeout::Infinite,
                         )?;
                         continue;
                     }
@@ -92,13 +93,16 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                     // This shouldn't happen with the filters defined above
                     // If a call is filtered out, an error like this one is automatically send to the source, so this is technically unecessary
                     // but we like robust software!
-                    rpc_con.send_message(&mut standard_messages::unknown_method(&call), None)?;
+                    rpc_con.send_message(
+                        &mut standard_messages::unknown_method(&call),
+                        Timeout::Infinite,
+                    )?;
                     continue;
                 }
             };
             let mut reply = cmd.execute(&call);
             println!("Reply: {:?}", reply);
-            rpc_con.send_message(&mut reply, None)?;
+            rpc_con.send_message(&mut reply, Timeout::Infinite)?;
             println!("Reply sent");
         }
     }

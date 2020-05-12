@@ -1,4 +1,6 @@
-use rustbus::{get_session_bus_path, standard_messages, Conn, MessageType, RpcConn};
+use rustbus::{
+    client_conn::Timeout, get_session_bus_path, standard_messages, Conn, MessageType, RpcConn,
+};
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_session_bus_path()?;
@@ -16,13 +18,13 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     }));
 
     println!("Send message: {:?}", hello_msg);
-    let hello_serial = rpc_con.send_message(&mut hello_msg, None)?;
+    let hello_serial = rpc_con.send_message(&mut hello_msg, Timeout::Infinite)?;
 
     println!("\n");
     println!("\n");
     println!("\n");
     println!("Wait for hello response");
-    let msg = rpc_con.wait_response(hello_serial, None)?;
+    let msg = rpc_con.wait_response(hello_serial, Timeout::Infinite)?;
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -30,11 +32,11 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     let reqname_serial = rpc_con.send_message(
         &mut standard_messages::request_name("io.killing.spark".into(), 0),
-        None,
+        Timeout::Infinite,
     )?;
 
     println!("Wait for name request response");
-    let msg = rpc_con.wait_response(reqname_serial, None)?;
+    let msg = rpc_con.wait_response(reqname_serial, Timeout::Infinite)?;
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -51,10 +53,11 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         panic!("Wrong args: {:?}", msg.params);
     }
 
-    let list_serial = rpc_con.send_message(&mut standard_messages::list_names(), None)?;
+    let list_serial =
+        rpc_con.send_message(&mut standard_messages::list_names(), Timeout::Infinite)?;
 
     println!("Wait for list response");
-    let msg = rpc_con.wait_response(list_serial, None)?;
+    let msg = rpc_con.wait_response(list_serial, Timeout::Infinite)?;
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -63,12 +66,15 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let mut sig_listen_msg = standard_messages::add_match("type='signal'".into());
 
     println!("Send message: {:?}", sig_listen_msg);
-    rpc_con.send_message(&mut sig_listen_msg, None)?;
+    rpc_con.send_message(&mut sig_listen_msg, Timeout::Infinite)?;
 
     loop {
-        println!("Wait for incoming signals");
-        let msg = rpc_con.wait_signal(Some(std::time::Duration::from_secs(5)))?;
-        println!("Got signal: {:?}", msg);
+        println!("Do important work while signals might arrive");
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        println!("Collect all signals");
+        rpc_con.refill_all()?;
+        
+        println!("Refill ended, now pull all signals out of the queue");
         loop {
             let msg = rpc_con.try_get_signal();
             if let Some(msg) = msg {

@@ -1,4 +1,5 @@
 use rustbus::{
+    client_conn::Timeout,
     get_session_bus_path,
     message::{Error, Message},
     params::{Base, Container, Param},
@@ -120,8 +121,8 @@ fn send_and_recv<'a, 'e, T: TryFrom<Vec<Param<'a, 'e>>> + std::fmt::Debug>(
     conn: &mut RpcConn<'a, 'e>,
     msg: &mut Message<'a, 'e>,
 ) -> Result<(), rustbus::client_conn::Error> {
-    let serial = conn.send_message(msg, None)?;
-    let response = conn.wait_response(serial, None)?;
+    let serial = conn.send_message(msg, Timeout::Infinite)?;
+    let response = conn.wait_response(serial, Timeout::Infinite)?;
     let response_converted = T::try_from(response.params).map_err(|_| Error::InvalidType)?;
     println!("Got response {:?}", response_converted);
     Ok(())
@@ -131,7 +132,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_session_bus_path()?;
     let con = Conn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);
-    rpc_con.send_message(&mut standard_messages::hello(), None)?;
+    rpc_con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
     send_and_recv::<Response1>(&mut rpc_con, &mut build_message1(42))?;
     send_and_recv::<Response2>(
         &mut rpc_con,

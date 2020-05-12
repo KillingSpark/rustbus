@@ -1,12 +1,12 @@
 use rustbus::{
-    get_session_bus_path, params::DictMap, signature, standard_messages, Conn, Container,
-    MessageBuilder,
+    client_conn::Timeout, get_session_bus_path, params::DictMap, signature, standard_messages,
+    Conn, Container, MessageBuilder,
 };
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_session_bus_path()?;
     let mut con = Conn::connect_to_bus(session_path, true)?;
-    con.send_message(&mut standard_messages::hello(), None)?;
+    con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
 
     // To create a dict or array a signature is needed. You can use the string representation
     let dict3 = Container::make_dict("i", "i", (0..124i32).map(|v| (v, v + 1))).unwrap();
@@ -98,8 +98,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     // Or we can add parameters later if we want to
     sig.add_param3(dict1, dict2, dict3);
 
-    con.send_message(&mut sig, None)?;
-    con.send_message(&mut sig, None)?;
+    con.send_message(&mut sig, Timeout::Infinite)?;
+    con.send_message(&mut sig, Timeout::Infinite)?;
 
     Ok(())
 }

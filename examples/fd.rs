@@ -1,4 +1,4 @@
-use rustbus::{get_session_bus_path, standard_messages, Conn, MessageBuilder, RpcConn};
+use rustbus::{get_session_bus_path, standard_messages, Conn, MessageBuilder, RpcConn, client_conn::Timeout};
 
 use std::io::Write;
 use std::os::unix::io::FromRawFd;
@@ -13,15 +13,15 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         let session_path = get_session_bus_path()?;
         let con = Conn::connect_to_bus(session_path, true)?;
         let mut con = RpcConn::new(con);
-        con.send_message(&mut standard_messages::hello(), None)?;
+        con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
 
         con.send_message(
             &mut standard_messages::add_match("type='signal'".into()),
-            None,
+            Timeout::Infinite,
         )?;
 
         let sig = loop {
-            let signal = con.wait_signal(None)?;
+            let signal = con.wait_signal(Timeout::Infinite)?;
             println!("Got signal: {:?}", signal);
             if signal.interface.eq(&Some("io.killing.spark".to_owned())) {
                 if signal.member.eq(&Some("TestSignal".to_owned())) {
@@ -41,7 +41,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 fn send_fd() -> Result<(), rustbus::client_conn::Error> {
     let session_path = rustbus::client_conn::get_session_bus_path()?;
     let mut con = rustbus::client_conn::Conn::connect_to_bus(session_path, true)?;
-    con.send_message(&mut rustbus::standard_messages::hello(), None)?;
+    con.send_message(&mut rustbus::standard_messages::hello(), Timeout::Infinite)?;
     let mut sig = MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
@@ -52,7 +52,7 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
 
     sig.raw_fds.push(0);
     sig.num_fds = Some(1);
-    con.send_message(&mut sig, None)?;
+    con.send_message(&mut sig, Timeout::Infinite)?;
 
     let mut sig = MessageBuilder::new()
         .signal(
@@ -61,7 +61,7 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
             "/io/killing/spark".into(),
         )
         .build();
-    con.send_message(&mut sig, None)?;
+    con.send_message(&mut sig, Timeout::Infinite)?;
 
     println!("Printing stuff fromn stdin");
     let mut line = String::new();

@@ -67,7 +67,7 @@ fn get_machine_id() -> Result<String, std::io::Error> {
 pub fn handle_peer_message(
     msg: &Message,
     con: &mut Conn,
-    timeout: Option<std::time::Duration>,
+    timeout: client_conn::Timeout,
 ) -> Result<bool, crate::client_conn::Error> {
     if let Some(interface) = &msg.interface {
         if interface.eq("org.freedesktop.DBus.Peer") {

@@ -20,6 +20,13 @@ use nix::sys::socket::{
 };
 use nix::sys::uio::IoVec;
 
+#[derive(Clone, Copy)]
+pub enum Timeout {
+    Infinite,
+    Nonblock,
+    Duration(time::Duration),
+}
+
 /// Convenience wrapper around the lowlevel connection
 pub struct RpcConn<'msga, 'msge> {
     signals: VecDeque<message::Message<'msga, 'msge>>,
@@ -87,20 +94,20 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
         self.conn.alloc_serial()
     }
 
-    pub fn session_conn(timeout: Option<time::Duration>) -> Result<Self> {
+    pub fn session_conn(timeout: Timeout) -> Result<Self> {
         let session_path = get_session_bus_path()?;
         let con = Conn::connect_to_bus(session_path, true)?;
         let mut con = Self::new(con);
-        let serial = con.send_message(&mut crate::standard_messages::hello(), None)?;
+        let serial = con.send_message(&mut crate::standard_messages::hello(), Timeout::Infinite)?;
         con.wait_response(serial, timeout)?;
         Ok(con)
     }
 
-    pub fn system_conn(timeout: Option<time::Duration>) -> Result<Self> {
+    pub fn system_conn(timeout: Timeout) -> Result<Self> {
         let session_path = get_system_bus_path()?;
         let con = Conn::connect_to_bus(session_path, true)?;
         let mut con = Self::new(con);
-        let serial = con.send_message(&mut crate::standard_messages::hello(), None)?;
+        let serial = con.send_message(&mut crate::standard_messages::hello(), Timeout::Infinite)?;
         con.wait_response(serial, timeout)?;
         Ok(con)
     }
@@ -118,13 +125,13 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     pub fn wait_response(
         &mut self,
         serial: u32,
-        timeout: Option<time::Duration>,
+        timeout: Timeout,
     ) -> Result<message::Message<'msga, 'msge>> {
         loop {
             if let Some(msg) = self.try_get_response(serial) {
                 return Ok(msg);
             }
-            self.refill(timeout)?;
+            self.refill_once(timeout)?;
         }
     }
 
@@ -134,15 +141,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     }
 
     /// Return a sginal if one is there or block until it arrives
-    pub fn wait_signal(
-        &mut self,
-        timeout: Option<time::Duration>,
-    ) -> Result<message::Message<'msga, 'msge>> {
+    pub fn wait_signal(&mut self, timeout: Timeout) -> Result<message::Message<'msga, 'msge>> {
         loop {
             if let Some(msg) = self.try_get_signal() {
                 return Ok(msg);
             }
-            self.refill(timeout)?;
+            self.refill_once(timeout)?;
         }
     }
 
@@ -152,15 +156,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     }
 
     /// Return a call if one is there or block until it arrives
-    pub fn wait_call(
-        &mut self,
-        timeout: Option<time::Duration>,
-    ) -> Result<message::Message<'msga, 'msge>> {
+    pub fn wait_call(&mut self, timeout: Timeout) -> Result<message::Message<'msga, 'msge>> {
         loop {
             if let Some(msg) = self.try_get_call() {
                 return Ok(msg);
             }
-            self.refill(timeout)?;
+            self.refill_once(timeout)?;
         }
     }
 
@@ -168,20 +169,101 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     pub fn send_message(
         &mut self,
         msg: &mut message::Message<'msga, 'msge>,
-        timeout: Option<time::Duration>,
+        timeout: Timeout,
     ) -> Result<u32> {
         self.conn.send_message(msg, timeout)
     }
 
+    fn insert_message_or_send_error(
+        &mut self,
+        msg: message::Message<'msga, 'msge>,
+        timeout: Timeout,
+    ) -> Result<()> {
+        let start_time = time::Instant::now();
+        if self.filter.as_ref()(&msg) {
+            match msg.typ {
+                message::MessageType::Call => {
+                    self.calls.push_back(msg);
+                }
+                message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                message::MessageType::Error => {
+                    self.responses.insert(msg.response_serial.unwrap(), msg);
+                }
+                message::MessageType::Reply => {
+                    self.responses.insert(msg.response_serial.unwrap(), msg);
+                }
+                message::MessageType::Signal => {
+                    self.signals.push_back(msg);
+                }
+            }
+        } else {
+            match msg.typ {
+                message::MessageType::Call => {
+                    let mut reply = crate::standard_messages::unknown_method(&msg);
+                    self.conn
+                        .send_message(&mut reply, calc_timeout_left(&start_time, timeout)?)?;
+                }
+                message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                message::MessageType::Error => {
+                    // just drop it
+                }
+                message::MessageType::Reply => {
+                    // just drop it
+                }
+                message::MessageType::Signal => {
+                    // just drop it
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// This processes ONE message. This might be an ignored message. The result will tell you which
+    /// if any message type was received. The message will be placed into the appropriate queue in the RpcConn.
+    /// 
+    /// If a call is received that should be filtered out an error message is sent automatically
+    pub fn try_refill_once(&mut self, timeout: Timeout) -> Result<Option<message::MessageType>> {
+        let start_time = time::Instant::now();
+        let msg = self
+            .conn
+            .get_next_message(calc_timeout_left(&start_time, timeout)?)?;
+
+        let typ = msg.typ;
+        self.insert_message_or_send_error(msg, calc_timeout_left(&start_time, timeout)?)?;
+        Ok(Some(typ))
+    }
+
     /// This blocks until a new message (that should not be ignored) arrives.
-    /// The message gets placed into the correct list
-    fn refill(&mut self, timeout: Option<time::Duration>) -> Result<()> {
+    /// The message gets placed into the correct list. The Result will tell you which kind of message
+    /// has been received.
+    /// 
+    /// If calls are received that should be filtered out an error message is sent automatically 
+    pub fn refill_once(&mut self, timeout: Timeout) -> Result<message::MessageType> {
         let start_time = time::Instant::now();
         loop {
-            let msg = self
-                .conn
-                .get_next_message(calc_timeout_left(&start_time, timeout)?)?;
+            if let Some(typ) = self.try_refill_once(calc_timeout_left(&start_time, timeout)?)? {
+                break Ok(typ);
+            }
+        }
+    }
 
+    /// This will drain all outstanding IO on the socket, this will never block. If there is a partially received message pending
+    /// it will be collected by the next call to any of the io-performing functions. For the callers convenience the Error::Timedout resulting of the 
+    /// EAGAIN/EWOULDBLOCK errors are converted to Ok(()) before returning, since these are expected to happen to normally exit this function.
+    ///
+    /// This will not send automatic error messages for calls to unknown methods because it does never block,
+    /// but error replies should always be sent. For this reason replies to all filtered calls are collected and returned.
+    /// The original messages are dropped immediatly, so it should keep memory usage
+    /// relatively low. The caller is responsible to send these error replies over the RpcConn, at a convenient time.
+    pub fn refill_all(&mut self) -> Result<Vec<message::Message<'msga, 'msge>>> {
+        let mut filtered_out = Vec::new();
+        loop {
+            //  break if the call would block (aka no more io is possible), or return if an actual error occured
+            let msg = match self.conn.get_next_message(Timeout::Nonblock) {
+                Err(Error::TimedOut) => break,
+                Err(e) => return Err(e),
+                Ok(m) => m,
+            };
             if self.filter.as_ref()(&msg) {
                 match msg.typ {
                     message::MessageType::Call => {
@@ -198,13 +280,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
                         self.signals.push_back(msg);
                     }
                 }
-                break;
             } else {
                 match msg.typ {
                     message::MessageType::Call => {
-                        let mut reply = crate::standard_messages::unknown_method(&msg);
-                        self.conn
-                            .send_message(&mut reply, calc_timeout_left(&start_time, timeout)?)?;
+                        let reply = crate::standard_messages::unknown_method(&msg);
+                        filtered_out.push(reply);
+                        // drop message but keep reply
                     }
                     message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
                     message::MessageType::Error => {
@@ -219,7 +300,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
                 }
             }
         }
-        Ok(())
+        Ok(filtered_out)
     }
 }
 
@@ -341,11 +422,7 @@ impl<'msga, 'msge> Conn {
 
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
     /// so we can process messages separatly and avoid leaking file descriptors to wrong messages
-    fn refill_buffer(
-        &mut self,
-        max_buffer_size: usize,
-        timeout: Option<time::Duration>,
-    ) -> Result<()> {
+    fn refill_buffer(&mut self, max_buffer_size: usize, timeout: Timeout) -> Result<()> {
         let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
 
         const BUFSIZE: usize = 512;
@@ -356,7 +433,17 @@ impl<'msga, 'msge> Conn {
         let flags = MsgFlags::empty();
 
         let old_timeout = self.stream.read_timeout()?;
-        self.stream.set_read_timeout(timeout)?;
+        match timeout {
+            Timeout::Duration(d) => {
+                self.stream.set_read_timeout(Some(d))?;
+            }
+            Timeout::Infinite => {
+                self.stream.set_read_timeout(None)?;
+            }
+            Timeout::Nonblock => {
+                self.stream.set_nonblocking(true)?;
+            }
+        }
         let msg = recvmsg(
             self.stream.as_raw_fd(),
             &[iovec],
@@ -366,8 +453,13 @@ impl<'msga, 'msge> Conn {
         .map_err(|e| match e.as_errno() {
             Some(nix::errno::Errno::EAGAIN) => Error::TimedOut,
             _ => Error::NixError(e),
-        })?;
+        });
+
+        self.stream.set_nonblocking(false)?;
         self.stream.set_read_timeout(old_timeout)?;
+
+        let msg = msg?;
+
         self.msg_buf_in
             .extend(&mut tmpbuf[..msg.bytes].iter().copied());
         self.cmsgs_in.extend(msg.cmsgs());
@@ -416,7 +508,7 @@ impl<'msga, 'msge> Conn {
         }
     }
     /// Blocks until a message has been read from the conn or the timeout has been reached
-    pub fn read_whole_message(&mut self, timeout: Option<time::Duration>) -> Result<()> {
+    pub fn read_whole_message(&mut self, timeout: Timeout) -> Result<()> {
         // This whole dance around reading exact amounts of bytes is necessary to read messages exactly at their bounds.
         // I think thats necessary so we can later add support for unixfd sending
         //calc timeout in reference to this point in time
@@ -432,16 +524,13 @@ impl<'msga, 'msge> Conn {
     }
 
     /// Blocks until one read towards the message has been performed from the conn or the timeout has been reached
-    pub fn read_once(&mut self, timeout: Option<time::Duration>) -> Result<()> {
+    pub fn read_once(&mut self, timeout: Timeout) -> Result<()> {
         self.refill_buffer(self.bytes_needed_for_current_message()?, timeout)?;
         Ok(())
     }
 
     /// Blocks until a message has been read from the conn or the timeout has been reached
-    pub fn get_next_message(
-        &mut self,
-        timeout: Option<time::Duration>,
-    ) -> Result<message::Message<'msga, 'msge>> {
+    pub fn get_next_message(&mut self, timeout: Timeout) -> Result<message::Message<'msga, 'msge>> {
         self.read_whole_message(timeout)?;
         let (_, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
         let (bytes_used, mut msg) =
@@ -477,7 +566,7 @@ impl<'msga, 'msge> Conn {
     pub fn send_message(
         &mut self,
         msg: &mut message::Message<'msga, 'msge>,
-        timeout: Option<time::Duration>,
+        timeout: Timeout,
     ) -> Result<u32> {
         self.msg_buf_out.clear();
         let (remove_later, serial) = if let Some(serial) = msg.serial {
@@ -499,16 +588,31 @@ impl<'msga, 'msge> Conn {
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
         let flags = MsgFlags::empty();
 
-        let old_timeout = self.stream.read_timeout()?;
-        self.stream.set_read_timeout(timeout)?;
+        let old_timeout = self.stream.write_timeout()?;
+        match timeout {
+            Timeout::Duration(d) => {
+                self.stream.set_write_timeout(Some(d))?;
+            }
+            Timeout::Infinite => {
+                self.stream.set_write_timeout(None)?;
+            }
+            Timeout::Nonblock => {
+                self.stream.set_nonblocking(true)?;
+            }
+        }
         let l = sendmsg(
             self.stream.as_raw_fd(),
             &iov,
             &[ControlMessage::ScmRights(&msg.raw_fds)],
             flags,
             None,
-        )?;
-        self.stream.set_read_timeout(old_timeout)?;
+        );
+
+        self.stream.set_write_timeout(old_timeout)?;
+        self.stream.set_nonblocking(false)?;
+
+        let l = l?;
+
         assert_eq!(l, self.msg_buf_out.len());
 
         if remove_later {
@@ -556,20 +660,17 @@ pub fn get_system_bus_path() -> Result<UnixAddr> {
     }
 }
 
-fn calc_timeout_left(
-    start_time: &time::Instant,
-    timeout: Option<time::Duration>,
-) -> Result<Option<time::Duration>> {
+fn calc_timeout_left(start_time: &time::Instant, timeout: Timeout) -> Result<Timeout> {
     match timeout {
-        Some(timeout) => {
+        Timeout::Duration(timeout) => {
             let elapsed = start_time.elapsed();
             if elapsed >= timeout {
                 return Err(Error::TimedOut);
             }
             let time_left = timeout - elapsed;
-            Ok(Some(time_left))
+            Ok(Timeout::Duration(time_left))
         }
-        None => Ok(None),
+        other => Ok(other),
     }
 }
 
