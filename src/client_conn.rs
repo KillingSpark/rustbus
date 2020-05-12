@@ -220,7 +220,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
 
     /// This processes ONE message. This might be an ignored message. The result will tell you which
     /// if any message type was received. The message will be placed into the appropriate queue in the RpcConn.
-    /// 
+    ///
     /// If a call is received that should be filtered out an error message is sent automatically
     pub fn try_refill_once(&mut self, timeout: Timeout) -> Result<Option<message::MessageType>> {
         let start_time = time::Instant::now();
@@ -236,8 +236,8 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     /// This blocks until a new message (that should not be ignored) arrives.
     /// The message gets placed into the correct list. The Result will tell you which kind of message
     /// has been received.
-    /// 
-    /// If calls are received that should be filtered out an error message is sent automatically 
+    ///
+    /// If calls are received that should be filtered out an error message is sent automatically
     pub fn refill_once(&mut self, timeout: Timeout) -> Result<message::MessageType> {
         let start_time = time::Instant::now();
         loop {
@@ -248,7 +248,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     }
 
     /// This will drain all outstanding IO on the socket, this will never block. If there is a partially received message pending
-    /// it will be collected by the next call to any of the io-performing functions. For the callers convenience the Error::Timedout resulting of the 
+    /// it will be collected by the next call to any of the io-performing functions. For the callers convenience the Error::Timedout resulting of the
     /// EAGAIN/EWOULDBLOCK errors are converted to Ok(()) before returning, since these are expected to happen to normally exit this function.
     ///
     /// This will not send automatic error messages for calls to unknown methods because it does never block,

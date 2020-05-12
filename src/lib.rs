@@ -3,7 +3,7 @@
 //! in the src/bin directory but the gist is:
 //!
 //! ```rust,no_run
-//! use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder};
+//! use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder, client_conn::Timeout};
 //!
 //! fn main() -> Result<(), rustbus::client_conn::Error> {
 //!     // Connect to the session bus
@@ -14,13 +14,13 @@
 //!     let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
 //!
 //!     // send the obligatory hello message
-//!     rpc_con.send_message(&mut standard_messages::hello(), None)?;
+//!     rpc_con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
 //!
 //!     // Request a bus name if you want to
 //!     rpc_con.send_message(&mut standard_messages::request_name(
 //!         "io.killing.spark".into(),
 //!         0,
-//!     ), None)?;
+//!     ), Timeout::Infinite)?;
 //!
 //!     // send a signal to all bus members
 //!     let mut sig = MessageBuilder::new()
@@ -33,7 +33,7 @@
 //!         Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
 //!     ])
 //!     .build();
-//!     rpc_con.send_message(&mut sig, None)?;
+//!     rpc_con.send_message(&mut sig, Timeout::Infinite)?;
 //!     Ok(())
 //! }
 //! ```

@@ -73,7 +73,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         std::thread::sleep(std::time::Duration::from_secs(5));
         println!("Collect all signals");
         rpc_con.refill_all()?;
-        
+
         println!("Refill ended, now pull all signals out of the queue");
         loop {
             let msg = rpc_con.try_get_signal();

@@ -1,4 +1,6 @@
-use rustbus::{get_session_bus_path, standard_messages, Conn, MessageBuilder, RpcConn, client_conn::Timeout};
+use rustbus::{
+    client_conn::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder, RpcConn,
+};
 
 use std::io::Write;
 use std::os::unix::io::FromRawFd;
