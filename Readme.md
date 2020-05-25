@@ -27,7 +27,7 @@ The unmarshalling has been fuzzed and doesn't panic on any input so far. If you 
 
 # How to use it
 There are some examples in the `examples/` directory but the gist is:
-```
+```rust
 use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder};
 
  fn main() -> Result<(), rustbus::client_conn::Error> {
