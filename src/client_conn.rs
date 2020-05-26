@@ -33,7 +33,7 @@ pub struct RpcConn<'msga, 'msge> {
     calls: VecDeque<message::Message<'msga, 'msge>>,
     responses: HashMap<u32, message::Message<'msga, 'msge>>,
     conn: Conn,
-    filter: Box<MessageFilter>,
+    filter: MessageFilter,
 }
 
 /// Filter out messages you dont want in your RpcConn.
@@ -72,7 +72,7 @@ pub struct RpcConn<'msga, 'msge> {
 /// Ok(())
 /// }
 /// ```
-pub type MessageFilter = dyn Fn(&message::Message) -> bool;
+pub type MessageFilter = Box<dyn Fn(&message::Message) -> bool + Sync + Send>;
 
 impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     pub fn new(conn: Conn) -> Self {
@@ -112,7 +112,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
         Ok(con)
     }
 
-    pub fn set_filter(&mut self, filter: Box<MessageFilter>) {
+    pub fn set_filter(&mut self, filter: MessageFilter) {
         self.filter = filter;
     }
 
