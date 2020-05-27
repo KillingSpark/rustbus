@@ -144,6 +144,65 @@ impl OutMessageBody {
         Ok(())
     }
 
+    pub fn push_param2<P1: Marshal, P2: Marshal>(
+        &mut self,
+        p1: P1,
+        p2: P2,
+    ) -> Result<(), message::Error> {
+        self.push_param(p1)?;
+        self.push_param(p2)?;
+        Ok(())
+    }
+
+    pub fn push_param3<P1: Marshal, P2: Marshal, P3: Marshal>(
+        &mut self,
+        p1: P1,
+        p2: P2,
+        p3: P3,
+    ) -> Result<(), message::Error> {
+        self.push_param(p1)?;
+        self.push_param(p2)?;
+        self.push_param(p3)?;
+        Ok(())
+    }
+
+    pub fn push_param4<P1: Marshal, P2: Marshal, P3: Marshal, P4: Marshal>(
+        &mut self,
+        p1: P1,
+        p2: P2,
+        p3: P3,
+        p4: P4,
+    ) -> Result<(), message::Error> {
+        self.push_param(p1)?;
+        self.push_param(p2)?;
+        self.push_param(p3)?;
+        self.push_param(p4)?;
+        Ok(())
+    }
+
+    pub fn push_param5<P1: Marshal, P2: Marshal, P3: Marshal, P4: Marshal, P5: Marshal>(
+        &mut self,
+        p1: P1,
+        p2: P2,
+        p3: P3,
+        p4: P4,
+        p5: P5,
+    ) -> Result<(), message::Error> {
+        self.push_param(p1)?;
+        self.push_param(p2)?;
+        self.push_param(p3)?;
+        self.push_param(p4)?;
+        self.push_param(p5)?;
+        Ok(())
+    }
+
+    pub fn push_params<P: Marshal>(&mut self, params: &[P]) -> Result<(), message::Error> {
+        for p in params {
+            self.push_param(p)?;
+        }
+        Ok(())
+    }
+
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
         self.sig.push('v');
         let mut sig_str = String::new();

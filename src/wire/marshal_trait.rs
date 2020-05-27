@@ -12,6 +12,23 @@ pub trait Marshal {
     fn alignment(&self) -> usize;
 }
 
+impl <P: Marshal> Marshal for &P {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        (*self).marshal(byteorder, buf)
+    }
+    
+    fn signature(&self) -> crate::signature::Type {
+        (*self).signature()
+    }
+    fn alignment(&self) -> usize {
+        (*self).alignment()
+    }
+} 
+
 impl Marshal for () {
     fn marshal(
         &self,
@@ -277,40 +294,6 @@ impl<'a> Marshal for params::Param<'a, 'a> {
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
         crate::wire::marshal_container::marshal_param(self, byteorder, buf)
-    }
-
-    fn signature(&self) -> crate::signature::Type {
-        self.sig()
-    }
-    fn alignment(&self) -> usize {
-        self.sig().get_alignment()
-    }
-}
-
-impl<'a> Marshal for &params::Param<'a, 'a> {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
-        crate::wire::marshal_container::marshal_param(self, byteorder, buf)
-    }
-
-    fn signature(&self) -> crate::signature::Type {
-        self.sig()
-    }
-    fn alignment(&self) -> usize {
-        self.sig().get_alignment()
-    }
-}
-
-impl<'a> Marshal for &params::Base<'a> {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
-        crate::wire::marshal_base::marshal_base_param(byteorder, self, buf)
     }
 
     fn signature(&self) -> crate::signature::Type {
