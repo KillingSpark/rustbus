@@ -29,10 +29,9 @@
 //!         "TestSignal".into(),
 //!         "/io/killing/spark".into(),
 //!     )
-//!     .with_params(vec![
-//!         Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-//!     ])
 //!     .build();
+//!     
+//!     sig.body.push_param("Signal message!").unwrap();
 //!     rpc_con.send_message(&mut sig, Timeout::Infinite)?;
 //!     Ok(())
 //! }
