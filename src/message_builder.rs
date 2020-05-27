@@ -118,6 +118,122 @@ impl OutMessageBody {
     }
 }
 
+impl<E: Marshal> Marshal for (E,) {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        // always align to 8
+        let pad_size = buf.len() % 8;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            buf.push(0);
+        }
+        self.0.marshal(byteorder, buf)?;
+        Ok(())
+    }
+    fn signature(&self) -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![self
+            .0
+            .signature()]))
+    }
+
+    fn alignment(&self) -> usize {
+        8
+    }
+}
+
+impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        // always align to 8
+        let pad_size = buf.len() % 8;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            buf.push(0);
+        }
+        self.0.marshal(byteorder, buf)?;
+        self.1.marshal(byteorder, buf)?;
+        Ok(())
+    }
+    fn signature(&self) -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
+            self.0.signature(),
+            self.1.signature(),
+        ]))
+    }
+
+    fn alignment(&self) -> usize {
+        8
+    }
+}
+
+impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        // always align to 8
+        let pad_size = buf.len() % 8;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            buf.push(0);
+        }
+        self.0.marshal(byteorder, buf)?;
+        self.1.marshal(byteorder, buf)?;
+        self.2.marshal(byteorder, buf)?;
+        Ok(())
+    }
+    fn signature(&self) -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
+            self.0.signature(),
+            self.1.signature(),
+            self.2.signature(),
+        ]))
+    }
+
+    fn alignment(&self) -> usize {
+        8
+    }
+}
+
+impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        // always align to 8
+        let pad_size = buf.len() % 8;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            buf.push(0);
+        }
+        self.0.marshal(byteorder, buf)?;
+        self.1.marshal(byteorder, buf)?;
+        self.2.marshal(byteorder, buf)?;
+        self.3.marshal(byteorder, buf)?;
+        Ok(())
+    }
+    fn signature(&self) -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
+            self.0.signature(),
+            self.1.signature(),
+            self.2.signature(),
+            self.3.signature(),
+        ]))
+    }
+
+    fn alignment(&self) -> usize {
+        8
+    }
+}
+
 impl<E: Marshal> Marshal for &[E] {
     fn marshal(
         &self,
@@ -162,7 +278,7 @@ impl<E: Marshal> Marshal for &[E] {
     }
 }
 
-impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
+impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
     fn marshal(
         &self,
         byteorder: message::ByteOrder,
@@ -327,6 +443,26 @@ impl Marshal for u8 {
     }
 }
 
+impl Marshal for bool {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        let b: params::Base = self.into();
+        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+    }
+
+    fn signature(&self) -> crate::signature::Type {
+        let b: params::Base = self.into();
+        b.sig()
+    }
+    fn alignment(&self) -> usize {
+        let b: params::Base = self.into();
+        b.sig().get_alignment()
+    }
+}
+
 impl Marshal for dyn AsRef<str> {
     fn marshal(
         &self,
@@ -383,10 +519,63 @@ fn test_marshal_trait() {
     let mut map = std::collections::HashMap::new();
     map.insert("a", 4u32);
 
-    body.push_param(map).unwrap();
+    body.push_param(&map).unwrap();
     assert_eq!(
         vec![12, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'a', 0, 0, 0, 4, 0, 0, 0,],
         body.buf
     );
     assert_eq!(body.sig.as_str(), "a{su}");
+
+    let mut body = OutMessageBody::new();
+    body.push_param((11u64, "str", true)).unwrap();
+    assert_eq!(body.sig.as_str(), "(tsb)");
+    assert_eq!(
+        vec![11, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, b's', b't', b'r', 0, 1, 0, 0, 0,],
+        body.buf
+    );
+
+    struct MyStruct {
+        x: u64,
+        y: String,
+    }
+
+    impl Marshal for &MyStruct {
+        fn marshal(
+            &self,
+            byteorder: message::ByteOrder,
+            buf: &mut Vec<u8>,
+        ) -> Result<(), message::Error> {
+            // always align to 8
+            let pad_size = buf.len() % 8;
+            eprintln!("pad_size: {}", pad_size);
+            for _ in 0..pad_size {
+                buf.push(0);
+            }
+            self.x.marshal(byteorder, buf)?;
+            self.y.as_str().marshal(byteorder, buf)?;
+            Ok(())
+        }
+        fn signature(&self) -> crate::signature::Type {
+            crate::signature::Type::Container(crate::signature::Container::Struct(vec![
+                self.x.signature(),
+                self.y.as_str().signature(),
+            ]))
+        }
+
+        fn alignment(&self) -> usize {
+            8
+        }
+    }
+
+    let mut body = OutMessageBody::new();
+    body.push_param(&MyStruct {
+        x: 100,
+        y: "A".to_owned(),
+    })
+    .unwrap();
+    assert_eq!(body.sig.as_str(), "(ts)");
+    assert_eq!(
+        vec![100, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'A', 0,],
+        body.buf
+    );
 }
