@@ -3,6 +3,7 @@
 use crate::message;
 use crate::params;
 use crate::params::Param;
+use std::os::unix::io::RawFd;
 
 #[derive(Default)]
 pub struct MessageBuilder<'a, 'e> {
@@ -97,6 +98,27 @@ impl<'a, 'e> SignalBuilder<'a, 'e> {
     pub fn build(self) -> message::Message<'a, 'e> {
         self.msg
     }
+}
+
+pub struct OutMessage {
+    pub body: OutMessageBody,
+    
+    // dynamic header
+    pub interface: Option<String>,
+    pub member: Option<String>,
+    pub object: Option<String>,
+    pub destination: Option<String>,
+    pub serial: Option<u32>,
+    pub sender: Option<String>,
+    pub error_name: Option<String>,
+    pub response_serial: Option<u32>,
+    pub num_fds: Option<u32>,
+
+    // out of band data
+    pub raw_fds: Vec<RawFd>,
+
+    pub typ: message::MessageType,
+    pub flags: u8,
 }
 
 pub struct OutMessageBody {
@@ -463,22 +485,22 @@ impl Marshal for bool {
     }
 }
 
-impl Marshal for dyn AsRef<str> {
+impl Marshal for String {
     fn marshal(
         &self,
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        let b: params::Base = self.as_ref().into();
+        let b: params::Base = self.as_str().into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
     fn signature(&self) -> crate::signature::Type {
-        let b: params::Base = self.as_ref().into();
+        let b: params::Base = self.as_str().into();
         b.sig()
     }
     fn alignment(&self) -> usize {
-        let b: params::Base = self.as_ref().into();
+        let b: params::Base = self.as_str().into();
         b.sig().get_alignment()
     }
 }
@@ -552,13 +574,13 @@ fn test_marshal_trait() {
                 buf.push(0);
             }
             self.x.marshal(byteorder, buf)?;
-            self.y.as_str().marshal(byteorder, buf)?;
+            self.y.marshal(byteorder, buf)?;
             Ok(())
         }
         fn signature(&self) -> crate::signature::Type {
             crate::signature::Type::Container(crate::signature::Container::Struct(vec![
                 self.x.signature(),
-                self.y.as_str().signature(),
+                self.y.signature(),
             ]))
         }
 
