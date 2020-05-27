@@ -27,8 +27,10 @@ fn test_marshal_unmarshal() {
             "TestSignal".into(),
             "/io/killing/spark".into(),
         )
-        .with_params(params)
         .build();
+    for p in &params {
+        msg.body.push_param(p).unwrap();
+    }
     msg.serial = Some(1);
     let mut buf = Vec::new();
     marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
@@ -37,7 +39,7 @@ fn test_marshal_unmarshal() {
     let (_, unmarshed_msg) =
         unmarshal_next_message(&header, &buf, crate::wire::unmarshal::HEADER_LEN).unwrap();
 
-    assert_eq!(msg.params, unmarshed_msg.params);
+    assert_eq!(params, unmarshed_msg.params);
 }
 
 // this tests that invalid inputs do not panic but return errors
@@ -52,8 +54,10 @@ fn test_invalid_stuff() {
             "TestSignal".into(),
             "/io/killing/spark".into(),
         )
-        .with_params(params)
         .build();
+    for p in params {
+        msg.body.push_param(p).unwrap();
+    }
     msg.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
@@ -71,8 +75,10 @@ fn test_invalid_stuff() {
             "TestSignal".into(),
             "/io/killing/spark".into(),
         )
-        .with_params(params)
         .build();
+    for p in params {
+        msg.body.push_param(p).unwrap();
+    }
     msg.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(

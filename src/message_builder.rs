@@ -2,39 +2,33 @@
 
 use crate::message;
 use crate::params;
-use crate::params::Param;
 use std::os::unix::io::RawFd;
 
 #[derive(Default)]
-pub struct MessageBuilder<'a, 'e> {
-    msg: message::Message<'a, 'e>,
+pub struct MessageBuilder {
+    msg: OutMessage,
 }
 
-pub struct CallBuilder<'a, 'e> {
-    msg: message::Message<'a, 'e>,
+pub struct CallBuilder {
+    msg: OutMessage,
 }
-pub struct SignalBuilder<'a, 'e> {
-    msg: message::Message<'a, 'e>,
+pub struct SignalBuilder {
+    msg: OutMessage,
 }
 
-impl<'a, 'e> MessageBuilder<'a, 'e> {
-    pub fn new() -> MessageBuilder<'a, 'e> {
+impl MessageBuilder {
+    pub fn new() -> MessageBuilder {
         MessageBuilder {
-            msg: message::Message::new(),
+            msg: OutMessage::new(),
         }
     }
 
-    pub fn call(mut self, member: String) -> CallBuilder<'a, 'e> {
+    pub fn call(mut self, member: String) -> CallBuilder {
         self.msg.typ = message::MessageType::Call;
         self.msg.member = Some(member);
         CallBuilder { msg: self.msg }
     }
-    pub fn signal(
-        mut self,
-        interface: String,
-        member: String,
-        object: String,
-    ) -> SignalBuilder<'a, 'e> {
+    pub fn signal(mut self, interface: String, member: String, object: String) -> SignalBuilder {
         self.msg.typ = message::MessageType::Signal;
         self.msg.member = Some(member);
         self.msg.interface = Some(interface);
@@ -43,7 +37,7 @@ impl<'a, 'e> MessageBuilder<'a, 'e> {
     }
 }
 
-impl<'a, 'e> CallBuilder<'a, 'e> {
+impl CallBuilder {
     pub fn on(mut self, object_path: String) -> Self {
         self.msg.object = Some(object_path);
         self
@@ -59,50 +53,25 @@ impl<'a, 'e> CallBuilder<'a, 'e> {
         self
     }
 
-    pub fn with_params<P: Into<params::Param<'a, 'e>>>(mut self, params: Vec<P>) -> Self {
-        self.msg.push_params(params);
-        self
-    }
-
-    pub fn build(self) -> message::Message<'a, 'e> {
+    pub fn build(self) -> OutMessage {
         self.msg
-    }
-
-    pub fn add_param<P: Into<Param<'a, 'e>>>(&mut self, p: P) {
-        self.msg.add_param(p);
-    }
-    pub fn add_param2<P1: Into<Param<'a, 'e>>, P2: Into<Param<'a, 'e>>>(&mut self, p1: P1, p2: P2) {
-        self.msg.add_param2(p1, p2);
-    }
-    pub fn add_param3<P1: Into<Param<'a, 'e>>, P2: Into<Param<'a, 'e>>, P3: Into<Param<'a, 'e>>>(
-        &mut self,
-        p1: P1,
-        p2: P2,
-        p3: P3,
-    ) {
-        self.msg.add_param3(p1, p2, p3);
     }
 }
 
-impl<'a, 'e> SignalBuilder<'a, 'e> {
+impl SignalBuilder {
     pub fn to(mut self, destination: String) -> Self {
         self.msg.destination = Some(destination);
         self
     }
 
-    pub fn with_params(mut self, params: Vec<params::Param<'a, 'e>>) -> Self {
-        self.msg.params.extend(params);
-        self
-    }
-
-    pub fn build(self) -> message::Message<'a, 'e> {
+    pub fn build(self) -> OutMessage {
         self.msg
     }
 }
 
 pub struct OutMessage {
     pub body: OutMessageBody,
-    
+
     // dynamic header
     pub interface: Option<String>,
     pub member: Option<String>,
@@ -119,6 +88,39 @@ pub struct OutMessage {
 
     pub typ: message::MessageType,
     pub flags: u8,
+}
+
+impl Default for OutMessage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl OutMessage {
+    pub fn get_buf(&self) -> &[u8] {
+        &self.body.buf
+    }
+    pub fn get_sig(&self) -> &str {
+        &self.body.sig
+    }
+    pub fn new() -> Self {
+        OutMessage {
+            typ: message::MessageType::Invalid,
+            interface: None,
+            member: None,
+            object: None,
+            destination: None,
+            serial: None,
+            raw_fds: Vec::new(),
+            num_fds: None,
+            response_serial: None,
+            sender: None,
+            error_name: None,
+            flags: 0,
+
+            body: OutMessageBody::new(),
+        }
+    }
 }
 
 pub struct OutMessageBody {
@@ -369,6 +371,23 @@ pub trait Marshal {
 }
 
 impl<'a> Marshal for params::Param<'a, 'a> {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        crate::wire::marshal_container::marshal_param(self, byteorder, buf)
+    }
+
+    fn signature(&self) -> crate::signature::Type {
+        self.sig()
+    }
+    fn alignment(&self) -> usize {
+        self.sig().get_alignment()
+    }
+}
+
+impl<'a> Marshal for &params::Param<'a, 'a> {
     fn marshal(
         &self,
         byteorder: message::ByteOrder,

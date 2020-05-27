@@ -84,12 +84,11 @@ impl<'a, 'e> Message<'a, 'e> {
     }
 
     /// Make a correctly addressed response with the correct response serial
-    pub fn make_response(&self) -> Self {
-        Message {
+    pub fn make_response(&self) -> crate::message_builder::OutMessage {
+        crate::message_builder::OutMessage {
             typ: MessageType::Reply,
             interface: None,
             member: None,
-            params: Vec::new(),
             object: None,
             destination: self.sender.clone(),
             serial: None,
@@ -99,16 +98,20 @@ impl<'a, 'e> Message<'a, 'e> {
             response_serial: self.serial,
             error_name: None,
             flags: 0,
+            body: crate::message_builder::OutMessageBody::new(),
         }
     }
 
     /// Make a correctly addressed error response with the correct response serial
-    pub fn make_error_response(&self, error_name: String, error_msg: Option<String>) -> Self {
-        let mut err_resp = Message {
+    pub fn make_error_response(
+        &self,
+        error_name: String,
+        error_msg: Option<String>,
+    ) -> crate::message_builder::OutMessage {
+        let mut err_resp = crate::message_builder::OutMessage {
             typ: MessageType::Reply,
             interface: None,
             member: None,
-            params: Vec::new(),
             object: None,
             destination: self.sender.clone(),
             serial: None,
@@ -118,9 +121,10 @@ impl<'a, 'e> Message<'a, 'e> {
             response_serial: self.serial,
             error_name: Some(error_name),
             flags: 0,
+            body: crate::message_builder::OutMessageBody::new(),
         };
         if let Some(text) = error_msg {
-            err_resp.push_param(text)
+            err_resp.body.push_param(text).unwrap();
         }
         err_resp
     }

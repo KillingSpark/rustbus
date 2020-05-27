@@ -6,7 +6,7 @@ use rustbus::wire::marshal::marshal;
 use rustbus::wire::unmarshal::unmarshal_header;
 use rustbus::wire::unmarshal::unmarshal_next_message;
 
-fn marsh(msg: &rustbus::Message, buf: &mut Vec<u8>) {
+fn marsh(msg: &rustbus::message_builder::OutMessage, buf: &mut Vec<u8>) {
     marshal(msg, rustbus::message::ByteOrder::LittleEndian, &[], buf).unwrap();
 }
 
@@ -60,8 +60,10 @@ fn criterion_benchmark(c: &mut Criterion) {
             "TestSignal".into(),
             "/io/killing/spark".into(),
         )
-        .with_params(params)
         .build();
+    for p in &params {
+        msg.body.push_param(p).unwrap();
+    }
     msg.serial = Some(1);
     let mut buf = Vec::new();
     c.bench_function("marshal", |b| {
