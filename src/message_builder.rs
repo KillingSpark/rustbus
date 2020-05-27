@@ -137,8 +137,71 @@ impl OutMessageBody {
     }
 
     pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
+        p.marshal(message::ByteOrder::LittleEndian, &mut self.buf)?;
         p.signature().to_str(&mut self.sig);
-        p.marshal(message::ByteOrder::LittleEndian, &mut self.buf)
+        Ok(())
+    }
+
+    pub fn push_empty_array(&mut self, elem_sig: crate::signature::Type) {
+        self.sig.push('a');
+        elem_sig.to_str(&mut self.sig);
+
+        // always align to 4
+        let pad_size = self.buf.len() % 4;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            self.buf.push(0);
+        }
+        self.buf.push(0);
+        self.buf.push(0);
+        self.buf.push(0);
+        self.buf.push(0);
+    }
+
+    pub fn push_empty_dict(
+        &mut self,
+        key_sig: crate::signature::Base,
+        val_sig: crate::signature::Type,
+    ) {
+        self.sig.push('a');
+        self.sig.push('{');
+        key_sig.to_str(&mut self.sig);
+        val_sig.to_str(&mut self.sig);
+        self.sig.push('}');
+
+        // always align to 4
+        let pad_size = self.buf.len() % 4;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            self.buf.push(0);
+        }
+        self.buf.push(0);
+        self.buf.push(0);
+        self.buf.push(0);
+        self.buf.push(0);
+    }
+}
+
+impl Marshal for () {
+    fn marshal(
+        &self,
+        _byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        // always align to 8
+        let pad_size = buf.len() % 8;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            buf.push(0);
+        }
+        Ok(())
+    }
+    fn signature(&self) -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![]))
+    }
+
+    fn alignment(&self) -> usize {
+        8
     }
 }
 
@@ -264,6 +327,10 @@ impl<E: Marshal> Marshal for &[E] {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        if self.is_empty() {
+            return Err(message::Error::EmptyArray);
+        }
+
         // always align to 4
         let pad_size = buf.len() % 4;
         eprintln!("pad_size: {}", pad_size);
@@ -315,6 +382,10 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        if self.is_empty() {
+            return Err(message::Error::EmptyDict);
+        }
+
         // always align to 4
         let pad_size = buf.len() % 4;
         eprintln!("pad_size: {}", pad_size);
@@ -638,15 +709,18 @@ fn test_marshal_trait() {
     let mut map = std::collections::HashMap::new();
     let mut map2 = std::collections::HashMap::new();
     map.insert("a", 4u32);
-
     map2.insert("a", &map);
 
     body.push_param(&map2).unwrap();
-    assert_eq!(body.sig.as_str(), "a{sa{su}}");
+    body.push_empty_dict(
+        crate::signature::Base::String,
+        crate::signature::Type::Base(crate::signature::Base::Uint32),
+    );
+    assert_eq!(body.sig.as_str(), "a{sa{su}}a{su}");
     assert_eq!(
         vec![
             28, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'a', 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
-            0, b'a', 0, 0, 0, 4, 0, 0, 0
+            0, b'a', 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0
         ],
         body.buf
     );
