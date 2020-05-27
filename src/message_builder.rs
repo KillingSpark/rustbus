@@ -69,6 +69,7 @@ impl SignalBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct OutMessage {
     pub body: OutMessageBody,
 
@@ -123,6 +124,7 @@ impl OutMessage {
     }
 }
 
+#[derive(Debug)]
 pub struct OutMessageBody {
     buf: Vec<u8>,
     sig: String,
@@ -142,16 +144,25 @@ impl OutMessageBody {
         Ok(())
     }
 
+    pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
+        self.sig.push('v');
+        let mut sig_str = String::new();
+        p.signature().to_str(&mut sig_str);
+        crate::wire::marshal_base::marshal_base_param(
+            message::ByteOrder::LittleEndian,
+            &crate::params::Base::Signature(sig_str),
+            &mut self.buf,
+        ).unwrap();
+        p.marshal(message::ByteOrder::LittleEndian, &mut self.buf)?;
+        Ok(())
+    }
+
     pub fn push_empty_array(&mut self, elem_sig: crate::signature::Type) {
         self.sig.push('a');
         elem_sig.to_str(&mut self.sig);
 
         // always align to 4
-        let pad_size = self.buf.len() % 4;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            self.buf.push(0);
-        }
+        crate::wire::util::pad_to_align(4, &mut self.buf);
         self.buf.push(0);
         self.buf.push(0);
         self.buf.push(0);
@@ -170,11 +181,7 @@ impl OutMessageBody {
         self.sig.push('}');
 
         // always align to 4
-        let pad_size = self.buf.len() % 4;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            self.buf.push(0);
-        }
+        crate::wire::util::pad_to_align(4, &mut self.buf);
         self.buf.push(0);
         self.buf.push(0);
         self.buf.push(0);
@@ -189,11 +196,7 @@ impl Marshal for () {
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
         // always align to 8
-        let pad_size = buf.len() % 8;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            buf.push(0);
-        }
+        crate::wire::util::pad_to_align(8, buf);
         Ok(())
     }
     fn signature(&self) -> crate::signature::Type {
@@ -212,11 +215,7 @@ impl<E: Marshal> Marshal for (E,) {
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
         // always align to 8
-        let pad_size = buf.len() % 8;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            buf.push(0);
-        }
+        crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
         Ok(())
     }
@@ -238,11 +237,7 @@ impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
         // always align to 8
-        let pad_size = buf.len() % 8;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            buf.push(0);
-        }
+        crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
         self.1.marshal(byteorder, buf)?;
         Ok(())
@@ -266,11 +261,7 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
         // always align to 8
-        let pad_size = buf.len() % 8;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            buf.push(0);
-        }
+        crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
         self.1.marshal(byteorder, buf)?;
         self.2.marshal(byteorder, buf)?;
@@ -296,11 +287,7 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
         // always align to 8
-        let pad_size = buf.len() % 8;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            buf.push(0);
-        }
+        crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
         self.1.marshal(byteorder, buf)?;
         self.2.marshal(byteorder, buf)?;
@@ -321,6 +308,38 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3
     }
 }
 
+impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
+    for (E1, E2, E3, E4, E5)
+{
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        // always align to 8
+        crate::wire::util::pad_to_align(8, buf);
+        self.0.marshal(byteorder, buf)?;
+        self.1.marshal(byteorder, buf)?;
+        self.2.marshal(byteorder, buf)?;
+        self.3.marshal(byteorder, buf)?;
+        self.4.marshal(byteorder, buf)?;
+        Ok(())
+    }
+    fn signature(&self) -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
+            self.0.signature(),
+            self.1.signature(),
+            self.2.signature(),
+            self.3.signature(),
+            self.4.signature(),
+        ]))
+    }
+
+    fn alignment(&self) -> usize {
+        8
+    }
+}
+
 impl<E: Marshal> Marshal for &[E] {
     fn marshal(
         &self,
@@ -332,11 +351,7 @@ impl<E: Marshal> Marshal for &[E] {
         }
 
         // always align to 4
-        let pad_size = buf.len() % 4;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            buf.push(0);
-        }
+        crate::wire::util::pad_to_align(4, buf);
 
         let size_pos = buf.len();
         buf.push(0);
@@ -387,11 +402,7 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         }
 
         // always align to 4
-        let pad_size = buf.len() % 4;
-        eprintln!("pad_size: {}", pad_size);
-        for _ in 0..pad_size {
-            buf.push(0);
-        }
+        crate::wire::util::pad_to_align(4, buf);
 
         let size_pos = buf.len();
         buf.push(0);
@@ -401,21 +412,13 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
 
         if self.len() > 0 {
             // always align to 8
-            let pad_size = buf.len() % 8;
-            eprintln!("pad_size: {}", pad_size);
-            for _ in 0..pad_size {
-                buf.push(0);
-            }
+            crate::wire::util::pad_to_align(8, buf);
         }
 
         let size_before = buf.len();
         for p in self.iter() {
             // always align to 8
-            let pad_size = buf.len() % 8;
-            eprintln!("pad_size: {}", pad_size);
-            for _ in 0..pad_size {
-                buf.push(0);
-            }
+            crate::wire::util::pad_to_align(8, buf);
             p.0.marshal(byteorder, buf)?;
             p.1.marshal(byteorder, buf)?;
         }
@@ -510,6 +513,25 @@ impl Marshal for u64 {
 }
 
 impl Marshal for u32 {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        let b: params::Base = self.into();
+        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+    }
+
+    fn signature(&self) -> crate::signature::Type {
+        let b: params::Base = self.into();
+        b.sig()
+    }
+    fn alignment(&self) -> usize {
+        let b: params::Base = self.into();
+        b.sig().get_alignment()
+    }
+}
+impl Marshal for i32 {
     fn marshal(
         &self,
         byteorder: message::ByteOrder,
@@ -672,11 +694,7 @@ fn test_marshal_trait() {
             buf: &mut Vec<u8>,
         ) -> Result<(), message::Error> {
             // always align to 8
-            let pad_size = buf.len() % 8;
-            eprintln!("pad_size: {}", pad_size);
-            for _ in 0..pad_size {
-                buf.push(0);
-            }
+            crate::wire::util::pad_to_align(8, buf);
             self.x.marshal(byteorder, buf)?;
             self.y.marshal(byteorder, buf)?;
             Ok(())

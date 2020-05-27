@@ -11,14 +11,14 @@ impl<'a, 'e> Commands {
             Commands::Echo => {
                 let mut reply = call.make_response();
                 for p in &call.params {
-                    reply.body.push_param(p);
+                    reply.body.push_param(p).unwrap();
                 }
                 reply
             }
             Commands::Reverse(val) => {
                 let mut reply = call.make_response();
                 let reverse = val.chars().rev().collect::<String>();
-                reply.body.push_param(reverse);
+                reply.body.push_param(reverse).unwrap();
                 reply
             }
         }
