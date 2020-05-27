@@ -264,6 +264,13 @@ impl<E: Marshal> Marshal for &[E] {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        // always align to 4
+        let pad_size = buf.len() % 4;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            buf.push(0);
+        }
+
         let size_pos = buf.len();
         buf.push(0);
         buf.push(0);
@@ -308,6 +315,13 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        // always align to 4
+        let pad_size = buf.len() % 4;
+        eprintln!("pad_size: {}", pad_size);
+        for _ in 0..pad_size {
+            buf.push(0);
+        }
+
         let size_pos = buf.len();
         buf.push(0);
         buf.push(0);
@@ -617,6 +631,23 @@ fn test_marshal_trait() {
     assert_eq!(body.sig.as_str(), "(ts)");
     assert_eq!(
         vec![100, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'A', 0,],
+        body.buf
+    );
+
+    let mut body = OutMessageBody::new();
+    let mut map = std::collections::HashMap::new();
+    let mut map2 = std::collections::HashMap::new();
+    map.insert("a", 4u32);
+
+    map2.insert("a", &map);
+
+    body.push_param(&map2).unwrap();
+    assert_eq!(body.sig.as_str(), "a{sa{su}}");
+    assert_eq!(
+        vec![
+            28, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'a', 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+            0, b'a', 0, 0, 0, 4, 0, 0, 0
+        ],
         body.buf
     );
 }
