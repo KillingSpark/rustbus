@@ -26,13 +26,13 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     sig.body
         .push_param((162254319i32, "AABB", true, false, "MyOwnedString"))
         .unwrap();
-    //sig.body.push_param((162254319i32, 162254319i32)).unwrap();
-    //sig.body
-    //    .push_variant((162254319i32, "AABB", true, false, "MyOwnedString"))
-    //    .unwrap();
-    //
-    //// Or we can add parameters later if we want to
-    //sig.body.push_param(&dict1).unwrap();
+    sig.body.push_param((162254319i32, 162254319i32)).unwrap();
+    sig.body
+        .push_variant((162254319i32, "AABB", true, false, "MyOwnedString"))
+        .unwrap();
+    
+    // Or we can add parameters later if we want to
+    sig.body.push_param(&dict1).unwrap();
 
     println!("{:?}", sig);
 
