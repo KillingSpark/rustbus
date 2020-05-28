@@ -4,7 +4,7 @@ use crate::message;
 use crate::message_builder::MessageBuilder;
 use crate::message_builder::OutMessage;
 
-pub fn hello<'a, 'e>() -> OutMessage {
+pub fn hello() -> OutMessage {
     MessageBuilder::new()
         .call("Hello".into())
         .on("/org/freedesktop/DBus".into())
@@ -13,7 +13,7 @@ pub fn hello<'a, 'e>() -> OutMessage {
         .build()
 }
 
-pub fn ping<'a, 'e>(dest: String) -> OutMessage {
+pub fn ping(dest: String) -> OutMessage {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -22,7 +22,7 @@ pub fn ping<'a, 'e>(dest: String) -> OutMessage {
         .build()
 }
 
-pub fn ping_bus<'a, 'e>() -> OutMessage {
+pub fn ping_bus() -> OutMessage {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -30,7 +30,7 @@ pub fn ping_bus<'a, 'e>() -> OutMessage {
         .build()
 }
 
-pub fn list_names<'a, 'e>() -> OutMessage {
+pub fn list_names() -> OutMessage {
     MessageBuilder::new()
         .call("ListNames".into())
         .on("/org/freedesktop/DBus".into())
