@@ -130,6 +130,20 @@ pub struct OutMessageBody {
     sig: String,
 }
 
+pub fn marshal_as_variant<P: Marshal>(p: P, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
+    let mut sig_str = String::new();
+    p.signature().to_str(&mut sig_str);
+    crate::wire::util::pad_to_align(p.alignment(), buf);
+    crate::wire::marshal_base::marshal_base_param(
+        message::ByteOrder::LittleEndian,
+        &crate::params::Base::Signature(sig_str),
+        buf,
+    )
+    .unwrap();
+    p.marshal(byteorder, buf)?;
+    Ok(())
+}
+
 impl OutMessageBody {
     pub fn new() -> Self {
         OutMessageBody {
@@ -205,16 +219,7 @@ impl OutMessageBody {
 
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
         self.sig.push('v');
-        let mut sig_str = String::new();
-        p.signature().to_str(&mut sig_str);
-        crate::wire::marshal_base::marshal_base_param(
-            message::ByteOrder::LittleEndian,
-            &crate::params::Base::Signature(sig_str),
-            &mut self.buf,
-        )
-        .unwrap();
-        p.marshal(message::ByteOrder::LittleEndian, &mut self.buf)?;
-        Ok(())
+        marshal_as_variant(p, message::ByteOrder::LittleEndian, &mut self.buf)
     }
 
     pub fn push_empty_array(&mut self, elem_sig: crate::signature::Type) {
