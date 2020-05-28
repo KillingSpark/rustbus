@@ -47,9 +47,19 @@ pub mod signature;
 pub mod standard_messages;
 pub mod wire;
 
-pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
+// TODO create a rustbus::prelude
+
+// needed to make own filters in RpcConn
 pub use message::{Message, MessageType};
+
+// needed to create a connection
+pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
+
+// needed to make new messages
 pub use message_builder::{CallBuilder, MessageBuilder, SignalBuilder};
+pub use wire::marshal_trait::Marshal;
+
+// needed for destructuring received messages
 pub use params::{Base, Container, Param};
 
 #[cfg(test)]
