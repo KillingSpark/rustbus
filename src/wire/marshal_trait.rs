@@ -1,6 +1,56 @@
+//! Marshal trait and implementations for the basic types
+
 use crate::message;
 use crate::params;
 
+/// The Marshal trait allows to push any type onto an message_builder::OutMessage as a parameter.
+/// There are some useful implementations here for slices and hashmaps which map to arrays and dicts in the dbus message.
+///
+/// The way dbus structs are represented is with rust tuples. This lib provides Marshal impls for tuples with up to 5 elements.
+/// If you need more you can just copy the impl and extend it to how many different entries you need.
+///
+/// Also you can implement Marshal for your own structs:
+/// ```rust
+/// struct MyStruct {
+///     x: u64,
+///     y: String,
+/// }
+///
+/// use rustbus::message;
+/// use rustbus::signature;
+/// use rustbus::wire::util;
+/// use rustbus::Marshal;
+/// impl Marshal for &MyStruct {
+///     fn marshal(
+///         &self,
+///         byteorder: message::ByteOrder,
+///         buf: &mut Vec<u8>,
+///     ) -> Result<(), message::Error> {
+///         // always align to 8
+///         util::pad_to_align(8, buf);
+///         self.x.marshal(byteorder, buf)?;
+///         self.y.marshal(byteorder, buf)?;
+///         Ok(())
+///     }
+///     fn signature(&self) -> signature::Type {
+///         signature::Type::Container(signature::Container::Struct(vec![
+///             self.x.signature(),
+///             self.y.signature(),
+///         ]))
+///     }
+///
+///     fn alignment(&self) -> usize {
+///         8
+///     }
+/// }
+/// ```
+/// # Implementing for your own structs
+/// There are some rules you need to follow, or the messages will be malformed:
+/// 1. Structs need to be aligned to 8 bytes. Use `wire::util::pad_to_align(8, buf)` to do that. If your type is marshalled as a primitive type
+///     you still need to align to that types alignment.
+/// 1. The signature needs to be accurate, or the message will be malformed
+/// 1. The alignment must report the correct number. This does not need to be a constant like in the example, but it needs to be consistent with the type
+///     the signature() function returns
 pub trait Marshal {
     fn marshal(
         &self,
