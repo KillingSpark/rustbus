@@ -201,7 +201,6 @@ impl<E: Marshal> Marshal for &[E] {
 
         if self.len() > 0 && self[0].alignment() > 4 {
             let pad_size = buf.len() % self[0].alignment();
-            eprintln!("pad_size: {}", pad_size);
             for _ in 0..pad_size {
                 buf.push(0);
             }
