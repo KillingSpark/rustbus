@@ -27,8 +27,10 @@ fn test_marshal_unmarshal() {
             "TestSignal".into(),
             "/io/killing/spark".into(),
         )
-        .with_params(params)
         .build();
+    for p in &params {
+        msg.body.push_param(p).unwrap();
+    }
     msg.serial = Some(1);
     let mut buf = Vec::new();
     marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
@@ -37,48 +39,43 @@ fn test_marshal_unmarshal() {
     let (_, unmarshed_msg) =
         unmarshal_next_message(&header, &buf, crate::wire::unmarshal::HEADER_LEN).unwrap();
 
-    assert_eq!(msg.params, unmarshed_msg.params);
+    assert_eq!(params, unmarshed_msg.params);
 }
 
 // this tests that invalid inputs do not panic but return errors
 #[test]
 fn test_invalid_stuff() {
     // invalid signature
-    let mut params: Vec<Param> = Vec::new();
-    params.push(Base::Signature("((((((((}}}}}}}".into()).into());
     let mut msg = crate::message_builder::MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
             "TestSignal".into(),
             "/io/killing/spark".into(),
         )
-        .with_params(params)
         .build();
-    msg.serial = Some(1);
-    let mut buf = Vec::new();
+
+    let err = msg
+        .body
+        .push_param(&Param::Base(Base::Signature("((((((((}}}}}}}".into())));
     assert_eq!(
         Err(crate::message::Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
         )),
-        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
+        err
     );
+
     // invalid objectpath
-    let mut params: Vec<Param> = Vec::new();
-    params.push(Base::ObjectPath("invalid/object/path".into()).into());
     let mut msg = crate::message_builder::MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
             "TestSignal".into(),
             "/io/killing/spark".into(),
         )
-        .with_params(params)
         .build();
-    msg.serial = Some(1);
-    let mut buf = Vec::new();
-    assert_eq!(
-        Err(crate::message::Error::InvalidObjectPath),
-        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
-    );
+    let err = msg
+        .body
+        .push_param(&Param::Base(Base::ObjectPath("invalid/object/path".into())));
+    assert_eq!(Err(crate::message::Error::InvalidObjectPath), err);
 
     // invalid interface
     let mut msg = crate::message_builder::MessageBuilder::new()

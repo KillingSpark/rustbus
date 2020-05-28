@@ -1,11 +1,10 @@
 use crate::message;
 use crate::params;
 
-use crate::wire::marshal_container::marshal_param;
 use crate::wire::util::*;
 
 pub fn marshal(
-    msg: &message::Message,
+    msg: &crate::message_builder::OutMessage,
     byteorder: message::ByteOrder,
     header_fields: &[message::HeaderField],
     buf: &mut Vec<u8>,
@@ -14,9 +13,7 @@ pub fn marshal(
     pad_to_align(8, buf);
     let header_len = buf.len();
 
-    for p in &msg.params {
-        marshal_param(p, byteorder, buf)?;
-    }
+    buf.extend_from_slice(msg.get_buf());
 
     // set the correct message length
     let body_len = buf.len() - header_len;
@@ -25,7 +22,7 @@ pub fn marshal(
 }
 
 fn marshal_header(
-    msg: &message::Message,
+    msg: &crate::message_builder::OutMessage,
     byteorder: message::ByteOrder,
     header_fields: &[message::HeaderField],
     buf: &mut Vec<u8>,
@@ -97,11 +94,8 @@ fn marshal_header(
     if let Some(serial) = &msg.response_serial {
         marshal_header_field(byteorder, &message::HeaderField::ReplySerial(*serial), buf)?;
     }
-    if !msg.params.is_empty() {
-        let mut sig_str = String::new();
-        for param in &msg.params {
-            param.make_signature(&mut sig_str);
-        }
+    if !msg.get_buf().is_empty() {
+        let sig_str = msg.get_sig().to_owned();
         marshal_header_field(byteorder, &message::HeaderField::Signature(sig_str), buf)?;
     }
     marshal_header_fields(byteorder, header_fields, buf)?;

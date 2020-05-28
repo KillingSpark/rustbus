@@ -6,17 +6,19 @@ pub enum Commands {
 }
 
 impl<'a, 'e> Commands {
-    fn execute(&self, call: &Message<'a, 'e>) -> Message<'a, 'e> {
+    fn execute(&self, call: &Message<'a, 'e>) -> rustbus::message_builder::OutMessage {
         match self {
             Commands::Echo => {
                 let mut reply = call.make_response();
-                reply.push_params(call.params.clone());
+                for p in &call.params {
+                    reply.body.push_param(p).unwrap();
+                }
                 reply
             }
             Commands::Reverse(val) => {
                 let mut reply = call.make_response();
                 let reverse = val.chars().rev().collect::<String>();
-                reply.push_param(reverse);
+                reply.body.push_param(reverse).unwrap();
                 reply
             }
         }
@@ -101,7 +103,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                 }
             };
             let mut reply = cmd.execute(&call);
-            println!("Reply: {:?}", reply);
+            //println!("Reply: {:?}", reply);
             rpc_con.send_message(&mut reply, Timeout::Infinite)?;
             println!("Reply sent");
         }

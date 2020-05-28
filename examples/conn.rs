@@ -17,7 +17,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         MessageType::Signal => msg.interface.eq(&Some("io.killing.spark".to_owned())),
     }));
 
-    println!("Send message: {:?}", hello_msg);
+    //println!("Send message: {:?}", hello_msg);
     let hello_serial = rpc_con.send_message(&mut hello_msg, Timeout::Infinite)?;
 
     println!("\n");
@@ -65,7 +65,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     let mut sig_listen_msg = standard_messages::add_match("type='signal'".into());
 
-    println!("Send message: {:?}", sig_listen_msg);
+    //println!("Send message: {:?}", sig_listen_msg);
     rpc_con.send_message(&mut sig_listen_msg, Timeout::Infinite)?;
 
     loop {

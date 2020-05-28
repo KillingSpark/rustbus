@@ -2,8 +2,9 @@
 
 use crate::message;
 use crate::message_builder::MessageBuilder;
+use crate::message_builder::OutMessage;
 
-pub fn hello<'a, 'e>() -> message::Message<'a, 'e> {
+pub fn hello<'a, 'e>() -> OutMessage {
     MessageBuilder::new()
         .call("Hello".into())
         .on("/org/freedesktop/DBus".into())
@@ -12,7 +13,7 @@ pub fn hello<'a, 'e>() -> message::Message<'a, 'e> {
         .build()
 }
 
-pub fn ping<'a, 'e>(dest: String) -> message::Message<'a, 'e> {
+pub fn ping<'a, 'e>(dest: String) -> OutMessage {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -21,7 +22,7 @@ pub fn ping<'a, 'e>(dest: String) -> message::Message<'a, 'e> {
         .build()
 }
 
-pub fn ping_bus<'a, 'e>() -> message::Message<'a, 'e> {
+pub fn ping_bus<'a, 'e>() -> OutMessage {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -29,7 +30,7 @@ pub fn ping_bus<'a, 'e>() -> message::Message<'a, 'e> {
         .build()
 }
 
-pub fn list_names<'a, 'e>() -> message::Message<'a, 'e> {
+pub fn list_names<'a, 'e>() -> OutMessage {
     MessageBuilder::new()
         .call("ListNames".into())
         .on("/org/freedesktop/DBus".into())
@@ -48,29 +49,34 @@ pub const DBUS_REQUEST_NAME_REPLY_EXISTS: u32 = 3;
 pub const DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER: u32 = 4;
 
 /// Request a name on the bus
-pub fn request_name<'a, 'e>(name: String, flags: u32) -> message::Message<'a, 'e> {
-    MessageBuilder::new()
+pub fn request_name<'a, 'e>(name: String, flags: u32) -> OutMessage {
+    let mut msg = MessageBuilder::new()
         .call("RequestName".into())
         .on("/org/freedesktop/DBus".into())
         .with_interface("org.freedesktop.DBus".into())
-        .with_params::<crate::params::Param>(vec![name.into(), flags.into()])
         .at("org.freedesktop.DBus".into())
-        .build()
+        .build();
+
+    msg.body.push_param(name.as_str()).unwrap();
+    msg.body.push_param(flags).unwrap();
+    msg
 }
 
 /// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
-pub fn add_match<'a, 'e>(match_rule: String) -> message::Message<'a, 'e> {
-    MessageBuilder::new()
+pub fn add_match<'a, 'e>(match_rule: String) -> OutMessage {
+    let mut msg = MessageBuilder::new()
         .call("AddMatch".into())
         .on("/org/freedesktop/DBus".into())
         .with_interface("org.freedesktop.DBus".into())
-        .with_params(vec![match_rule])
         .at("org.freedesktop.DBus".into())
-        .build()
+        .build();
+
+    msg.body.push_param(match_rule).unwrap();
+    msg
 }
 
 /// Error message to tell the caller that this method is not known by your server
-pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> message::Message<'a, 'e> {
+pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> OutMessage {
     let text = format!(
         "No calls to {}.{} are accepted for object {}",
         call.interface.clone().unwrap_or_else(|| "".to_owned()),
@@ -84,10 +90,7 @@ pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> message::Messa
 }
 
 /// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
-pub fn invalid_args<'a, 'e>(
-    call: &message::Message<'a, 'e>,
-    sig: Option<&str>,
-) -> message::Message<'a, 'e> {
+pub fn invalid_args<'a, 'e>(call: &message::Message<'a, 'e>, sig: Option<&str>) -> OutMessage {
     let text = format!(
         "Invalid arguments for calls to {}.{} on object {} {}",
         call.interface.clone().unwrap_or_else(|| "".to_owned()),

@@ -80,7 +80,7 @@ pub fn handle_peer_message(
                     }
                     "GetMachineId" => {
                         let mut reply = msg.make_response();
-                        reply.push_param(get_machine_id().unwrap());
+                        reply.body.push_param(get_machine_id().unwrap()).unwrap();
                         con.send_message(&mut reply, timeout)?;
                         Ok(true)
                     }

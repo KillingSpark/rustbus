@@ -168,7 +168,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     /// Send a message to the bus
     pub fn send_message(
         &mut self,
-        msg: &mut message::Message<'msga, 'msge>,
+        msg: &mut crate::message_builder::OutMessage,
         timeout: Timeout,
     ) -> Result<u32> {
         self.conn.send_message(msg, timeout)
@@ -255,7 +255,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     /// but error replies should always be sent. For this reason replies to all filtered calls are collected and returned.
     /// The original messages are dropped immediatly, so it should keep memory usage
     /// relatively low. The caller is responsible to send these error replies over the RpcConn, at a convenient time.
-    pub fn refill_all(&mut self) -> Result<Vec<message::Message<'msga, 'msge>>> {
+    pub fn refill_all(&mut self) -> Result<Vec<crate::message_builder::OutMessage>> {
         let mut filtered_out = Vec::new();
         loop {
             //  break if the call would block (aka no more io is possible), or return if an actual error occured
@@ -565,7 +565,7 @@ impl<'msga, 'msge> Conn {
     /// send a message over the conn
     pub fn send_message(
         &mut self,
-        msg: &mut message::Message<'msga, 'msge>,
+        msg: &mut crate::message_builder::OutMessage,
         timeout: Timeout,
     ) -> Result<u32> {
         self.msg_buf_out.clear();
