@@ -4,8 +4,8 @@ use crate::wire::marshal::marshal;
 use crate::wire::unmarshal::unmarshal_header;
 use crate::wire::unmarshal::unmarshal_next_message;
 
-mod verify_marshalling;
 mod fdpassing;
+mod verify_marshalling;
 
 // this tests the happy path
 #[test]
