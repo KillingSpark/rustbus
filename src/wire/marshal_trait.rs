@@ -48,9 +48,10 @@ use crate::params;
 /// There are some rules you need to follow, or the messages will be malformed:
 /// 1. Structs need to be aligned to 8 bytes. Use `wire::util::pad_to_align(8, buf)` to do that. If your type is marshalled as a primitive type
 ///     you still need to align to that types alignment.
-/// 1. The signature needs to be accurate, or the message will be malformed
+/// 1. If you write your own dict type, you need to align every key-value pair at 8 bytes like a struct
+/// 1. The signature needs to be correct, or the message will be malformed
 /// 1. The alignment must report the correct number. This does not need to be a constant like in the example, but it needs to be consistent with the type
-///     the signature() function returns
+///     the signature() function returns. If you are not sure, just use self.signature().get_alignment().
 pub trait Marshal {
     fn marshal(
         &self,
