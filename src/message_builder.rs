@@ -100,6 +100,9 @@ impl Default for OutMessage {
 /// This reprsents a message while it is being built before it is sent over the connection.
 /// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
 /// And you can of course write an Marshal impl for your own datastrcutures
+///
+/// Note that pushing an empty slice or map will fail, because the type cannot be deduced. Use the `push_empty_array()` `push_empty_dict()`
+/// to do that. This is very inconvenient but I don't see a way to do this in a better way.
 impl OutMessage {
     pub fn get_buf(&self) -> &[u8] {
         &self.body.buf
