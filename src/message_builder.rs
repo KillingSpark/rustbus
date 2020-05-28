@@ -130,7 +130,11 @@ pub struct OutMessageBody {
     sig: String,
 }
 
-pub fn marshal_as_variant<P: Marshal>(p: P, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
+pub fn marshal_as_variant<P: Marshal>(
+    p: P,
+    byteorder: message::ByteOrder,
+    buf: &mut Vec<u8>,
+) -> Result<(), message::Error> {
     let mut sig_str = String::new();
     p.signature().to_str(&mut sig_str);
     crate::wire::util::pad_to_align(p.alignment(), buf);

@@ -124,7 +124,6 @@ use rustbus::{
     client_conn::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder,
 };
 
-
 // Just to have a main here we will send a message containing two MyType structs
 fn main() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_session_bus_path()?;
