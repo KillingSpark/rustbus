@@ -9,11 +9,8 @@ const TEST_STRING: &str = "This will be sent over the fd\n";
 
 #[test]
 fn test_fd_passing() {
-    // FIXME only runs correctly if run alone, not with the whole other tests together
-    // Needs investigation why that happens
-    return;
-    let mut con1 = client_conn::RpcConn::session_conn(client_conn::Timeout::Infinite).unwrap();
-    let mut con2 = client_conn::RpcConn::session_conn(client_conn::Timeout::Infinite).unwrap();
+    let mut con1 = client_conn::RpcConn::system_conn(client_conn::Timeout::Infinite).unwrap();
+    let mut con2 = client_conn::RpcConn::system_conn(client_conn::Timeout::Infinite).unwrap();
     con1.send_message(
         &mut crate::standard_messages::hello(),
         client_conn::Timeout::Infinite,
