@@ -292,6 +292,7 @@ impl<'a> Marshal for params::Param<'a, 'a> {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         crate::wire::marshal_container::marshal_param(self, byteorder, buf)
     }
 
@@ -309,6 +310,7 @@ impl<'a> Marshal for params::Base<'a> {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         crate::wire::marshal_base::marshal_base_param(byteorder, self, buf)
     }
 
@@ -326,6 +328,7 @@ impl Marshal for u64 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -344,6 +347,7 @@ impl Marshal for i64 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -363,6 +367,7 @@ impl Marshal for u32 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -381,6 +386,7 @@ impl Marshal for i32 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -399,6 +405,7 @@ impl Marshal for u16 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -416,6 +423,7 @@ impl Marshal for i16 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -434,6 +442,7 @@ impl Marshal for u8 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -452,6 +461,7 @@ impl Marshal for bool {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
@@ -470,6 +480,7 @@ impl Marshal for String {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         crate::wire::util::write_string(self.as_str(), byteorder, buf);
         Ok(())
     }
@@ -488,6 +499,7 @@ impl Marshal for &str {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
+        crate::wire::util::pad_to_align(self.alignment(), buf);
         crate::wire::util::write_string(self, byteorder, buf);
         Ok(())
     }
