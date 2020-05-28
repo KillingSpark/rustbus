@@ -49,7 +49,7 @@ pub const DBUS_REQUEST_NAME_REPLY_EXISTS: u32 = 3;
 pub const DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER: u32 = 4;
 
 /// Request a name on the bus
-pub fn request_name<'a, 'e>(name: String, flags: u32) -> OutMessage {
+pub fn request_name(name: String, flags: u32) -> OutMessage {
     let mut msg = MessageBuilder::new()
         .call("RequestName".into())
         .on("/org/freedesktop/DBus".into())
@@ -63,7 +63,7 @@ pub fn request_name<'a, 'e>(name: String, flags: u32) -> OutMessage {
 }
 
 /// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
-pub fn add_match<'a, 'e>(match_rule: String) -> OutMessage {
+pub fn add_match(match_rule: String) -> OutMessage {
     let mut msg = MessageBuilder::new()
         .call("AddMatch".into())
         .on("/org/freedesktop/DBus".into())

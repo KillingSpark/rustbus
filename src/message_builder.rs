@@ -124,7 +124,7 @@ impl OutMessage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct OutMessageBody {
     buf: Vec<u8>,
     sig: String,

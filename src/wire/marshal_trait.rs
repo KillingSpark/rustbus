@@ -199,7 +199,7 @@ impl<E: Marshal> Marshal for &[E] {
         buf.push(0);
         buf.push(0);
 
-        if self.len() > 0 && self[0].alignment() > 4 {
+        if !self.is_empty() && self[0].alignment() > 4 {
             let pad_size = buf.len() % self[0].alignment();
             for _ in 0..pad_size {
                 buf.push(0);
@@ -249,7 +249,7 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         buf.push(0);
         buf.push(0);
 
-        if self.len() > 0 {
+        if !self.is_empty() {
             // always align to 8
             crate::wire::util::pad_to_align(8, buf);
         }
@@ -272,8 +272,8 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
     }
 
     fn signature(&self) -> crate::signature::Type {
-        let ks = self.keys().nth(0).unwrap().signature();
-        let vs = self.values().nth(0).unwrap().signature();
+        let ks = self.keys().next().unwrap().signature();
+        let vs = self.values().next().unwrap().signature();
         if let crate::signature::Type::Base(ks) = ks {
             crate::signature::Type::Container(crate::signature::Container::Dict(ks, Box::new(vs)))
         } else {
