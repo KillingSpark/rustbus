@@ -1,7 +1,7 @@
 pub mod marshal;
 pub mod marshal_base;
-pub mod marshal_trait;
 pub mod marshal_container;
+pub mod marshal_trait;
 pub mod unmarshal;
 pub mod unmarshal_base;
 pub mod unmarshal_container;

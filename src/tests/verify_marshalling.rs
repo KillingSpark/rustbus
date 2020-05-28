@@ -1,4 +1,3 @@
-
 #[test]
 fn verify_base_marshalling() {
     let mut buf = vec![];

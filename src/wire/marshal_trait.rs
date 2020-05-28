@@ -12,7 +12,7 @@ pub trait Marshal {
     fn alignment(&self) -> usize;
 }
 
-impl <P: Marshal> Marshal for &P {
+impl<P: Marshal> Marshal for &P {
     fn marshal(
         &self,
         byteorder: message::ByteOrder,
@@ -20,14 +20,14 @@ impl <P: Marshal> Marshal for &P {
     ) -> Result<(), message::Error> {
         (*self).marshal(byteorder, buf)
     }
-    
+
     fn signature(&self) -> crate::signature::Type {
         (*self).signature()
     }
     fn alignment(&self) -> usize {
         (*self).alignment()
     }
-} 
+}
 
 impl Marshal for () {
     fn marshal(
