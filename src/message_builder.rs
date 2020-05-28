@@ -99,7 +99,7 @@ impl Default for OutMessage {
 
 /// This reprsents a message while it is being built before it is sent over the connection.
 /// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
-/// And you can of course write an Marshal impl for your own datastrcutures 
+/// And you can of course write an Marshal impl for your own datastrcutures
 impl OutMessage {
     pub fn get_buf(&self) -> &[u8] {
         &self.body.buf

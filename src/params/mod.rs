@@ -1,4 +1,4 @@
-//! The params is mostly for receiving messages. To make your own messages to send out you probably want to use the 
+//! The params is mostly for receiving messages. To make your own messages to send out you probably want to use the
 //! Marshal trait. If the trait does not work for you for some reason, you can build your message with the params.
 //! There is a Marshal implementation for all Params.
 
