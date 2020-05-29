@@ -257,6 +257,8 @@ impl<E: Marshal> Marshal for &[E] {
             }
         }
 
+        // we can reserve at least one byte per entry without wasting memory, and save at least a few reallocations of buf
+        buf.reserve(self.len());
         let size_before = buf.len();
         for p in self.iter() {
             p.marshal(byteorder, buf)?;
@@ -279,6 +281,98 @@ impl<E: Marshal> Marshal for &[E] {
     fn alignment(&self) -> usize {
         4
     }
+}
+
+/// **_!!! This assumes that you are marshalling to the platforms byteorder !!!_**
+///
+/// It just memcpy's the content of the array into the message. This is fine for all integer types, but you cannot use it for structs,
+/// even if they are copy!
+/// They might have padding to be correctly aligned in the slice. I would recommend to only use this for marshalling
+/// big integer arrays but I cannot express this in the type system cleanly so here is a comment.
+pub struct OptimizedMarshal<'a, E: Copy + Marshal>(pub &'a [E]);
+impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        if self.0.is_empty() {
+            return Err(message::Error::EmptyArray);
+        }
+
+        // always align to 4
+        crate::wire::util::pad_to_align(4, buf);
+
+        let size_pos = buf.len();
+        buf.push(0);
+        buf.push(0);
+        buf.push(0);
+        buf.push(0);
+
+        if !self.0.is_empty() && self.0[0].alignment() > 4 {
+            let pad_size = buf.len() % self.0[0].alignment();
+            for _ in 0..pad_size {
+                buf.push(0);
+            }
+        }
+
+        let size_of_content = std::mem::size_of::<E>() * self.0.len();
+        let len_before_resize = buf.len();
+        buf.resize(buf.len() + size_of_content, 0);
+        unsafe {
+            let content_ptr = buf.as_mut_ptr().add(len_before_resize);
+            std::ptr::copy_nonoverlapping(
+                self.0.as_ptr() as *const u8,
+                content_ptr,
+                size_of_content,
+            );
+        }
+        crate::wire::util::insert_u32(
+            byteorder,
+            size_of_content as u32,
+            &mut buf[size_pos..size_pos + 4],
+        );
+
+        Ok(())
+    }
+    fn signature(&self) -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
+            self.0[0].signature(),
+        )))
+    }
+
+    fn alignment(&self) -> usize {
+        4
+    }
+}
+
+#[test]
+fn verify_optimized_arrays() {
+    // marshal array of u64 optimized and non-optimized and compare
+    let mut buf_normal = Vec::new();
+    let mut buf_optimized = Vec::new();
+    let arru64: Vec<u64> = vec![1, 2, 3, 4, 5, 6, u64::MAX, u64::MAX / 2, u64::MAX / 1024];
+    arru64
+    .as_slice()
+    .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
+    .unwrap();
+    OptimizedMarshal(arru64.as_slice())
+    .marshal(message::ByteOrder::LittleEndian, &mut buf_optimized)
+    .unwrap();
+    assert_eq!(buf_normal, buf_optimized);
+    
+    // marshal array of u8 optimized and non-optimized and compare
+    let mut buf_normal = Vec::new();
+    let mut buf_otpimized = Vec::new();
+    let arru8: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 255, 128, 80, 180];
+    arru8
+        .as_slice()
+        .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
+        .unwrap();
+    OptimizedMarshal(arru8.as_slice())
+        .marshal(message::ByteOrder::LittleEndian, &mut buf_otpimized)
+        .unwrap();
+    assert_eq!(buf_normal, buf_otpimized);
 }
 
 impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
