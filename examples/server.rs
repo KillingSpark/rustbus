@@ -11,7 +11,7 @@ impl<'a, 'e> Commands {
             Commands::Echo => {
                 let mut reply = call.make_response();
                 for p in &call.params {
-                    reply.body.push_param(p).unwrap();
+                    reply.body.push_old_param(p).unwrap();
                 }
                 reply
             }

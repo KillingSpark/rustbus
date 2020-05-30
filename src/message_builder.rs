@@ -143,8 +143,8 @@ pub fn marshal_as_variant<P: Marshal>(
     buf: &mut Vec<u8>,
 ) -> Result<(), message::Error> {
     let mut sig_str = String::new();
-    p.signature().to_str(&mut sig_str);
-    crate::wire::util::pad_to_align(p.alignment(), buf);
+    P::signature().to_str(&mut sig_str);
+    crate::wire::util::pad_to_align(P::alignment(), buf);
     crate::wire::marshal_base::marshal_base_param(
         message::ByteOrder::LittleEndian,
         &crate::params::Base::Signature(sig_str),
@@ -163,9 +163,25 @@ impl OutMessageBody {
         }
     }
 
+    pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), message::Error> {
+        crate::wire::marshal_container::marshal_param(
+            p,
+            message::ByteOrder::LittleEndian,
+            &mut self.buf,
+        )?;
+        p.sig().to_str(&mut self.sig);
+        Ok(())
+    }
+    pub fn push_old_params(&mut self, ps: &[crate::params::Param]) -> Result<(), message::Error> {
+        for p in ps {
+            self.push_old_param(p)?;
+        }
+        Ok(())
+    }
+
     pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
         p.marshal(message::ByteOrder::LittleEndian, &mut self.buf)?;
-        p.signature().to_str(&mut self.sig);
+        P::signature().to_str(&mut self.sig);
         Ok(())
     }
 
@@ -232,37 +248,6 @@ impl OutMessageBody {
         self.sig.push('v');
         marshal_as_variant(p, message::ByteOrder::LittleEndian, &mut self.buf)
     }
-
-    pub fn push_empty_array(&mut self, elem_sig: crate::signature::Type) {
-        self.sig.push('a');
-        elem_sig.to_str(&mut self.sig);
-
-        // always align to 4
-        crate::wire::util::pad_to_align(4, &mut self.buf);
-        self.buf.push(0);
-        self.buf.push(0);
-        self.buf.push(0);
-        self.buf.push(0);
-    }
-
-    pub fn push_empty_dict(
-        &mut self,
-        key_sig: crate::signature::Base,
-        val_sig: crate::signature::Type,
-    ) {
-        self.sig.push('a');
-        self.sig.push('{');
-        key_sig.to_str(&mut self.sig);
-        val_sig.to_str(&mut self.sig);
-        self.sig.push('}');
-
-        // always align to 4
-        crate::wire::util::pad_to_align(4, &mut self.buf);
-        self.buf.push(0);
-        self.buf.push(0);
-        self.buf.push(0);
-        self.buf.push(0);
-    }
 }
 
 #[test]
@@ -313,14 +298,14 @@ fn test_marshal_trait() {
             self.y.marshal(byteorder, buf)?;
             Ok(())
         }
-        fn signature(&self) -> crate::signature::Type {
+        fn signature() -> crate::signature::Type {
             crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-                self.x.signature(),
-                self.y.signature(),
+                u64::signature(),
+                String::signature(),
             ]))
         }
 
-        fn alignment(&self) -> usize {
+        fn alignment() -> usize {
             8
         }
     }
@@ -338,16 +323,14 @@ fn test_marshal_trait() {
     );
 
     let mut body = OutMessageBody::new();
+    let emptymap: std::collections::HashMap<&str, u32> = std::collections::HashMap::new();
     let mut map = std::collections::HashMap::new();
     let mut map2 = std::collections::HashMap::new();
     map.insert("a", 4u32);
     map2.insert("a", &map);
 
     body.push_param(&map2).unwrap();
-    body.push_empty_dict(
-        crate::signature::Base::String,
-        crate::signature::Type::Base(crate::signature::Base::Uint32),
-    );
+    body.push_param(&emptymap).unwrap();
     assert_eq!(body.sig.as_str(), "a{sa{su}}a{su}");
     assert_eq!(
         vec![

@@ -44,12 +44,12 @@ impl Marshal for &MyType {
         };
         Ok(())
     }
-    fn signature(&self) -> signature::Type {
+    fn signature() -> signature::Type {
         // in dbus signature coding: (t(sv))
         // Note how the type of the `sub` is represented as `v`
         // variants include the signature of their content in marshalled form
         signature::Type::Container(signature::Container::Struct(vec![
-            self.x.signature(),
+            u64::signature(),
             signature::Type::Container(signature::Container::Struct(vec![
                 signature::Type::Base(signature::Base::String),
                 signature::Type::Container(signature::Container::Variant),
@@ -57,7 +57,7 @@ impl Marshal for &MyType {
         ]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -84,14 +84,14 @@ impl Marshal for &MySubType {
         self.y.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature(&self) -> signature::Type {
+    fn signature() -> signature::Type {
         signature::Type::Container(signature::Container::Struct(vec![
-            self.x.signature(),
-            self.y.signature(),
+            i32::signature(),
+            i32::signature(),
         ]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -108,14 +108,14 @@ impl Marshal for &MyOtherSubType {
         self.y.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature(&self) -> signature::Type {
+    fn signature() -> signature::Type {
         signature::Type::Container(signature::Container::Struct(vec![
-            self.x.signature(),
-            self.y.signature(),
+            u32::signature(),
+            u32::signature(),
         ]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }

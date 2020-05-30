@@ -32,14 +32,14 @@ use crate::params;
 ///         self.y.marshal(byteorder, buf)?;
 ///         Ok(())
 ///     }
-///     fn signature(&self) -> signature::Type {
+///     fn signature() -> signature::Type {
 ///         signature::Type::Container(signature::Container::Struct(vec![
-///             self.x.signature(),
-///             self.y.signature(),
+///             u64::signature(),
+///             String::signature(),
 ///         ]))
 ///     }
 ///
-///     fn alignment(&self) -> usize {
+///     fn alignment() -> usize {
 ///         8
 ///     }
 /// }
@@ -51,7 +51,7 @@ use crate::params;
 /// 1. If you write your own dict type, you need to align every key-value pair at 8 bytes like a struct
 /// 1. The signature needs to be correct, or the message will be malformed
 /// 1. The alignment must report the correct number. This does not need to be a constant like in the example, but it needs to be consistent with the type
-///     the signature() function returns. If you are not sure, just use self.signature().get_alignment().
+///     the signature() function returns. If you are not sure, just use Self::signature().get_alignment().
 pub trait Marshal {
     fn marshal(
         &self,
@@ -59,8 +59,8 @@ pub trait Marshal {
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error>;
 
-    fn signature(&self) -> crate::signature::Type;
-    fn alignment(&self) -> usize;
+    fn signature() -> crate::signature::Type;
+    fn alignment() -> usize;
 }
 
 impl<P: Marshal> Marshal for &P {
@@ -72,11 +72,11 @@ impl<P: Marshal> Marshal for &P {
         (*self).marshal(byteorder, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
-        (*self).signature()
+    fn signature() -> crate::signature::Type {
+        P::signature()
     }
-    fn alignment(&self) -> usize {
-        (*self).alignment()
+    fn alignment() -> usize {
+        P::alignment()
     }
 }
 
@@ -90,11 +90,11 @@ impl Marshal for () {
         crate::wire::util::pad_to_align(8, buf);
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -110,13 +110,11 @@ impl<E: Marshal> Marshal for (E,) {
         self.0.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![self
-            .0
-            .signature()]))
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![E::signature()]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -133,14 +131,14 @@ impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
         self.1.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            self.0.signature(),
-            self.1.signature(),
+            E1::signature(),
+            E2::signature(),
         ]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -158,15 +156,15 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
         self.2.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            self.0.signature(),
-            self.1.signature(),
-            self.2.signature(),
+            E1::signature(),
+            E2::signature(),
+            E3::signature(),
         ]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -185,16 +183,16 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3
         self.3.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            self.0.signature(),
-            self.1.signature(),
-            self.2.signature(),
-            self.3.signature(),
+            E1::signature(),
+            E2::signature(),
+            E3::signature(),
+            E4::signature(),
         ]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -216,17 +214,17 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
         self.4.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            self.0.signature(),
-            self.1.signature(),
-            self.2.signature(),
-            self.3.signature(),
-            self.4.signature(),
+            E1::signature(),
+            E2::signature(),
+            E3::signature(),
+            E4::signature(),
+            E5::signature(),
         ]))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         8
     }
 }
@@ -237,10 +235,6 @@ impl<E: Marshal> Marshal for &[E] {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        if self.is_empty() {
-            return Err(message::Error::EmptyArray);
-        }
-
         // always align to 4
         crate::wire::util::pad_to_align(4, buf);
 
@@ -250,12 +244,10 @@ impl<E: Marshal> Marshal for &[E] {
         buf.push(0);
         buf.push(0);
 
-        if !self.is_empty() && self[0].alignment() > 4 {
-            let pad_size = buf.len() % self[0].alignment();
-            for _ in 0..pad_size {
-                buf.push(0);
-            }
+        if self.is_empty() {
+            return Ok(());
         }
+        crate::wire::util::pad_to_align(E::alignment(), buf);
 
         // we can reserve at least one byte per entry without wasting memory, and save at least a few reallocations of buf
         buf.reserve(self.len());
@@ -272,13 +264,13 @@ impl<E: Marshal> Marshal for &[E] {
 
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
-            self[0].signature(),
+            E::signature(),
         )))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         4
     }
 }
@@ -296,10 +288,6 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        if self.0.is_empty() {
-            return Err(message::Error::EmptyArray);
-        }
-
         // always align to 4
         crate::wire::util::pad_to_align(4, buf);
 
@@ -309,12 +297,10 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
         buf.push(0);
         buf.push(0);
 
-        if !self.0.is_empty() && self.0[0].alignment() > 4 {
-            let pad_size = buf.len() % self.0[0].alignment();
-            for _ in 0..pad_size {
-                buf.push(0);
-            }
+        if self.0.is_empty() {
+            return Ok(());
         }
+        crate::wire::util::pad_to_align(E::alignment(), buf);
 
         let size_of_content = std::mem::size_of::<E>() * self.0.len();
         let len_before_resize = buf.len();
@@ -335,13 +321,13 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
 
         Ok(())
     }
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
-            self.0[0].signature(),
+            E::signature(),
         )))
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         4
     }
 }
@@ -353,14 +339,14 @@ fn verify_optimized_arrays() {
     let mut buf_optimized = Vec::new();
     let arru64: Vec<u64> = vec![1, 2, 3, 4, 5, 6, u64::MAX, u64::MAX / 2, u64::MAX / 1024];
     arru64
-    .as_slice()
-    .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
-    .unwrap();
+        .as_slice()
+        .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
+        .unwrap();
     OptimizedMarshal(arru64.as_slice())
-    .marshal(message::ByteOrder::LittleEndian, &mut buf_optimized)
-    .unwrap();
+        .marshal(message::ByteOrder::LittleEndian, &mut buf_optimized)
+        .unwrap();
     assert_eq!(buf_normal, buf_optimized);
-    
+
     // marshal array of u8 optimized and non-optimized and compare
     let mut buf_normal = Vec::new();
     let mut buf_otpimized = Vec::new();
@@ -373,6 +359,29 @@ fn verify_optimized_arrays() {
         .marshal(message::ByteOrder::LittleEndian, &mut buf_otpimized)
         .unwrap();
     assert_eq!(buf_normal, buf_otpimized);
+
+    // check that empty arrays work as expected
+    let empty: Vec<u8> = Vec::new();
+    let x = crate::params::Container::make_array("y", empty.clone().into_iter()).unwrap();
+    let mut buf_old = Vec::new();
+    let mut buf_normal = Vec::new();
+    let mut buf_otpimized = Vec::new();
+    empty
+        .as_slice()
+        .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
+        .unwrap();
+    OptimizedMarshal(empty.as_slice())
+        .marshal(message::ByteOrder::LittleEndian, &mut buf_otpimized)
+        .unwrap();
+    crate::wire::marshal_container::marshal_container_param(
+        &x,
+        message::ByteOrder::LittleEndian,
+        &mut buf_old,
+    )
+    .unwrap();
+    assert_eq!(buf_normal, buf_otpimized);
+    assert_eq!(buf_normal, buf_old);
+    assert_eq!(vec![0, 0, 0, 0], buf_old);
 }
 
 impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
@@ -381,10 +390,6 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        if self.is_empty() {
-            return Err(message::Error::EmptyDict);
-        }
-
         // always align to 4
         crate::wire::util::pad_to_align(4, buf);
 
@@ -394,10 +399,11 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         buf.push(0);
         buf.push(0);
 
-        if !self.is_empty() {
-            // always align to 8
-            crate::wire::util::pad_to_align(8, buf);
+        if self.is_empty() {
+            return Ok(());
         }
+        // always align to 8
+        crate::wire::util::pad_to_align(8, buf);
 
         let size_before = buf.len();
         for p in self.iter() {
@@ -416,9 +422,9 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         Ok(())
     }
 
-    fn signature(&self) -> crate::signature::Type {
-        let ks = self.keys().next().unwrap().signature();
-        let vs = self.values().next().unwrap().signature();
+    fn signature() -> crate::signature::Type {
+        let ks = K::signature();
+        let vs = V::signature();
         if let crate::signature::Type::Base(ks) = ks {
             crate::signature::Type::Container(crate::signature::Container::Dict(ks, Box::new(vs)))
         } else {
@@ -426,44 +432,8 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         }
     }
 
-    fn alignment(&self) -> usize {
+    fn alignment() -> usize {
         4
-    }
-}
-
-impl<'a> Marshal for params::Param<'a, 'a> {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
-        crate::wire::marshal_container::marshal_param(self, byteorder, buf)
-    }
-
-    fn signature(&self) -> crate::signature::Type {
-        self.sig()
-    }
-    fn alignment(&self) -> usize {
-        self.sig().get_alignment()
-    }
-}
-
-impl<'a> Marshal for params::Base<'a> {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
-        crate::wire::marshal_base::marshal_base_param(byteorder, self, buf)
-    }
-
-    fn signature(&self) -> crate::signature::Type {
-        self.sig()
-    }
-    fn alignment(&self) -> usize {
-        self.sig().get_alignment()
     }
 }
 
@@ -473,17 +443,16 @@ impl Marshal for u64 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Uint64)
     }
-    fn alignment(&self) -> usize {
-        let b: params::Base = self.into();
-        b.sig().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 impl Marshal for i64 {
@@ -492,17 +461,16 @@ impl Marshal for i64 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Int64)
     }
-    fn alignment(&self) -> usize {
-        let b: params::Base = self.into();
-        b.sig().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 
@@ -512,17 +480,16 @@ impl Marshal for u32 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Uint32)
     }
-    fn alignment(&self) -> usize {
-        let b: params::Base = self.into();
-        b.sig().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 impl Marshal for i32 {
@@ -531,16 +498,16 @@ impl Marshal for i32 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Int32)
     }
-    fn alignment(&self) -> usize {
-        self.signature().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 
@@ -550,16 +517,16 @@ impl Marshal for u16 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Uint16)
     }
-    fn alignment(&self) -> usize {
-        self.signature().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 impl Marshal for i16 {
@@ -568,16 +535,16 @@ impl Marshal for i16 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Int16)
     }
-    fn alignment(&self) -> usize {
-        self.signature().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 
@@ -587,16 +554,16 @@ impl Marshal for u8 {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Byte)
     }
-    fn alignment(&self) -> usize {
-        self.signature().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 
@@ -606,16 +573,16 @@ impl Marshal for bool {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Boolean)
     }
-    fn alignment(&self) -> usize {
-        self.signature().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 
@@ -625,16 +592,16 @@ impl Marshal for String {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         crate::wire::util::write_string(self.as_str(), byteorder, buf);
         Ok(())
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::String)
     }
-    fn alignment(&self) -> usize {
-        self.signature().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 
@@ -644,15 +611,15 @@ impl Marshal for &str {
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        crate::wire::util::pad_to_align(self.alignment(), buf);
+        crate::wire::util::pad_to_align(Self::alignment(), buf);
         crate::wire::util::write_string(self, byteorder, buf);
         Ok(())
     }
 
-    fn signature(&self) -> crate::signature::Type {
+    fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::String)
     }
-    fn alignment(&self) -> usize {
-        self.signature().get_alignment()
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }

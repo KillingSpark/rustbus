@@ -29,9 +29,7 @@ fn test_marshal_unmarshal() {
             "/io/killing/spark".into(),
         )
         .build();
-    for p in &params {
-        msg.body.push_param(p).unwrap();
-    }
+    msg.body.push_old_params(&params).unwrap();
     msg.serial = Some(1);
     let mut buf = Vec::new();
     marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
@@ -57,7 +55,7 @@ fn test_invalid_stuff() {
 
     let err = msg
         .body
-        .push_param(&Param::Base(Base::Signature("((((((((}}}}}}}".into())));
+        .push_old_param(&Param::Base(Base::Signature("((((((((}}}}}}}".into())));
     assert_eq!(
         Err(crate::message::Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
@@ -75,7 +73,7 @@ fn test_invalid_stuff() {
         .build();
     let err = msg
         .body
-        .push_param(&Param::Base(Base::ObjectPath("invalid/object/path".into())));
+        .push_old_param(&Param::Base(Base::ObjectPath("invalid/object/path".into())));
     assert_eq!(Err(crate::message::Error::InvalidObjectPath), err);
 
     // invalid interface
