@@ -132,7 +132,7 @@ impl OutMessage {
             body: OutMessageBody::new(),
         }
     }
-    
+
     pub fn with_byteorder(b: message::ByteOrder) -> Self {
         OutMessage {
             typ: message::MessageType::Invalid,
@@ -197,11 +197,7 @@ impl OutMessageBody {
     }
 
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), message::Error> {
-        crate::wire::marshal_container::marshal_param(
-            p,
-            self.byteorder,
-            &mut self.buf,
-        )?;
+        crate::wire::marshal_container::marshal_param(p, self.byteorder, &mut self.buf)?;
         p.sig().to_str(&mut self.sig);
         Ok(())
     }
