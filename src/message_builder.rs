@@ -161,6 +161,12 @@ pub struct OutMessageBody {
     byteorder: message::ByteOrder,
 }
 
+impl Default for OutMessageBody {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn marshal_as_variant<P: Marshal>(
     p: P,
     byteorder: message::ByteOrder,
@@ -330,7 +336,11 @@ fn test_marshal_trait() {
         fn signature() -> crate::signature::Type {
             crate::signature::Type::Container(crate::signature::Container::Struct(vec![
                 u64::signature(),
-                String::signature(),
+                String::signaimpl Default for OutMessage {
+                    fn default() -> Self {
+                        Self::new()
+                    }
+                }ture(),
             ]))
         }
 
