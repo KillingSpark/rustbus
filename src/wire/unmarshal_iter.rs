@@ -1,4 +1,4 @@
-//! This is a working module to parse a dbus message. It is currently not used in rustbus but it could be in the future. This 
+//! This is a working module to parse a dbus message. It is currently not used in rustbus but it could be in the future. This
 //! was more or less a test to see how well/bad this would work out to be.
 
 use crate::message::ByteOrder;
