@@ -336,11 +336,7 @@ fn test_marshal_trait() {
         fn signature() -> crate::signature::Type {
             crate::signature::Type::Container(crate::signature::Container::Struct(vec![
                 u64::signature(),
-                String::signaimpl Default for OutMessage {
-                    fn default() -> Self {
-                        Self::new()
-                    }
-                }ture(),
+                String::signature(),
             ]))
         }
 
