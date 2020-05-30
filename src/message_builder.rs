@@ -202,6 +202,14 @@ impl OutMessageBody {
         }
     }
 
+    /// Clears the buffer and signature but holds on to the memory allocations. You can now start pushing new
+    /// params as if this were a new message. This allows to reuse the OutMessage for the same dbus-message with different
+    /// parameters without allocating the buffer every time.
+    pub fn reset(&mut self) {
+        self.sig.clear();
+        self.buf.clear();
+    }
+
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), message::Error> {
         crate::wire::marshal_container::marshal_param(p, self.byteorder, &mut self.buf)?;
         p.sig().to_str(&mut self.sig);
