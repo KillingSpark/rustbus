@@ -23,6 +23,12 @@ impl MessageBuilder {
         }
     }
 
+    pub fn with_byteorder(b: message::ByteOrder) -> MessageBuilder {
+        MessageBuilder {
+            msg: OutMessage::with_byteorder(b),
+        }
+    }
+
     pub fn call(mut self, member: String) -> CallBuilder {
         self.msg.typ = message::MessageType::Call;
         self.msg.member = Some(member);
@@ -99,10 +105,8 @@ impl Default for OutMessage {
 
 /// This reprsents a message while it is being built before it is sent over the connection.
 /// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
-/// And you can of course write an Marshal impl for your own datastrcutures
-///
-/// Note that pushing an empty slice or map will fail, because the type cannot be deduced. Use the `push_empty_array()` `push_empty_dict()`
-/// to do that. This is very inconvenient but I don't see a way to do this in a better way.
+/// And you can of course write an Marshal impl for your own datastructures. See the doc on the Marshal trait what you have
+/// to look out for when doing this though.
 impl OutMessage {
     pub fn get_buf(&self) -> &[u8] {
         &self.body.buf
@@ -128,13 +132,33 @@ impl OutMessage {
             body: OutMessageBody::new(),
         }
     }
+    
+    pub fn with_byteorder(b: message::ByteOrder) -> Self {
+        OutMessage {
+            typ: message::MessageType::Invalid,
+            interface: None,
+            member: None,
+            object: None,
+            destination: None,
+            serial: None,
+            raw_fds: Vec::new(),
+            num_fds: None,
+            response_serial: None,
+            sender: None,
+            error_name: None,
+            flags: 0,
+
+            body: OutMessageBody::with_byteorder(b),
+        }
+    }
 }
 /// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
 /// And you can of course write an Marshal impl for your own datastrcutures
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct OutMessageBody {
     buf: Vec<u8>,
     sig: String,
+    byteorder: message::ByteOrder,
 }
 
 pub fn marshal_as_variant<P: Marshal>(
@@ -160,13 +184,22 @@ impl OutMessageBody {
         OutMessageBody {
             buf: Vec::new(),
             sig: String::new(),
+            byteorder: message::ByteOrder::LittleEndian,
+        }
+    }
+
+    pub fn with_byteorder(b: message::ByteOrder) -> Self {
+        OutMessageBody {
+            buf: Vec::new(),
+            sig: String::new(),
+            byteorder: b,
         }
     }
 
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), message::Error> {
         crate::wire::marshal_container::marshal_param(
             p,
-            message::ByteOrder::LittleEndian,
+            self.byteorder,
             &mut self.buf,
         )?;
         p.sig().to_str(&mut self.sig);
@@ -180,7 +213,7 @@ impl OutMessageBody {
     }
 
     pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
-        p.marshal(message::ByteOrder::LittleEndian, &mut self.buf)?;
+        p.marshal(self.byteorder, &mut self.buf)?;
         P::signature().to_str(&mut self.sig);
         Ok(())
     }
@@ -246,7 +279,7 @@ impl OutMessageBody {
 
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
         self.sig.push('v');
-        marshal_as_variant(p, message::ByteOrder::LittleEndian, &mut self.buf)
+        marshal_as_variant(p, self.byteorder, &mut self.buf)
     }
 }
 
