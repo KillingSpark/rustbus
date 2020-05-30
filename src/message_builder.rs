@@ -17,12 +17,14 @@ pub struct SignalBuilder {
 }
 
 impl MessageBuilder {
+    /// New messagebuilder with the default little endian byteorder
     pub fn new() -> MessageBuilder {
         MessageBuilder {
             msg: OutMessage::new(),
         }
     }
 
+    /// New messagebuilder with a chosen byteorder
     pub fn with_byteorder(b: message::ByteOrder) -> MessageBuilder {
         MessageBuilder {
             msg: OutMessage::with_byteorder(b),
@@ -114,6 +116,8 @@ impl OutMessage {
     pub fn get_sig(&self) -> &str {
         &self.body.sig
     }
+
+    /// New message with the default little endian byteorder
     pub fn new() -> Self {
         OutMessage {
             typ: message::MessageType::Invalid,
@@ -133,6 +137,7 @@ impl OutMessage {
         }
     }
 
+    /// New messagebody with a chosen byteorder
     pub fn with_byteorder(b: message::ByteOrder) -> Self {
         OutMessage {
             typ: message::MessageType::Invalid,
@@ -167,6 +172,8 @@ impl Default for OutMessageBody {
     }
 }
 
+/// Helper function you might need this if the dbus API you use has Variants somewhere inside nested structures. If the the
+/// API has a Variant at the top-level you can use OutMessageBody::push_variant.
 pub fn marshal_as_variant<P: Marshal>(
     p: P,
     byteorder: message::ByteOrder,
@@ -186,6 +193,7 @@ pub fn marshal_as_variant<P: Marshal>(
 }
 
 impl OutMessageBody {
+    /// New messagebody with the default little endian byteorder
     pub fn new() -> Self {
         OutMessageBody {
             buf: Vec::new(),
@@ -194,6 +202,7 @@ impl OutMessageBody {
         }
     }
 
+    /// New messagebody with a chosen byteorder
     pub fn with_byteorder(b: message::ByteOrder) -> Self {
         OutMessageBody {
             buf: Vec::new(),
@@ -210,11 +219,15 @@ impl OutMessageBody {
         self.buf.clear();
     }
 
+    /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
+    /// the new trait/type based API does not work.
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), message::Error> {
         crate::wire::marshal_container::marshal_param(p, self.byteorder, &mut self.buf)?;
         p.sig().to_str(&mut self.sig);
         Ok(())
     }
+
+    /// Convenience function to call push_old_param on a slice of Param
     pub fn push_old_params(&mut self, ps: &[crate::params::Param]) -> Result<(), message::Error> {
         for p in ps {
             self.push_old_param(p)?;
@@ -222,12 +235,14 @@ impl OutMessageBody {
         Ok(())
     }
 
+    /// Append something that is Marshal to the message body
     pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
         p.marshal(self.byteorder, &mut self.buf)?;
         P::signature().to_str(&mut self.sig);
         Ok(())
     }
 
+    /// Append two things that are Marshal to the message body
     pub fn push_param2<P1: Marshal, P2: Marshal>(
         &mut self,
         p1: P1,
@@ -238,6 +253,7 @@ impl OutMessageBody {
         Ok(())
     }
 
+    /// Append three things that are Marshal to the message body
     pub fn push_param3<P1: Marshal, P2: Marshal, P3: Marshal>(
         &mut self,
         p1: P1,
@@ -250,6 +266,7 @@ impl OutMessageBody {
         Ok(())
     }
 
+    /// Append four things that are Marshal to the message body
     pub fn push_param4<P1: Marshal, P2: Marshal, P3: Marshal, P4: Marshal>(
         &mut self,
         p1: P1,
@@ -264,6 +281,7 @@ impl OutMessageBody {
         Ok(())
     }
 
+    /// Append five things that are Marshal to the message body
     pub fn push_param5<P1: Marshal, P2: Marshal, P3: Marshal, P4: Marshal, P5: Marshal>(
         &mut self,
         p1: P1,
@@ -280,6 +298,7 @@ impl OutMessageBody {
         Ok(())
     }
 
+    /// Append any number of things that have the same type that is Marshal to the message body
     pub fn push_params<P: Marshal>(&mut self, params: &[P]) -> Result<(), message::Error> {
         for p in params {
             self.push_param(p)?;
@@ -287,6 +306,7 @@ impl OutMessageBody {
         Ok(())
     }
 
+    /// Append something that is Marshal to the body but use a dbus Variant in the signature. This is necessary for some APIs
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
         self.sig.push('v');
         marshal_as_variant(p, self.byteorder, &mut self.buf)
