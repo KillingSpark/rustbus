@@ -238,7 +238,6 @@ pub fn validate_header_fields(msg_type: MessageType, header_fields: &[HeaderFiel
     }
 }
 
-
 // more specific tests for constraints on strings
 #[test]
 fn test_objectpath_constraints() {
