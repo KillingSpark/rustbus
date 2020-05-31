@@ -284,7 +284,8 @@ fn verify_dict_marshalling() {
         &[16, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0,]
     );
     buf.clear();
-    (&map).marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+    (&map)
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
         .unwrap();
     assert_eq!(
         buf,
