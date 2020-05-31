@@ -708,7 +708,8 @@ fn test_trait_signature_creation() {
     body.push_param(0i64).unwrap();
     body.push_param(&[0u8][..]).unwrap();
 
-    let map: std::collections::HashMap<String, (u64,u32,u16,u8)> = std::collections::HashMap::new();
+    let map: std::collections::HashMap<String, (u64, u32, u16, u8)> =
+        std::collections::HashMap::new();
     body.push_param(&map).unwrap();
 
     assert_eq!("soghbyqutnixaya{s(tuqy)}", msg.get_sig());
