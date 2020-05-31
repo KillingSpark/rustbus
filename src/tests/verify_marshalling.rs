@@ -228,6 +228,19 @@ fn verify_array_marshalling() {
         ]
     );
     buf.clear();
+    [(32u64, 64u64), (32u64, 64u64)][..]
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    assert_eq!(
+        buf,
+        // Note the longer \0 chain after the length. This is the needed padding after the u32 length and the struct elements
+        // Also note that the length is 32. The padding is not included in the encoded length value.
+        vec![
+            32, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0,
+            0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0
+        ]
+    );
+    buf.clear();
 }
 
 #[test]
@@ -253,10 +266,10 @@ fn verify_dict_marshalling() {
     );
     buf.clear();
 
-    let mut dict: std::collections::HashMap<u32, u64> = std::collections::HashMap::new();
-    dict.insert(32u32, 64u64);
+    let mut map: std::collections::HashMap<u32, u64> = std::collections::HashMap::new();
+    map.insert(32u32, 64u64);
 
-    let dict = crate::params::Container::make_dict("u", "t", dict.into_iter()).unwrap();
+    let dict = crate::params::Container::make_dict("u", "t", map.clone().into_iter()).unwrap();
 
     crate::wire::marshal_container::marshal_container_param(
         &dict,
@@ -264,6 +277,15 @@ fn verify_dict_marshalling() {
         &mut buf,
     )
     .unwrap();
+    assert_eq!(
+        buf,
+        // Note the longer \0 chain after the length. This is the needed padding after the u32 length and the dict-entry
+        // Also note that the length is 16. The padding is not included in the encoded length value.
+        &[16, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0,]
+    );
+    buf.clear();
+    (&map).marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
     assert_eq!(
         buf,
         // Note the longer \0 chain after the length. This is the needed padding after the u32 length and the dict-entry

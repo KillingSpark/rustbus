@@ -229,6 +229,23 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
     }
 }
 
+impl<E: Marshal> Marshal for [E] {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        (&self).marshal(byteorder, buf)
+    }
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
+            E::signature(),
+        )))
+    }
+    fn alignment() -> usize {
+        4
+    }
+}
 impl<E: Marshal> Marshal for &[E] {
     fn marshal(
         &self,
