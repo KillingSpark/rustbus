@@ -1,3 +1,5 @@
+use crate::Marshal;
+
 #[test]
 fn verify_base_marshalling() {
     let mut buf = vec![];
@@ -11,6 +13,11 @@ fn verify_base_marshalling() {
     .unwrap();
     assert_eq!(buf, &[32, 0, 0, 0]);
     buf.clear();
+    32u32
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    assert_eq!(buf, &[32, 0, 0, 0]);
+    buf.clear();
 
     let param = crate::params::Base::Uint64(32u64 + (64u64 << (7 * 8)));
     crate::wire::marshal_base::marshal_base_param(
@@ -19,6 +26,11 @@ fn verify_base_marshalling() {
         &mut buf,
     )
     .unwrap();
+    assert_eq!(buf, &[32, 0, 0, 0, 0, 0, 0, 64]);
+    buf.clear();
+    (32u64 + (64u64 << (7 * 8)))
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
     assert_eq!(buf, &[32, 0, 0, 0, 0, 0, 0, 64]);
     buf.clear();
 
@@ -31,6 +43,11 @@ fn verify_base_marshalling() {
     .unwrap();
     assert_eq!(buf, &[0, 32]);
     buf.clear();
+    (32u16 << 8)
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    assert_eq!(buf, &[0, 32]);
+    buf.clear();
 
     let param = crate::params::Base::Byte(32);
     crate::wire::marshal_base::marshal_base_param(
@@ -39,6 +56,10 @@ fn verify_base_marshalling() {
         &mut buf,
     )
     .unwrap();
+    assert_eq!(buf, &[32]);
+    buf.clear();
+    32u8.marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
     assert_eq!(buf, &[32]);
     buf.clear();
 
@@ -51,6 +72,10 @@ fn verify_base_marshalling() {
     .unwrap();
     assert_eq!(buf, &[1, 0, 0, 0]);
     buf.clear();
+    true.marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    assert_eq!(buf, &[1, 0, 0, 0]);
+    buf.clear();
     let param = crate::params::Base::Boolean(false);
     crate::wire::marshal_base::marshal_base_param(
         crate::message::ByteOrder::LittleEndian,
@@ -60,6 +85,10 @@ fn verify_base_marshalling() {
     .unwrap();
     assert_eq!(buf, &[0, 0, 0, 0]);
     buf.clear();
+    false
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    buf.clear();
 
     let param = crate::params::Base::Signature("(vvv)aa{ii}".to_owned());
     crate::wire::marshal_base::marshal_base_param(
@@ -68,6 +97,15 @@ fn verify_base_marshalling() {
         &mut buf,
     )
     .unwrap();
+    assert_eq!(
+        buf,
+        &[11, b'(', b'v', b'v', b'v', b')', b'a', b'a', b'{', b'i', b'i', b'}', b'\0']
+    );
+    buf.clear();
+    crate::wire::marshal_trait::Signature::new("(vvv)aa{ii}")
+        .unwrap()
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
     assert_eq!(
         buf,
         &[11, b'(', b'v', b'v', b'v', b')', b'a', b'a', b'{', b'i', b'i', b'}', b'\0']
@@ -86,6 +124,14 @@ fn verify_base_marshalling() {
         &[11, 0, 0, 0, b'(', b'v', b'v', b'v', b')', b'a', b'a', b'{', b'i', b'i', b'}', b'\0']
     );
     buf.clear();
+    "(vvv)aa{ii}"
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    assert_eq!(
+        buf,
+        &[11, 0, 0, 0, b'(', b'v', b'v', b'v', b')', b'a', b'a', b'{', b'i', b'i', b'}', b'\0']
+    );
+    buf.clear();
 
     let param = crate::params::Base::ObjectPath("/path".to_owned());
     crate::wire::marshal_base::marshal_base_param(
@@ -94,6 +140,12 @@ fn verify_base_marshalling() {
         &mut buf,
     )
     .unwrap();
+    assert_eq!(buf, &[5, 0, 0, 0, b'/', b'p', b'a', b't', b'h', b'\0']);
+    buf.clear();
+    crate::wire::marshal_trait::ObjectPath::new("/path")
+        .unwrap()
+        .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
     assert_eq!(buf, &[5, 0, 0, 0, b'/', b'p', b'a', b't', b'h', b'\0']);
     buf.clear();
 }

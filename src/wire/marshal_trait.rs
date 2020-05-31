@@ -658,10 +658,11 @@ impl<'a> Signature<'a> {
 impl Marshal for Signature<'_> {
     fn marshal(
         &self,
-        byteorder: message::ByteOrder,
+        _byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
-        self.0.marshal(byteorder, buf)
+        crate::wire::util::write_signature(self.0, buf);
+        Ok(())
     }
 
     fn signature() -> crate::signature::Type {
