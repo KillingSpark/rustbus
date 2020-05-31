@@ -623,3 +623,93 @@ impl Marshal for &str {
         Self::signature().get_alignment()
     }
 }
+
+pub struct ObjectPath<'a>(&'a str);
+impl<'a> ObjectPath<'a> {
+    pub fn new(path: &'a str) -> Result<Self, message::Error> {
+        crate::params::validate_object_path(path)?;
+        Ok(ObjectPath(path))
+    }
+}
+impl Marshal for ObjectPath<'_> {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        self.0.marshal(byteorder, buf)
+    }
+
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::ObjectPath)
+    }
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
+    }
+}
+
+pub struct Signature<'a>(&'a str);
+impl<'a> Signature<'a> {
+    pub fn new(sig: &'a str) -> Result<Self, message::Error> {
+        crate::params::validate_signature(sig)?;
+        Ok(Signature(sig))
+    }
+}
+impl Marshal for Signature<'_> {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        self.0.marshal(byteorder, buf)
+    }
+
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::Signature)
+    }
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
+    }
+}
+pub struct UnixFd(pub u32);
+impl Marshal for UnixFd {
+    fn marshal(
+        &self,
+        byteorder: message::ByteOrder,
+        buf: &mut Vec<u8>,
+    ) -> Result<(), message::Error> {
+        self.0.marshal(byteorder, buf)
+    }
+
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::UnixFd)
+    }
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
+    }
+}
+
+#[test]
+fn test_trait_signature_creation() {
+    let mut msg = crate::message_builder::OutMessage::new();
+    let body = &mut msg.body;
+
+    body.push_param("a").unwrap();
+    body.push_param(ObjectPath::new("/a/b").unwrap()).unwrap();
+    body.push_param(Signature::new("(a{su})").unwrap()).unwrap();
+    body.push_param(UnixFd(10)).unwrap();
+    body.push_param(true).unwrap();
+    body.push_param(0u8).unwrap();
+    body.push_param(0u16).unwrap();
+    body.push_param(0u32).unwrap();
+    body.push_param(0u64).unwrap();
+    body.push_param(0i16).unwrap();
+    body.push_param(0i32).unwrap();
+    body.push_param(0i64).unwrap();
+    body.push_param(&[0u8][..]).unwrap();
+
+    let map: std::collections::HashMap<String, (u64,u32,u16,u8)> = std::collections::HashMap::new();
+    body.push_param(&map).unwrap();
+
+    assert_eq!("soghbyqutnixaya{s(tuqy)}", msg.get_sig());
+}
