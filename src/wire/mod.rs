@@ -6,4 +6,5 @@ pub mod unmarshal;
 pub mod unmarshal_base;
 pub mod unmarshal_container;
 pub mod unmarshal_iter;
+pub mod unmarshal_trait;
 pub mod util;

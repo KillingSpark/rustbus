@@ -209,3 +209,13 @@ pub fn unmarshal_string(byteorder: message::ByteOrder, buf: &[u8]) -> UnmarshalR
         String::from_utf8(str_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
     Ok((len + 5, string))
 }
+
+pub fn unmarshal_str<'r, 'a: 'r>(byteorder: message::ByteOrder, buf: &'a [u8]) -> UnmarshalResult<&'r str> {
+    let len = parse_u32(buf, byteorder)?.1 as usize;
+    if buf.len() < len + 5 {
+        return Err(unmarshal::Error::NotEnoughBytes);
+    }
+    let str_buf = &buf[4..];
+    let string = std::str::from_utf8(&str_buf[..len]).map_err(|_| unmarshal::Error::InvalidUtf8)?;
+    Ok((len + 5, string))
+}
