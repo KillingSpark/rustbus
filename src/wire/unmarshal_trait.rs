@@ -14,16 +14,271 @@ pub trait Unmarshal<'r, 'buf: 'r>: Sized {
     fn alignment() -> usize;
 }
 
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for () {
+    fn unmarshal(
+        _byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        Ok((padding, ()))
+    }
+    fn alignment() -> usize {
+        8
+    }
+}
+
+impl<'r, 'buf: 'r, E1> Unmarshal<'r, 'buf> for (E1,)
+where
+    E1: Unmarshal<'r, 'buf> + Sized,
+{
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset)?;
+        Ok((bytes + padding, (val1,)))
+    }
+    fn alignment() -> usize {
+        8
+    }
+}
+
+impl<'r, 'buf: 'r, E1, E2> Unmarshal<'r, 'buf> for (E1, E2)
+where
+    E1: Unmarshal<'r, 'buf> + Sized,
+    E2: Unmarshal<'r, 'buf> + Sized,
+{
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let mut total_bytes = 0;
+
+        let padding = util::align_offset(Self::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes +=  bytes;
+        
+        let padding = util::align_offset(E2::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val2) = E2::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes += bytes;
+
+        Ok((total_bytes, (val1, val2)))
+    }
+    fn alignment() -> usize {
+        8
+    }
+}
+
+impl<'r, 'buf: 'r, E1, E2, E3> Unmarshal<'r, 'buf> for (E1, E2, E3)
+where
+    E1: Unmarshal<'r, 'buf> + Sized,
+    E2: Unmarshal<'r, 'buf> + Sized,
+    E3: Unmarshal<'r, 'buf> + Sized,
+{
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let mut total_bytes = 0;
+
+        let padding = util::align_offset(Self::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes +=  bytes;
+        
+        let padding = util::align_offset(E2::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val2) = E2::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes += bytes;
+        
+        let padding = util::align_offset(E3::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val3) = E3::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes += bytes;
+
+        Ok((total_bytes, (val1, val2, val3)))
+    }
+    fn alignment() -> usize {
+        8
+    }
+}
+
+impl<'r, 'buf: 'r, E1, E2, E3, E4> Unmarshal<'r, 'buf> for (E1, E2, E3, E4)
+where
+    E1: Unmarshal<'r, 'buf> + Sized,
+    E2: Unmarshal<'r, 'buf> + Sized,
+    E3: Unmarshal<'r, 'buf> + Sized,
+    E4: Unmarshal<'r, 'buf> + Sized,
+{
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let mut total_bytes = 0;
+
+        let padding = util::align_offset(Self::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes +=  bytes;
+        
+        let padding = util::align_offset(E2::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val2) = E2::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes += bytes;
+        
+        let padding = util::align_offset(E3::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val3) = E3::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes += bytes;
+        
+        let padding = util::align_offset(E4::alignment(), buf, offset + total_bytes)?;
+        total_bytes += padding;
+        let (bytes, val4) = E4::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        total_bytes += bytes;
+
+        Ok((total_bytes, (val1, val2, val3, val4)))
+    }
+    fn alignment() -> usize {
+        8
+    }
+}
+
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u64 {
     fn unmarshal(
         byteorder: ByteOrder,
         buf: &'buf [u8],
         offset: usize,
     ) -> unmarshal::UnmarshalResult<Self> {
-        util::parse_u64(&buf[offset..], byteorder)
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) = util::parse_u64(&buf[offset..], byteorder)?;
+        Ok((bytes + padding, val))
     }
     fn alignment() -> usize {
         8
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u32 {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) = util::parse_u32(&buf[offset..], byteorder)?;
+        Ok((bytes + padding, val))
+    }
+    fn alignment() -> usize {
+        4
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u16 {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) = util::parse_u16(&buf[offset..], byteorder)?;
+        Ok((bytes + padding, val))
+    }
+    fn alignment() -> usize {
+        2
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i64 {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) =
+            util::parse_u64(&buf[offset..], byteorder).map(|(bytes, val)| (bytes, val as i64))?;
+        Ok((bytes + padding, val))
+    }
+    fn alignment() -> usize {
+        8
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i32 {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) =
+            util::parse_u32(&buf[offset..], byteorder).map(|(bytes, val)| (bytes, val as i32))?;
+        Ok((bytes + padding, val))
+    }
+    fn alignment() -> usize {
+        4
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i16 {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) =
+            util::parse_u16(&buf[offset..], byteorder).map(|(bytes, val)| (bytes, val as i16))?;
+        Ok((bytes + padding, val))
+    }
+    fn alignment() -> usize {
+        2
+    }
+}
+
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u8 {
+    fn unmarshal(
+        _byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        if buf[offset..].is_empty() {
+            return Err(crate::wire::unmarshal::Error::NotEnoughBytes);
+        }
+        Ok((1, buf[offset]))
+    }
+    fn alignment() -> usize {
+        2
+    }
+}
+
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for bool {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) = util::parse_u32(&buf[offset..], byteorder)?;
+        match val {
+            0 => Ok((bytes + padding, false)),
+            1 => Ok((bytes + padding, true)),
+            _ => Err(crate::wire::unmarshal::Error::InvalidBoolean),
+        }
+    }
+    fn alignment() -> usize {
+        4
     }
 }
 
@@ -33,7 +288,26 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for &'r str {
         buf: &'buf [u8],
         offset: usize,
     ) -> unmarshal::UnmarshalResult<Self> {
-        util::unmarshal_str(byteorder, &buf[offset..])
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) = util::unmarshal_str(byteorder, &buf[offset..])?;
+        Ok((bytes + padding, val))
+    }
+    fn alignment() -> usize {
+        4
+    }
+}
+
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for String {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) = util::unmarshal_string(byteorder, &buf[offset..])?;
+        Ok((bytes + padding, val))
     }
     fn alignment() -> usize {
         4
@@ -146,4 +420,12 @@ fn test_unmarshal_trait() {
         std::collections::HashMap::<u64, &str>::unmarshal(ByteOrder::LittleEndian, &buf, 0)
             .unwrap();
     assert_eq!(original, map);
+
+    buf.clear();
+
+    let orig = (0u8, true, 100u8, -123i32); 
+    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    type ST = (u8,bool,u8,i32); 
+    let s = ST::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+    assert_eq!(orig, s);
 }
