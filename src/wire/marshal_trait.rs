@@ -756,8 +756,8 @@ fn test_empty_array_padding() {
         &mut buf,
     )
     .unwrap();
-    
+
     // 0 length and padded to 8 bytes even if there are no elements
-    assert_eq!(msg.get_buf(), &[0,0,0,0,0,0,0,0]);
-    assert_eq!(buf.as_slice(), &[0,0,0,0,0,0,0,0]);
+    assert_eq!(msg.get_buf(), &[0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(buf.as_slice(), &[0, 0, 0, 0, 0, 0, 0, 0]);
 }

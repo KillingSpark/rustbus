@@ -76,12 +76,8 @@ impl<'r, 'buf: 'r, E: Unmarshal<'r, 'buf>> Unmarshal<'r, 'buf> for Vec<E> {
     }
 }
 
-impl<
-        'r,
-        'buf: 'r,
-        K: Unmarshal<'r, 'buf> + std::hash::Hash + Eq,
-        V: Unmarshal<'r, 'buf>,
-    > Unmarshal<'r, 'buf> for std::collections::HashMap<K, V>
+impl<'r, 'buf: 'r, K: Unmarshal<'r, 'buf> + std::hash::Hash + Eq, V: Unmarshal<'r, 'buf>>
+    Unmarshal<'r, 'buf> for std::collections::HashMap<K, V>
 {
     fn unmarshal(
         byteorder: ByteOrder,
@@ -132,20 +128,22 @@ fn test_unmarshal_trait() {
     let mut buf = Vec::new();
     let original = &["a", "b"];
     original.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    
+
     let (_, v) = Vec::<&str>::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap();
-    
+
     assert_eq!(original, v.as_slice());
-    
+
     buf.clear();
-    
+
     let mut original = std::collections::HashMap::new();
     original.insert(0u64, "abc");
     original.insert(1u64, "dce");
     original.insert(2u64, "fgh");
-    
+
     original.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    
-    let (_, map) = std::collections::HashMap::<u64, &str>::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap();
+
+    let (_, map) =
+        std::collections::HashMap::<u64, &str>::unmarshal(ByteOrder::LittleEndian, &buf, 0)
+            .unwrap();
     assert_eq!(original, map);
 }

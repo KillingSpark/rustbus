@@ -210,7 +210,10 @@ pub fn unmarshal_string(byteorder: message::ByteOrder, buf: &[u8]) -> UnmarshalR
     Ok((len + 5, string))
 }
 
-pub fn unmarshal_str<'r, 'a: 'r>(byteorder: message::ByteOrder, buf: &'a [u8]) -> UnmarshalResult<&'r str> {
+pub fn unmarshal_str<'r, 'a: 'r>(
+    byteorder: message::ByteOrder,
+    buf: &'a [u8],
+) -> UnmarshalResult<&'r str> {
     let len = parse_u32(buf, byteorder)?.1 as usize;
     if buf.len() < len + 5 {
         return Err(unmarshal::Error::NotEnoughBytes);
