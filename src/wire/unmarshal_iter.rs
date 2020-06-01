@@ -47,6 +47,22 @@ impl<'a> MessageIter<'a> {
             iter
         }
     }
+
+    pub fn unmarshal_next<'r, 'buf: 'r, T: crate::wire::unmarshal_trait::Unmarshal<'r, 'buf>>(
+        &'buf mut self,
+    ) -> Option<Result<T, Error>> {
+        if self.counter >= self.sig.len() {
+            None
+        } else {
+            let (bytes, val) = match T::unmarshal(self.byteorder, self.source, *self.current_offset)
+            {
+                Err(e) => return Some(Err(e)),
+                Ok(t) => t,
+            };
+            *self.current_offset += bytes;
+            Some(Ok(val))
+        }
+    }
 }
 
 pub enum ParamIter<'a> {
@@ -467,4 +483,11 @@ fn test_struct_iter() {
         &["TestTest".to_owned(), "InnerTestTest".to_owned()],
         strings.as_slice()
     );
+
+    let msg_sig = &[sig];
+    offset = 0;
+    let mut iter = MessageIter::new(ByteOrder::LittleEndian, &buf, &mut offset, msg_sig);
+    let x: (i32, &str, i32, (i32, &str, i32)) = iter.unmarshal_next().unwrap().unwrap();
+
+    assert_eq!(x, (0, "TestTest", 2, (1, "InnerTestTest", 3)));
 }

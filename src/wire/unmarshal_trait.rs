@@ -14,6 +14,42 @@ pub trait Unmarshal<'r, 'buf: 'r>: Sized {
     fn alignment() -> usize;
 }
 
+pub fn unmarshal<'r, 'buf: 'r, T: Unmarshal<'r, 'buf>>(
+    byteorder: ByteOrder,
+    buf: &'buf [u8],
+    offset: usize,
+) -> unmarshal::UnmarshalResult<T> {
+    T::unmarshal(byteorder, buf, offset)
+}
+
+#[test]
+fn test_generic_unmarshal(){
+    use crate::Marshal;
+
+    // annotate the receiver with a type &str to unmarshal a &str 
+    let mut buf = Vec::new();
+    "ABCD".marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    let _s: &str = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+    
+    // annotate the receiver with a type bool to unmarshal a bool 
+    buf.clear();
+    true.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    let _b: bool = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1; 
+    
+    // can also use turbofish syntax
+    buf.clear();
+    0i32.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    let _i = unmarshal::<i32>(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+
+    // No type info on let arg = unmarshal(...) is needed if it can be derived by other means
+    buf.clear();
+    fn x(_arg: (i32,i32,&str)){};
+    (0,0,"ABCD").marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    let arg = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1; 
+    x(arg);
+}
+
+
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for () {
     fn unmarshal(
         _byteorder: ByteOrder,
@@ -39,7 +75,7 @@ where
     ) -> unmarshal::UnmarshalResult<Self> {
         let padding = util::align_offset(Self::alignment(), buf, offset)?;
         let offset = offset + padding;
-        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset)?;
+        let (bytes, val1) = E1::unmarshal(byteorder, buf, offset)?;
         Ok((bytes + padding, (val1,)))
     }
     fn alignment() -> usize {
@@ -61,12 +97,12 @@ where
 
         let padding = util::align_offset(Self::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val1) = E1::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         let padding = util::align_offset(E2::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val2) = E2::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val2) = E2::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         Ok((total_bytes, (val1, val2)))
@@ -91,17 +127,17 @@ where
 
         let padding = util::align_offset(Self::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val1) = E1::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         let padding = util::align_offset(E2::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val2) = E2::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val2) = E2::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         let padding = util::align_offset(E3::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val3) = E3::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val3) = E3::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         Ok((total_bytes, (val1, val2, val3)))
@@ -127,22 +163,22 @@ where
 
         let padding = util::align_offset(Self::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val1) = E1::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val1) = E1::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         let padding = util::align_offset(E2::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val2) = E2::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val2) = E2::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         let padding = util::align_offset(E3::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val3) = E3::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val3) = E3::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         let padding = util::align_offset(E4::alignment(), buf, offset + total_bytes)?;
         total_bytes += padding;
-        let (bytes, val4) = E4::unmarshal(byteorder, &buf[offset..], offset + total_bytes)?;
+        let (bytes, val4) = E4::unmarshal(byteorder, buf, offset + total_bytes)?;
         total_bytes += bytes;
 
         Ok((total_bytes, (val1, val2, val3, val4)))
