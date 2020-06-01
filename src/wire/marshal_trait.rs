@@ -261,10 +261,11 @@ impl<E: Marshal> Marshal for &[E] {
         buf.push(0);
         buf.push(0);
 
+        crate::wire::util::pad_to_align(E::alignment(), buf);
+
         if self.is_empty() {
             return Ok(());
         }
-        crate::wire::util::pad_to_align(E::alignment(), buf);
 
         // we can reserve at least one byte per entry without wasting memory, and save at least a few reallocations of buf
         buf.reserve(self.len());
@@ -314,10 +315,11 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
         buf.push(0);
         buf.push(0);
 
+        crate::wire::util::pad_to_align(E::alignment(), buf);
+
         if self.0.is_empty() {
             return Ok(());
         }
-        crate::wire::util::pad_to_align(E::alignment(), buf);
 
         let size_of_content = std::mem::size_of::<E>() * self.0.len();
         let len_before_resize = buf.len();
@@ -401,7 +403,7 @@ fn verify_optimized_arrays() {
     assert_eq!(vec![0, 0, 0, 0], buf_old);
 }
 
-impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
+impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
     fn marshal(
         &self,
         byteorder: message::ByteOrder,
@@ -416,11 +418,12 @@ impl<K: Marshal, V: Marshal> Marshal for &std::collections::HashMap<K, V> {
         buf.push(0);
         buf.push(0);
 
+        // always align to 8
+        crate::wire::util::pad_to_align(8, buf);
+
         if self.is_empty() {
             return Ok(());
         }
-        // always align to 8
-        crate::wire::util::pad_to_align(8, buf);
 
         let size_before = buf.len();
         for p in self.iter() {
@@ -731,4 +734,30 @@ fn test_trait_signature_creation() {
     body.push_param(&map).unwrap();
 
     assert_eq!("soghbyqutnixaya{s(tuqy)}", msg.get_sig());
+}
+
+#[test]
+fn test_empty_array_padding() {
+    let mut msg = crate::message_builder::OutMessage::new();
+    let body = &mut msg.body;
+    let empty = vec![0u64; 0];
+    body.push_param(&empty[..]).unwrap();
+
+    let empty = crate::params::Container::make_array_with_sig(
+        crate::signature::Type::Base(crate::signature::Base::Uint64),
+        empty.into_iter(),
+    )
+    .unwrap();
+
+    let mut buf = Vec::new();
+    crate::wire::marshal_container::marshal_container_param(
+        &empty,
+        crate::message::ByteOrder::LittleEndian,
+        &mut buf,
+    )
+    .unwrap();
+    
+    // 0 length and padded to 8 bytes even if there are no elements
+    assert_eq!(msg.get_buf(), &[0,0,0,0,0,0,0,0]);
+    assert_eq!(buf.as_slice(), &[0,0,0,0,0,0,0,0]);
 }
