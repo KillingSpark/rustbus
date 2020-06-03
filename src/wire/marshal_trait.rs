@@ -761,3 +761,21 @@ fn test_empty_array_padding() {
     assert_eq!(msg.get_buf(), &[0, 0, 0, 0, 0, 0, 0, 0]);
     assert_eq!(buf.as_slice(), &[0, 0, 0, 0, 0, 0, 0, 0]);
 }
+
+#[test]
+fn test_variant_marshalling() {
+    let mut msg = crate::message_builder::OutMessage::new();
+    let body = &mut msg.body;
+
+    let original = (100u64, "ABCD", true);
+    body.push_variant(original).unwrap();
+
+    assert_eq!(
+        msg.get_buf(),
+        // signature ++ padding ++ u64 ++ string ++ padding ++ boolean
+        &[
+            5, b'(', b't', b's', b'b', b')', b'\0', 0, 100, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, b'A',
+            b'B', b'C', b'D', b'\0', 0, 0, 0, 1, 0, 0, 0
+        ]
+    )
+}
