@@ -22,6 +22,7 @@ pub enum Error {
     InvalidByteOrder,
     InvalidType,
     InvalidSignature,
+    InvalidObjectpath,
     WrongSignature,
     InvalidUtf8,
     InvalidHeaderField,

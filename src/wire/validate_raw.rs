@@ -27,90 +27,94 @@ pub fn validate_marshalled_base(
 
     match sig {
         signature::Base::Byte => {
-            if buf.is_empty() {
+            if buf[offset + padding..].is_empty() {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(1 + padding)
         }
         signature::Base::Uint16 => {
-            if buf.len() < 2 {
+            if buf[offset + padding..].len() < 2 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(2 + padding)
         }
         signature::Base::Int16 => {
-            if buf.len() < 2 {
+            if buf[offset + padding..].len() < 2 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(2 + padding)
         }
         signature::Base::Uint32 => {
-            if buf.len() < 4 {
+            if buf[offset + padding..].len() < 4 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(4 + padding)
         }
         signature::Base::UnixFd => {
-            if buf.len() < 4 {
+            if buf[offset + padding..].len() < 4 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(4 + padding)
         }
         signature::Base::Int32 => {
-            if buf.len() < 4 {
+            if buf[offset + padding..].len() < 4 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(4 + padding)
         }
         signature::Base::Uint64 => {
-            if buf.len() < 8 {
+            if buf[offset + padding..].len() < 8 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(8 + padding)
         }
         signature::Base::Int64 => {
-            if buf.len() < 8 {
+            if buf[offset + padding..].len() < 8 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(8 + padding)
         }
         signature::Base::Double => {
-            if buf.len() < 8 {
+            if buf[offset + padding..].len() < 8 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             Ok(8 + padding)
         }
         signature::Base::Boolean => {
-            if buf.len() < 4 {
+            if buf[offset + padding..].len() < 4 {
                 return Err((offset + padding, Error::NotEnoughBytes));
             }
             let offset = offset + padding;
             let slice = &buf[offset..offset + 4];
-            let (_, val) = crate::wire::util::parse_u32(slice, byteorder)
-                .map_err(|err| (offset + padding, err))?;
+            let (_, val) =
+                crate::wire::util::parse_u32(slice, byteorder).map_err(|err| (offset, err))?;
             match val {
                 0 => Ok(4 + padding),
                 1 => Ok(4 + padding),
-                _ => Err((offset + padding, Error::InvalidBoolean)),
+                _ => Err((offset, Error::InvalidBoolean)),
             }
         }
         signature::Base::String => {
             let offset = offset + padding;
             let (bytes, _string) = crate::wire::util::unmarshal_str(byteorder, &buf[offset..])
-                .map_err(|err| (offset + padding, err))?;
+                .map_err(|err| (offset, err))?;
             Ok(bytes + padding)
         }
         signature::Base::ObjectPath => {
             // TODO validate
             let offset = offset + padding;
-            let (bytes, _string) = crate::wire::util::unmarshal_str(byteorder, &buf[offset..])
-                .map_err(|err| (offset + padding, err))?;
+            let (bytes, string) = crate::wire::util::unmarshal_str(byteorder, &buf[offset..])
+                .map_err(|err| (offset, err))?;
+            crate::params::validate_object_path(string)
+                .map_err(|_| (offset, Error::InvalidObjectpath))?;
             Ok(bytes + padding)
         }
         signature::Base::Signature => {
             // TODO validate
-            let (bytes, _string) = crate::wire::util::unmarshal_signature(buf)
+            let (bytes, string) = crate::wire::util::unmarshal_signature(buf)
                 .map_err(|err| (offset + padding, err))?;
+            crate::params::validate_signature(string)
+                .map_err(|_| (offset, Error::InvalidSignature))?;
             Ok(bytes + padding)
         }
     }
