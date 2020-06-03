@@ -36,6 +36,18 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! To add parameters to messages there are currently two possibilities:
+//! 1. Using the explicit nested structs/enums from rustbus::params
+//! 2. Using the Marshal trait exported as rustbus::Marshal
+//!
+//! The first will work for any and everything you might want to marshal, but is a bit more work to
+//! actually setup. It is also slower than the Marshal trait. So for most applications I would recommend the
+//! newer, faster, and more ergonomic trait based approach.
+//!
+//! For receiving messages only rustbus::params approach is currently supported. I am currently working on improving
+//! this. There are a few ways I could go about this, and I am exploring what works best.
+//!
 
 pub mod auth;
 pub mod client_conn;

@@ -22,43 +22,42 @@ There are some tests for correctness and the dbus-daemon seems to generally acce
 Interoperability with libdbus is not yet thorougly tested, but the dbus-monitor tool correctly displays the signals sent in the 'examples/sig.rs' 
 example which uses pretty much all different types that can occur.
 
-
 The unmarshalling has been fuzzed and doesn't panic on any input so far. If you wanto to help fuzzing, just use the command: `cargo +nightly fuzz run fuzz_unmarshal` 
+
+The API is still very much in progress and breaking changes are to be expected.
 
 # How to use it
 There are some examples in the `examples/` directory but the gist is:
 ```rust
-use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder};
+use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder, client_conn::Timeout};
 
- fn main() -> Result<(), rustbus::client_conn::Error> {
-     // Connect to the session bus
-     let session_path = get_session_bus_path()?;
-     let con = Conn::connect_to_bus(session_path, true)?;
+fn main() -> Result<(), rustbus::client_conn::Error> {
+    // Connect to the session bus
+    let mut rpc_con = RpcConn::session_conn(Timeout::Infinite)?;
 
-     // Wrap the con in an RpcConnection which provides many convenient functions
-     let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+    // send the obligatory hello message
+    rpc_con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
 
-     // send the obligatory hello message
-     rpc_con.send_message(&mut standard_messages::hello(), None)?;
+    // Request a bus name if you want to
+    rpc_con.send_message(&mut standard_messages::request_name(
+        "io.killing.spark".into(),
+        0,
+    ), Timeout::Infinite)?;
 
-     // Request a bus name if you want to
-     rpc_con.send_message(&mut standard_messages::request_name(
-         "io.killing.spark".into(),
-         0,
-     ), None)?;
+    // create a signal with the MessageBuilder API
+    let mut sig = MessageBuilder::new()
+    .signal(
+        "io.killing.spark".into(),
+        "TestSignal".into(),
+        "/io/killing/spark".into(),
+    )
+    .build();
+    
+    // add a parameter to the signal
+    sig.body.push_param("Signal message!").unwrap();
 
-     // send a signal to all bus members
-     let mut sig = MessageBuilder::new()
-     .signal(
-         "io.killing.spark".into(),
-         "TestSignal".into(),
-         "/io/killing/spark".into(),
-     )
-     .with_params(vec![
-         Container::Struct(vec![162254319i32.into(), "AABB".to_owned().into()]).into(),
-     ])
-     .build();
-     rpc_con.send_message(&mut sig, None)?;
-     Ok(())
- }
+    // send a signal to all bus members
+    rpc_con.send_message(&mut sig, Timeout::Infinite)?;
+    Ok(())
+}
 ```

@@ -23,32 +23,35 @@ pub fn unmarshal<'r, 'buf: 'r, T: Unmarshal<'r, 'buf>>(
 }
 
 #[test]
-fn test_generic_unmarshal(){
+fn test_generic_unmarshal() {
     use crate::Marshal;
 
-    // annotate the receiver with a type &str to unmarshal a &str 
+    // annotate the receiver with a type &str to unmarshal a &str
     let mut buf = Vec::new();
     "ABCD".marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
     let _s: &str = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
-    
-    // annotate the receiver with a type bool to unmarshal a bool 
+
+    // annotate the receiver with a type bool to unmarshal a bool
     buf.clear();
     true.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    let _b: bool = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1; 
-    
+    let _b: bool = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+
     // can also use turbofish syntax
     buf.clear();
     0i32.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    let _i = unmarshal::<i32>(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+    let _i = unmarshal::<i32>(ByteOrder::LittleEndian, &buf, 0)
+        .unwrap()
+        .1;
 
     // No type info on let arg = unmarshal(...) is needed if it can be derived by other means
     buf.clear();
-    fn x(_arg: (i32,i32,&str)){};
-    (0,0,"ABCD").marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    let arg = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1; 
+    fn x(_arg: (i32, i32, &str)) {};
+    (0, 0, "ABCD")
+        .marshal(ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    let arg = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
     x(arg);
 }
-
 
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for () {
     fn unmarshal(
