@@ -14,9 +14,10 @@ pub struct Header {
     pub serial: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     NotEnoughBytes,
+    NotEnoughBytesForCollection,
     NotAllBytesUsed,
     InvalidByteOrder,
     InvalidType,
@@ -251,7 +252,7 @@ fn unmarshal_header_field(
         8 => match sig {
             signature::Type::Base(signature::Base::Signature) => {
                 let (b, sig) = unmarshal_signature(&buf[offset..])?;
-                (b, Ok(message::HeaderField::Signature(sig)))
+                (b, Ok(message::HeaderField::Signature(sig.to_owned())))
             }
             _ => (0, Err(Error::WrongSignature)),
         },

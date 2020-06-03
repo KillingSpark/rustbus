@@ -174,7 +174,7 @@ pub fn align_offset(align_to: usize, buf: &[u8], offset: usize) -> Result<usize,
         padding_delete
     };
 
-    if buf.len() < padding_delete {
+    if buf[offset..].len() < padding_delete {
         return Err(unmarshal::Error::NotEnoughBytes);
     }
     for x in 0..padding_delete {
@@ -185,7 +185,7 @@ pub fn align_offset(align_to: usize, buf: &[u8], offset: usize) -> Result<usize,
     Ok(padding_delete)
 }
 
-pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<String> {
+pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<&str> {
     if buf.is_empty() {
         return Err(unmarshal::Error::NotEnoughBytes);
     }
@@ -195,7 +195,7 @@ pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<String> {
     }
     let sig_buf = &buf[1..];
     let string =
-        String::from_utf8(sig_buf[..len].to_vec()).map_err(|_| unmarshal::Error::InvalidUtf8)?;
+        std::str::from_utf8(&sig_buf[..len]).map_err(|_| unmarshal::Error::InvalidUtf8)?;
     Ok((len + 2, string))
 }
 

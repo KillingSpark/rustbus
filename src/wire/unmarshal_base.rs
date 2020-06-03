@@ -92,7 +92,7 @@ pub fn unmarshal_base<'a>(
         signature::Base::Signature => {
             // TODO validate
             let (bytes, string) = unmarshal_signature(buf)?;
-            Ok((bytes, params::Base::Signature(string)))
+            Ok((bytes, params::Base::Signature(string.to_owned())))
         }
     }
 }

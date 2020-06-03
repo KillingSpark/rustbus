@@ -8,3 +8,4 @@ pub mod unmarshal_container;
 pub mod unmarshal_iter;
 pub mod unmarshal_trait;
 pub mod util;
+pub mod validate_raw;
