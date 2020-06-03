@@ -11,7 +11,7 @@ pub fn validate_marshalled(
     sig: &signature::Type,
 ) -> ValidationResult {
     match sig {
-        signature::Type::Base(b) => validate_marshalled_base(byteorder, offset, raw, b),
+        signature::Type::Base(b) => validate_marshalled_base(byteorder, offset, raw, *b),
         signature::Type::Container(c) => validate_marshalled_container(byteorder, offset, raw, c),
     }
 }
@@ -20,7 +20,7 @@ pub fn validate_marshalled_base(
     byteorder: ByteOrder,
     offset: usize,
     buf: &[u8],
-    sig: &signature::Base,
+    sig: signature::Base,
 ) -> ValidationResult {
     let padding = crate::wire::util::align_offset(sig.get_alignment(), buf, offset)
         .map_err(|err| (offset, err))?;
@@ -182,8 +182,12 @@ pub fn validate_marshalled_container(
                 let element_padding = util::align_offset(8, buf, offset + bytes_used_counter)
                     .map_err(|err| (offset + bytes_used_counter, err))?;
                 bytes_used_counter += element_padding;
-                let key_bytes =
-                    validate_marshalled_base(byteorder, offset + bytes_used_counter, buf, key_sig)?;
+                let key_bytes = validate_marshalled_base(
+                    byteorder,
+                    offset + bytes_used_counter,
+                    buf,
+                    *key_sig,
+                )?;
                 bytes_used_counter += key_bytes;
                 let val_bytes =
                     validate_marshalled(byteorder, offset + bytes_used_counter, buf, val_sig)?;
