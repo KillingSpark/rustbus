@@ -295,6 +295,7 @@ impl Type {
                 Token::String => Ok(Some(Type::Base(Base::String))),
                 Token::ObjectPath => Ok(Some(Type::Base(Base::ObjectPath))),
                 Token::Signature => Ok(Some(Type::Base(Base::Signature))),
+                Token::UnixFd => Ok(Some(Type::Base(Base::UnixFd))),
                 Token::Variant => Ok(Some(Type::Container(Container::Variant))),
                 _ => Err(Error::InvalidSignature),
             }

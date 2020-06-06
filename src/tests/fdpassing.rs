@@ -42,7 +42,12 @@ fn test_fd_passing() {
         }
     };
 
-    let fd_from_signal = sig.raw_fds[0];
+    let fd_idx = match sig.params[0] {
+        crate::params::Param::Base(crate::params::Base::UnixFd(fd_idx)) => fd_idx,
+        _ => panic!("Did not receive unixfd param"),
+    };
+
+    let fd_from_signal = sig.raw_fds[fd_idx as usize];
     let mut writefile = unsafe { std::fs::File::from_raw_fd(fd_from_signal) };
     writefile.write_all(TEST_STRING.as_bytes()).unwrap();
 
@@ -65,6 +70,11 @@ fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), clien
 
     sig.raw_fds.push(fd);
     sig.num_fds = Some(1);
+
+    sig.body
+        .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(0)))
+        .unwrap();
+
     con.send_message(&mut sig, client_conn::Timeout::Infinite)?;
 
     let mut sig = MessageBuilder::new()
