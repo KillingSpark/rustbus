@@ -73,38 +73,56 @@ pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
     ))
 }
 
-pub fn unmarshal_next_message<'a, 'e>(
+pub fn unmarshal_dynamic_header(
     header: &Header,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<message::Message<'a, 'e>> {
+) -> UnmarshalResult<message::DynamicHeader> {
     let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
-    let offset = offset + fields_bytes_used;
+    let mut hdr = message::DynamicHeader::default();
+    hdr.serial = Some(header.serial);
+    collect_header_fields(&fields, &mut hdr);
+    Ok((fields_bytes_used, hdr))
+}
 
-    // TODO find in fields
+pub fn unmarshal_body<'a, 'e>(
+    byteorder: message::ByteOrder,
+    sigs: &[crate::signature::Type],
+    buf: &[u8],
+    offset: usize,
+) -> UnmarshalResult<Vec<params::Param<'a, 'e>>> {
+    let padding = align_offset(8, buf, offset)?;
+    let offset = offset + padding;
+
+    let mut params = Vec::new();
+    let mut body_bytes_used = 0;
+    for param_sig in sigs {
+        let (bytes, new_param) =
+            unmarshal_with_sig(byteorder, &param_sig, buf, offset + body_bytes_used)?;
+        params.push(new_param);
+        body_bytes_used += bytes;
+    }
+    Ok((padding + body_bytes_used, params))
+}
+
+pub fn unmarshal_next_message<'a, 'e>(
+    header: &Header,
+    dynheader: message::DynamicHeader,
+    buf: &[u8],
+    offset: usize,
+) -> UnmarshalResult<message::Message<'a, 'e>> {
     if header.body_len == 0 {
         let padding = align_offset(8, buf, offset)?;
-        let mut msg = message::Message {
-            dynheader: message::DynamicHeader {
-                interface: None,
-                member: None,
-                object: None,
-                destination: None,
-                response_serial: None,
-                sender: None,
-                error_name: None,
-                num_fds: None,
-                serial: Some(header.serial),
-            },
+        let msg = message::Message {
+            dynheader,
             params: vec![],
             typ: header.typ,
             raw_fds: Vec::new(),
             flags: header.flags,
         };
-        collect_header_fields(&fields, &mut msg.dynheader);
-        Ok((padding + fields_bytes_used, msg))
+        Ok((padding, msg))
     } else {
-        let sigs = match get_sig_from_fields(&fields) {
+        let sigs = match &dynheader.signature {
             Some(s) => {
                 signature::Type::parse_description(&s).map_err(|_| Error::InvalidSignature)?
             }
@@ -114,39 +132,20 @@ pub fn unmarshal_next_message<'a, 'e>(
             }
         };
 
-        let padding = align_offset(8, buf, offset)?;
-        let offset = offset + padding;
-
         if buf[offset..].len() < (header.body_len as usize) {
             return Err(Error::NotEnoughBytes);
         }
-        let mut params = Vec::new();
-        let mut body_bytes_used = 0;
-        for param_sig in sigs {
-            let (bytes, new_param) =
-                unmarshal_with_sig(header.byteorder, &param_sig, buf, offset + body_bytes_used)?;
-            params.push(new_param);
-            body_bytes_used += bytes;
-        }
-        let mut msg = message::Message {
-            dynheader: message::DynamicHeader {
-                interface: None,
-                member: None,
-                object: None,
-                destination: None,
-                response_serial: None,
-                sender: None,
-                error_name: None,
-                num_fds: None,
-                serial: Some(header.serial),
-            },
+
+        let (body_bytes_used, params) = unmarshal_body(header.byteorder, &sigs, buf, offset)?;
+
+        let msg = message::Message {
+            dynheader,
             params,
             typ: header.typ,
             raw_fds: Vec::new(),
             flags: header.flags,
         };
-        collect_header_fields(&fields, &mut msg.dynheader);
-        Ok((padding + fields_bytes_used + body_bytes_used, msg))
+        Ok((body_bytes_used, msg))
     }
 }
 
@@ -278,23 +277,6 @@ fn unmarshal_header_field(
     }
 }
 
-fn get_sig_from_fields(header_fields: &[message::HeaderField]) -> Option<String> {
-    for h in header_fields {
-        match h {
-            message::HeaderField::Destination(_) => {}
-            message::HeaderField::ErrorName(_) => {}
-            message::HeaderField::Interface(_) => {}
-            message::HeaderField::Member(_) => {}
-            message::HeaderField::Path(_) => {}
-            message::HeaderField::ReplySerial(_) => {}
-            message::HeaderField::Sender(_) => {}
-            message::HeaderField::Signature(s) => return Some(s.clone()),
-            message::HeaderField::UnixFds(_) => {}
-        }
-    }
-    None
-}
-
 fn collect_header_fields(header_fields: &[message::HeaderField], hdr: &mut message::DynamicHeader) {
     for h in header_fields {
         match h {
@@ -305,7 +287,7 @@ fn collect_header_fields(header_fields: &[message::HeaderField], hdr: &mut messa
             message::HeaderField::Path(p) => hdr.object = Some(p.clone()),
             message::HeaderField::ReplySerial(r) => hdr.response_serial = Some(*r),
             message::HeaderField::Sender(s) => hdr.sender = Some(s.clone()),
-            message::HeaderField::Signature(_) => {}
+            message::HeaderField::Signature(s) => hdr.signature = Some(s.clone()),
             message::HeaderField::UnixFds(u) => hdr.num_fds = Some(*u),
         }
     }

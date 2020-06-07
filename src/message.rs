@@ -21,6 +21,7 @@ pub struct DynamicHeader {
     pub destination: Option<String>,
     pub serial: Option<u32>,
     pub sender: Option<String>,
+    pub signature: Option<String>,
     pub error_name: Option<String>,
     pub response_serial: Option<u32>,
     pub num_fds: Option<u32>,
@@ -81,8 +82,8 @@ impl<'a, 'e> Message<'a, 'e> {
     }
 
     /// Make a correctly addressed response with the correct response serial
-    pub fn make_response(&self) -> crate::message_builder::OutMessage {
-        crate::message_builder::OutMessage {
+    pub fn make_response(&self) -> crate::message_builder::MarshalledMessage {
+        crate::message_builder::MarshalledMessage {
             typ: MessageType::Reply,
             dynheader: DynamicHeader {
                 interface: None,
@@ -92,12 +93,13 @@ impl<'a, 'e> Message<'a, 'e> {
                 serial: None,
                 num_fds: None,
                 sender: None,
+                signature: None,
                 response_serial: self.dynheader.serial,
                 error_name: None,
             },
             raw_fds: Vec::new(),
             flags: 0,
-            body: crate::message_builder::OutMessageBody::new(),
+            body: crate::message_builder::MarshalledMessageBody::new(),
         }
     }
 
@@ -106,8 +108,8 @@ impl<'a, 'e> Message<'a, 'e> {
         &self,
         error_name: String,
         error_msg: Option<String>,
-    ) -> crate::message_builder::OutMessage {
-        let mut err_resp = crate::message_builder::OutMessage {
+    ) -> crate::message_builder::MarshalledMessage {
+        let mut err_resp = crate::message_builder::MarshalledMessage {
             typ: MessageType::Reply,
             dynheader: DynamicHeader {
                 interface: None,
@@ -117,12 +119,13 @@ impl<'a, 'e> Message<'a, 'e> {
                 serial: None,
                 num_fds: None,
                 sender: None,
+                signature: None,
                 response_serial: self.dynheader.serial,
                 error_name: Some(error_name),
             },
             raw_fds: Vec::new(),
             flags: 0,
-            body: crate::message_builder::OutMessageBody::new(),
+            body: crate::message_builder::MarshalledMessageBody::new(),
         };
         if let Some(text) = error_msg {
             err_resp.body.push_param(text).unwrap();

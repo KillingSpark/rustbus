@@ -3,17 +3,19 @@ use rustbus::params::Container;
 use rustbus::params::DictMap;
 use rustbus::params::Param;
 use rustbus::wire::marshal::marshal;
+use rustbus::wire::unmarshal::unmarshal_dynamic_header;
 use rustbus::wire::unmarshal::unmarshal_header;
 use rustbus::wire::unmarshal::unmarshal_next_message;
 
-fn marsh(msg: &rustbus::message_builder::OutMessage, buf: &mut Vec<u8>) {
+fn marsh(msg: &rustbus::message_builder::MarshalledMessage, buf: &mut Vec<u8>) {
     marshal(msg, rustbus::message::ByteOrder::LittleEndian, &[], buf).unwrap();
 }
 
 fn unmarshal(buf: &[u8]) {
-    let (_, header) = unmarshal_header(&buf, 0).unwrap();
+    let (hdrbytes, header) = unmarshal_header(&buf, 0).unwrap();
+    let (dynhdrbytes, dynheader) = unmarshal_dynamic_header(&header, &buf, hdrbytes).unwrap();
     let (_, _unmarshed_msg) =
-        unmarshal_next_message(&header, &buf, rustbus::wire::unmarshal::HEADER_LEN).unwrap();
+        unmarshal_next_message(&header, dynheader, &buf, hdrbytes + dynhdrbytes).unwrap();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

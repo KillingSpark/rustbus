@@ -2,9 +2,9 @@
 
 use crate::message;
 use crate::message_builder::MessageBuilder;
-use crate::message_builder::OutMessage;
+use crate::message_builder::MarshalledMessage;
 
-pub fn hello() -> OutMessage {
+pub fn hello() -> MarshalledMessage {
     MessageBuilder::new()
         .call("Hello".into())
         .on("/org/freedesktop/DBus".into())
@@ -13,7 +13,7 @@ pub fn hello() -> OutMessage {
         .build()
 }
 
-pub fn ping(dest: String) -> OutMessage {
+pub fn ping(dest: String) -> MarshalledMessage {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -22,7 +22,7 @@ pub fn ping(dest: String) -> OutMessage {
         .build()
 }
 
-pub fn ping_bus() -> OutMessage {
+pub fn ping_bus() -> MarshalledMessage {
     MessageBuilder::new()
         .call("Ping".into())
         .on("/org/freedesktop/DBus".into())
@@ -30,7 +30,7 @@ pub fn ping_bus() -> OutMessage {
         .build()
 }
 
-pub fn list_names() -> OutMessage {
+pub fn list_names() -> MarshalledMessage {
     MessageBuilder::new()
         .call("ListNames".into())
         .on("/org/freedesktop/DBus".into())
@@ -49,7 +49,7 @@ pub const DBUS_REQUEST_NAME_REPLY_EXISTS: u32 = 3;
 pub const DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER: u32 = 4;
 
 /// Request a name on the bus
-pub fn request_name(name: String, flags: u32) -> OutMessage {
+pub fn request_name(name: String, flags: u32) -> MarshalledMessage {
     let mut msg = MessageBuilder::new()
         .call("RequestName".into())
         .on("/org/freedesktop/DBus".into())
@@ -63,7 +63,7 @@ pub fn request_name(name: String, flags: u32) -> OutMessage {
 }
 
 /// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
-pub fn add_match(match_rule: String) -> OutMessage {
+pub fn add_match(match_rule: String) -> MarshalledMessage {
     let mut msg = MessageBuilder::new()
         .call("AddMatch".into())
         .on("/org/freedesktop/DBus".into())
@@ -76,7 +76,7 @@ pub fn add_match(match_rule: String) -> OutMessage {
 }
 
 /// Error message to tell the caller that this method is not known by your server
-pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> OutMessage {
+pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> MarshalledMessage {
     let text = format!(
         "No calls to {}.{} are accepted for object {}",
         call.dynheader
@@ -99,7 +99,7 @@ pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> OutMessage {
 }
 
 /// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
-pub fn invalid_args<'a, 'e>(call: &message::Message<'a, 'e>, sig: Option<&str>) -> OutMessage {
+pub fn invalid_args<'a, 'e>(call: &message::Message<'a, 'e>, sig: Option<&str>) -> MarshalledMessage {
     let text = format!(
         "Invalid arguments for calls to {}.{} on object {} {}",
         call.dynheader

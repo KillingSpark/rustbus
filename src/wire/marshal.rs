@@ -4,7 +4,7 @@ use crate::params;
 use crate::wire::util::*;
 
 pub fn marshal(
-    msg: &crate::message_builder::OutMessage,
+    msg: &crate::message_builder::MarshalledMessage,
     byteorder: message::ByteOrder,
     header_fields: &[message::HeaderField],
     buf: &mut Vec<u8>,
@@ -22,7 +22,7 @@ pub fn marshal(
 }
 
 fn marshal_header(
-    msg: &crate::message_builder::OutMessage,
+    msg: &crate::message_builder::MarshalledMessage,
     byteorder: message::ByteOrder,
     header_fields: &[message::HeaderField],
     buf: &mut Vec<u8>,

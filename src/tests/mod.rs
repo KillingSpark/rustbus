@@ -1,6 +1,7 @@
 use crate::params::Base;
 use crate::params::Param;
 use crate::wire::marshal::marshal;
+use crate::wire::unmarshal::unmarshal_dynamic_header;
 use crate::wire::unmarshal::unmarshal_header;
 use crate::wire::unmarshal::unmarshal_next_message;
 
@@ -43,10 +44,11 @@ fn test_marshal_unmarshal() {
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
-    let (_, header) = unmarshal_header(&buf, 0).unwrap();
+    let (hdrbytes, header) = unmarshal_header(&buf, 0).unwrap();
+    let (dynhdrbytes, dynheader) = unmarshal_dynamic_header(&header, &buf, hdrbytes).unwrap();
 
     let (_, unmarshed_msg) =
-        unmarshal_next_message(&header, &buf, crate::wire::unmarshal::HEADER_LEN).unwrap();
+        unmarshal_next_message(&header, dynheader, &buf, hdrbytes + dynhdrbytes).unwrap();
 
     assert_eq!(params, unmarshed_msg.params);
 }

@@ -758,7 +758,7 @@ impl Marshal for UnixFd {
 
 #[test]
 fn test_trait_signature_creation() {
-    let mut msg = crate::message_builder::OutMessage::new();
+    let mut msg = crate::message_builder::MarshalledMessage::new();
     let body = &mut msg.body;
 
     body.push_param("a").unwrap();
@@ -785,7 +785,7 @@ fn test_trait_signature_creation() {
 
 #[test]
 fn test_empty_array_padding() {
-    let mut msg = crate::message_builder::OutMessage::new();
+    let mut msg = crate::message_builder::MarshalledMessage::new();
     let body = &mut msg.body;
     let empty = vec![0u64; 0];
     body.push_param(&empty[..]).unwrap();
@@ -811,7 +811,7 @@ fn test_empty_array_padding() {
 
 #[test]
 fn test_variant_marshalling() {
-    let mut msg = crate::message_builder::OutMessage::new();
+    let mut msg = crate::message_builder::MarshalledMessage::new();
     let body = &mut msg.body;
 
     let original = (100u64, "ABCD", true);

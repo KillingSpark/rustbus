@@ -6,28 +6,28 @@ use std::os::unix::io::RawFd;
 
 #[derive(Default)]
 pub struct MessageBuilder {
-    msg: OutMessage,
+    msg: MarshalledMessage,
 }
 
 pub struct CallBuilder {
-    msg: OutMessage,
+    msg: MarshalledMessage,
 }
 pub struct SignalBuilder {
-    msg: OutMessage,
+    msg: MarshalledMessage,
 }
 
 impl MessageBuilder {
     /// New messagebuilder with the default little endian byteorder
     pub fn new() -> MessageBuilder {
         MessageBuilder {
-            msg: OutMessage::new(),
+            msg: MarshalledMessage::new(),
         }
     }
 
     /// New messagebuilder with a chosen byteorder
     pub fn with_byteorder(b: message::ByteOrder) -> MessageBuilder {
         MessageBuilder {
-            msg: OutMessage::with_byteorder(b),
+            msg: MarshalledMessage::with_byteorder(b),
         }
     }
 
@@ -61,7 +61,7 @@ impl CallBuilder {
         self
     }
 
-    pub fn build(self) -> OutMessage {
+    pub fn build(self) -> MarshalledMessage {
         self.msg
     }
 }
@@ -72,14 +72,14 @@ impl SignalBuilder {
         self
     }
 
-    pub fn build(self) -> OutMessage {
+    pub fn build(self) -> MarshalledMessage {
         self.msg
     }
 }
 
 #[derive(Debug)]
-pub struct OutMessage {
-    pub body: OutMessageBody,
+pub struct MarshalledMessage {
+    pub body: MarshalledMessageBody,
 
     pub dynheader: message::DynamicHeader,
 
@@ -90,17 +90,17 @@ pub struct OutMessage {
     pub flags: u8,
 }
 
-impl Default for OutMessage {
+impl Default for MarshalledMessage {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// This reprsents a message while it is being built before it is sent over the connection.
+/// This represents a message while it is being built before it is sent over the connection.
 /// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
 /// And you can of course write an Marshal impl for your own datastructures. See the doc on the Marshal trait what you have
 /// to look out for when doing this though.
-impl OutMessage {
+impl MarshalledMessage {
     pub fn get_buf(&self) -> &[u8] {
         &self.body.buf
     }
@@ -110,38 +110,55 @@ impl OutMessage {
 
     /// New message with the default little endian byteorder
     pub fn new() -> Self {
-        OutMessage {
+        MarshalledMessage {
             typ: message::MessageType::Invalid,
             dynheader: message::DynamicHeader::default(),
 
             raw_fds: Vec::new(),
             flags: 0,
-            body: OutMessageBody::new(),
+            body: MarshalledMessageBody::new(),
         }
     }
 
     /// New messagebody with a chosen byteorder
     pub fn with_byteorder(b: message::ByteOrder) -> Self {
-        OutMessage {
+        MarshalledMessage {
             typ: message::MessageType::Invalid,
             dynheader: message::DynamicHeader::default(),
 
             raw_fds: Vec::new(),
             flags: 0,
-            body: OutMessageBody::with_byteorder(b),
+            body: MarshalledMessageBody::with_byteorder(b),
         }
+    }
+
+    pub fn unmarshall_all<'a, 'e>(
+        self,
+    ) -> Result<message::Message<'a, 'e>, crate::wire::unmarshal::Error> {
+        let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)
+            .map_err(|_| crate::wire::unmarshal::Error::InvalidSignature)?;
+
+        let (_, params) =
+            crate::wire::unmarshal::unmarshal_body(self.body.byteorder, &sigs, &self.body.buf, 0)?;
+        Ok(message::Message {
+            dynheader: self.dynheader,
+            params,
+            typ: self.typ,
+            flags: self.flags,
+            raw_fds: self.raw_fds,
+        })
     }
 }
 /// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
 /// And you can of course write an Marshal impl for your own datastrcutures
 #[derive(Debug)]
-pub struct OutMessageBody {
+pub struct MarshalledMessageBody {
     buf: Vec<u8>,
     sig: String,
     byteorder: message::ByteOrder,
 }
 
-impl Default for OutMessageBody {
+impl Default for MarshalledMessageBody {
     fn default() -> Self {
         Self::new()
     }
@@ -167,10 +184,10 @@ pub fn marshal_as_variant<P: Marshal>(
     Ok(())
 }
 
-impl OutMessageBody {
+impl MarshalledMessageBody {
     /// New messagebody with the default little endian byteorder
     pub fn new() -> Self {
-        OutMessageBody {
+        MarshalledMessageBody {
             buf: Vec::new(),
             sig: String::new(),
             byteorder: message::ByteOrder::LittleEndian,
@@ -179,7 +196,7 @@ impl OutMessageBody {
 
     /// New messagebody with a chosen byteorder
     pub fn with_byteorder(b: message::ByteOrder) -> Self {
-        OutMessageBody {
+        MarshalledMessageBody {
             buf: Vec::new(),
             sig: String::new(),
             byteorder: b,
@@ -290,7 +307,7 @@ impl OutMessageBody {
 
 #[test]
 fn test_marshal_trait() {
-    let mut body = OutMessageBody::new();
+    let mut body = MarshalledMessageBody::new();
     let bytes: &[&[_]] = &[&[4u64]];
     body.push_param(bytes).unwrap();
 
@@ -300,7 +317,7 @@ fn test_marshal_trait() {
     );
     assert_eq!(body.sig.as_str(), "aat");
 
-    let mut body = OutMessageBody::new();
+    let mut body = MarshalledMessageBody::new();
     let mut map = std::collections::HashMap::new();
     map.insert("a", 4u32);
 
@@ -311,7 +328,7 @@ fn test_marshal_trait() {
     );
     assert_eq!(body.sig.as_str(), "a{su}");
 
-    let mut body = OutMessageBody::new();
+    let mut body = MarshalledMessageBody::new();
     body.push_param((11u64, "str", true)).unwrap();
     assert_eq!(body.sig.as_str(), "(tsb)");
     assert_eq!(
@@ -351,7 +368,7 @@ fn test_marshal_trait() {
         }
     }
 
-    let mut body = OutMessageBody::new();
+    let mut body = MarshalledMessageBody::new();
     body.push_param(&MyStruct {
         x: 100,
         y: "A".to_owned(),
@@ -363,7 +380,7 @@ fn test_marshal_trait() {
         body.buf
     );
 
-    let mut body = OutMessageBody::new();
+    let mut body = MarshalledMessageBody::new();
     let emptymap: std::collections::HashMap<&str, u32> = std::collections::HashMap::new();
     let mut map = std::collections::HashMap::new();
     let mut map2 = std::collections::HashMap::new();
@@ -424,11 +441,11 @@ pub struct MessageBodyIter<'body> {
     buf_idx: usize,
     sig_idx: usize,
     sigs: Vec<crate::signature::Type>,
-    body: &'body OutMessageBody,
+    body: &'body MarshalledMessageBody,
 }
 
 impl<'body> MessageBodyIter<'body> {
-    pub fn new(body: &'body OutMessageBody) -> Self {
+    pub fn new(body: &'body MarshalledMessageBody) -> Self {
         Self {
             buf_idx: 0,
             sig_idx: 0,

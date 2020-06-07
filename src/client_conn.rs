@@ -168,7 +168,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     /// Send a message to the bus
     pub fn send_message(
         &mut self,
-        msg: &mut crate::message_builder::OutMessage,
+        msg: &mut crate::message_builder::MarshalledMessage,
         timeout: Timeout,
     ) -> Result<u32> {
         self.conn.send_message(msg, timeout)
@@ -257,7 +257,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     /// but error replies should always be sent. For this reason replies to all filtered calls are collected and returned.
     /// The original messages are dropped immediatly, so it should keep memory usage
     /// relatively low. The caller is responsible to send these error replies over the RpcConn, at a convenient time.
-    pub fn refill_all(&mut self) -> Result<Vec<crate::message_builder::OutMessage>> {
+    pub fn refill_all(&mut self) -> Result<Vec<crate::message_builder::MarshalledMessage>> {
         let mut filtered_out = Vec::new();
         loop {
             //  break if the call would block (aka no more io is possible), or return if an actual error occured
@@ -536,10 +536,18 @@ impl<'msga, 'msge> Conn {
     /// Blocks until a message has been read from the conn or the timeout has been reached
     pub fn get_next_message(&mut self, timeout: Timeout) -> Result<message::Message<'msga, 'msge>> {
         self.read_whole_message(timeout)?;
-        let (_, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
-        let (bytes_used, mut msg) =
-            unmarshal::unmarshal_next_message(&header, &self.msg_buf_in, unmarshal::HEADER_LEN)?;
-        if self.msg_buf_in.len() != bytes_used + unmarshal::HEADER_LEN {
+        let (hdrbytes, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
+        let (dynhdrbytes, dynheader) =
+            unmarshal::unmarshal_dynamic_header(&header, &self.msg_buf_in, hdrbytes)?;
+
+        let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(
+            &header,
+            dynheader,
+            &self.msg_buf_in,
+            hdrbytes + dynhdrbytes,
+        )?;
+        
+        if self.msg_buf_in.len() != bytes_used + hdrbytes + dynhdrbytes {
             return Err(Error::UnmarshalError(unmarshal::Error::NotAllBytesUsed));
         }
         self.msg_buf_in.clear();
@@ -569,7 +577,7 @@ impl<'msga, 'msge> Conn {
     /// send a message over the conn
     pub fn send_message(
         &mut self,
-        msg: &mut crate::message_builder::OutMessage,
+        msg: &mut crate::message_builder::MarshalledMessage,
         timeout: Timeout,
     ) -> Result<u32> {
         self.msg_buf_out.clear();

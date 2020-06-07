@@ -6,7 +6,7 @@ pub enum Commands {
 }
 
 impl<'a, 'e> Commands {
-    fn execute(&self, call: &Message<'a, 'e>) -> rustbus::message_builder::OutMessage {
+    fn execute(&self, call: &Message<'a, 'e>) -> rustbus::message_builder::MarshalledMessage {
         match self {
             Commands::Echo => {
                 let mut reply = call.make_response();
