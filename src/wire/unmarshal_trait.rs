@@ -58,6 +58,37 @@ use crate::wire::util;
 ///     }
 /// }
 /// ```
+/// 
+/// This is of course just an example, this could be solved by using 
+/// ```rust,ignore
+/// let (bytes, mycoolint) =  <(u64,) as Unmarshal>::unmarshal(...)
+/// ```
+///
+/// ## Cool things you can do
+/// If the message contains some form of secondary marshalling, of another format, you can do this here too, insteadof copying the bytes 
+/// array around before doing the secondary unmarshalling. Just keep in mind that you have to report the accurat number of bytes used, and not to
+/// use any bytes in the message, not belonging to that byte array
+/// ```rust,ignore
+/// impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for MyStruct {
+///     fn unmarshal(
+///         byteorder: ByteOrder,
+///         buf: &'buf [u8],
+///         offset: usize,
+///     ) -> UnmarshalResult<Self> {
+///         // check that we are aligned properly
+///         let padding = util::align_offset(Self::alignment(), buf, offset)?;
+///         let offset = offset + padding;
+///
+///         // decode array length stuff and adjust offset
+///         let (bytes, arraylen) = u32::unmarshal(byteorder, buf, offset)?;
+///         let offset = offset + bytes;
+///         let marshalled_stuff = &buf[offset..arraylen as usize];
+///         let unmarshalled_stuff = external_crate::unmarshal_stuff(&buf);
+///         Ok((padding + bytes + arraylen as usize, MyStruct{unmarshalled_stuff}))
+///     }
+/// }
+/// ```
+
 pub trait Unmarshal<'r, 'buf: 'r>: Sized + Signature {
     fn unmarshal(
         byteorder: ByteOrder,
