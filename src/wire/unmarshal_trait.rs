@@ -58,14 +58,14 @@ use crate::wire::util;
 ///     }
 /// }
 /// ```
-/// 
-/// This is of course just an example, this could be solved by using 
+///
+/// This is of course just an example, this could be solved by using
 /// ```rust,ignore
 /// let (bytes, mycoolint) =  <(u64,) as Unmarshal>::unmarshal(...)
 /// ```
 ///
 /// ## Cool things you can do
-/// If the message contains some form of secondary marshalling, of another format, you can do this here too, insteadof copying the bytes 
+/// If the message contains some form of secondary marshalling, of another format, you can do this here too, insteadof copying the bytes
 /// array around before doing the secondary unmarshalling. Just keep in mind that you have to report the accurat number of bytes used, and not to
 /// use any bytes in the message, not belonging to that byte array
 /// ```rust,ignore
@@ -389,6 +389,48 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for String {
         let (bytes, val) = util::unmarshal_string(byteorder, &buf[offset..])?;
         Ok((bytes + padding, val))
     }
+}
+
+/// for byte arrays we can give an efficient method of decoding. This will bind the returned slice to the lifetime of the buffer.
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for &'r [u8] {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(4, buf, offset)?;
+        let offset = offset + padding;
+        let (_, bytes_in_array) = util::parse_u32(&buf[offset..], byteorder)?;
+        let offset = offset + 4;
+
+        let first_elem_padding = util::align_offset(u8::alignment(), buf, offset)?;
+        let offset = offset + first_elem_padding;
+
+        let elements = &buf[offset..offset + bytes_in_array as usize];
+
+        let total_bytes_used = padding + 4 + bytes_in_array as usize;
+
+        Ok((total_bytes_used, elements))
+    }
+}
+
+#[test]
+fn test_unmarshal_byte_array() {
+    use crate::Marshal;
+    let mut orig = vec![];
+    for x in 0..1024 {
+        orig.push((x % 255) as u8);
+    }
+
+    let mut buf = Vec::new();
+    orig.marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+    assert_eq!(&buf[..4], &[0, 4, 0, 0]);
+    assert_eq!(buf.len(), 1028);
+    let (bytes, unorig) =
+        <&[u8] as Unmarshal>::unmarshal(crate::message::ByteOrder::LittleEndian, &buf, 0).unwrap();
+    assert_eq!(bytes, orig.len() + 4);
+    assert_eq!(orig, unorig);
 }
 
 impl<E: Signature> Signature for Vec<E> {
