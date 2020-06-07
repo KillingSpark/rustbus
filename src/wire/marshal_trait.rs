@@ -694,6 +694,11 @@ impl<'a> ObjectPath<'a> {
         Ok(ObjectPath(path))
     }
 }
+impl<'a> AsRef<str> for ObjectPath<'a> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
 impl Signature for ObjectPath<'_> {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::ObjectPath)
@@ -717,6 +722,11 @@ impl<'a> SignatureWrapper<'a> {
     pub fn new(sig: &'a str) -> Result<Self, message::Error> {
         crate::params::validate_signature(sig)?;
         Ok(SignatureWrapper(sig))
+    }
+}
+impl<'a> AsRef<str> for SignatureWrapper<'a> {
+    fn as_ref(&self) -> &str {
+        self.0
     }
 }
 impl Signature for SignatureWrapper<'_> {

@@ -389,6 +389,43 @@ impl<'r, 'buf: 'r, K: Unmarshal<'r, 'buf> + std::hash::Hash + Eq, V: Unmarshal<'
     }
 }
 
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal_trait::UnixFd {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let (bytes, val) = u32::unmarshal(byteorder, buf, offset)?;
+        Ok((bytes, crate::wire::marshal_trait::UnixFd(val)))
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal_trait::SignatureWrapper<'r> {
+    fn unmarshal(
+        _byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let padding = util::align_offset(Self::alignment(), buf, offset)?;
+        let offset = offset + padding;
+        let (bytes, val) = util::unmarshal_signature(&buf[offset..])?;
+        let sig = crate::wire::marshal_trait::SignatureWrapper::new(val)
+            .map_err(|_err| crate::wire::unmarshal::Error::InvalidSignature)?;
+        Ok((bytes, sig))
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal_trait::ObjectPath<'r> {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let (bytes, val) = <&str as Unmarshal>::unmarshal(byteorder, buf, offset)?;
+        let path = crate::wire::marshal_trait::ObjectPath::new(val)
+            .map_err(|_err| crate::wire::unmarshal::Error::InvalidSignature)?;
+        Ok((bytes, path))
+    }
+}
+
 #[test]
 fn test_unmarshal_trait() {
     use crate::Marshal;
@@ -422,4 +459,31 @@ fn test_unmarshal_trait() {
     type ST = (u8, bool, u8, i32);
     let s = ST::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
     assert_eq!(orig, s);
+
+    buf.clear();
+
+    use crate::wire::marshal_trait::{ObjectPath, SignatureWrapper, UnixFd};
+    let orig = (
+        ObjectPath::new("/a/b/c").unwrap(),
+        SignatureWrapper::new("ss(aiau)").unwrap(),
+        UnixFd(10),
+    );
+    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    assert_eq!(
+        &buf,
+        &[
+            6, 0, 0, 0, b'/', b'a', b'/', b'b', b'/', b'c', 0, 8, b's', b's', b'(', b'a', b'i',
+            b'a', b'u', b')', 0, 0, 0, 0, 10, 0, 0, 0
+        ]
+    );
+    let (_, (p, s, fd)) = <(ObjectPath, SignatureWrapper, UnixFd) as Unmarshal>::unmarshal(
+        ByteOrder::LittleEndian,
+        &buf,
+        0,
+    )
+    .unwrap();
+
+    assert_eq!(p.as_ref(), "/a/b/c");
+    assert_eq!(s.as_ref(), "ss(aiau)");
+    assert_eq!(fd.0, 10);
 }
