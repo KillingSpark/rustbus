@@ -63,7 +63,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         .build();
 
     msg.body.push_old_params(&params).unwrap();
-    msg.serial = Some(1);
+    msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     c.bench_function("marshal", |b| {
         b.iter(|| {

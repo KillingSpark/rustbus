@@ -85,21 +85,23 @@ pub fn unmarshal_next_message<'a, 'e>(
     if header.body_len == 0 {
         let padding = align_offset(8, buf, offset)?;
         let mut msg = message::Message {
-            interface: None,
-            member: None,
-            object: None,
-            destination: None,
-            response_serial: None,
-            sender: None,
-            error_name: None,
-            num_fds: None,
+            dynheader: message::DynamicHeader {
+                interface: None,
+                member: None,
+                object: None,
+                destination: None,
+                response_serial: None,
+                sender: None,
+                error_name: None,
+                num_fds: None,
+                serial: Some(header.serial),
+            },
             params: vec![],
             typ: header.typ,
-            serial: Some(header.serial),
             raw_fds: Vec::new(),
             flags: header.flags,
         };
-        collect_header_fields(&fields, &mut msg);
+        collect_header_fields(&fields, &mut msg.dynheader);
         Ok((padding + fields_bytes_used, msg))
     } else {
         let sigs = match get_sig_from_fields(&fields) {
@@ -127,21 +129,23 @@ pub fn unmarshal_next_message<'a, 'e>(
             body_bytes_used += bytes;
         }
         let mut msg = message::Message {
-            interface: None,
-            member: None,
-            object: None,
-            destination: None,
-            response_serial: None,
-            sender: None,
-            error_name: None,
-            num_fds: None,
+            dynheader: message::DynamicHeader {
+                interface: None,
+                member: None,
+                object: None,
+                destination: None,
+                response_serial: None,
+                sender: None,
+                error_name: None,
+                num_fds: None,
+                serial: Some(header.serial),
+            },
             params,
             typ: header.typ,
-            serial: Some(header.serial),
             raw_fds: Vec::new(),
             flags: header.flags,
         };
-        collect_header_fields(&fields, &mut msg);
+        collect_header_fields(&fields, &mut msg.dynheader);
         Ok((padding + fields_bytes_used + body_bytes_used, msg))
     }
 }
@@ -291,18 +295,18 @@ fn get_sig_from_fields(header_fields: &[message::HeaderField]) -> Option<String>
     None
 }
 
-fn collect_header_fields(header_fields: &[message::HeaderField], msg: &mut message::Message) {
+fn collect_header_fields(header_fields: &[message::HeaderField], hdr: &mut message::DynamicHeader) {
     for h in header_fields {
         match h {
-            message::HeaderField::Destination(d) => msg.destination = Some(d.clone()),
-            message::HeaderField::ErrorName(e) => msg.error_name = Some(e.clone()),
-            message::HeaderField::Interface(s) => msg.interface = Some(s.clone()),
-            message::HeaderField::Member(m) => msg.member = Some(m.clone()),
-            message::HeaderField::Path(p) => msg.object = Some(p.clone()),
-            message::HeaderField::ReplySerial(r) => msg.response_serial = Some(*r),
-            message::HeaderField::Sender(s) => msg.sender = Some(s.clone()),
+            message::HeaderField::Destination(d) => hdr.destination = Some(d.clone()),
+            message::HeaderField::ErrorName(e) => hdr.error_name = Some(e.clone()),
+            message::HeaderField::Interface(s) => hdr.interface = Some(s.clone()),
+            message::HeaderField::Member(m) => hdr.member = Some(m.clone()),
+            message::HeaderField::Path(p) => hdr.object = Some(p.clone()),
+            message::HeaderField::ReplySerial(r) => hdr.response_serial = Some(*r),
+            message::HeaderField::Sender(s) => hdr.sender = Some(s.clone()),
             message::HeaderField::Signature(_) => {}
-            message::HeaderField::UnixFds(u) => msg.num_fds = Some(*u),
+            message::HeaderField::UnixFds(u) => hdr.num_fds = Some(*u),
         }
     }
 }

@@ -79,9 +79,18 @@ pub fn add_match(match_rule: String) -> OutMessage {
 pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> OutMessage {
     let text = format!(
         "No calls to {}.{} are accepted for object {}",
-        call.interface.clone().unwrap_or_else(|| "".to_owned()),
-        call.member.clone().unwrap_or_else(|| "".to_owned()),
-        call.object.clone().unwrap_or_else(|| "".to_owned()),
+        call.dynheader
+            .interface
+            .clone()
+            .unwrap_or_else(|| "".to_owned()),
+        call.dynheader
+            .member
+            .clone()
+            .unwrap_or_else(|| "".to_owned()),
+        call.dynheader
+            .object
+            .clone()
+            .unwrap_or_else(|| "".to_owned()),
     );
     call.make_error_response(
         "org.freedesktop.DBus.Error.UnknownMethod".to_owned(),
@@ -93,9 +102,18 @@ pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> OutMessage {
 pub fn invalid_args<'a, 'e>(call: &message::Message<'a, 'e>, sig: Option<&str>) -> OutMessage {
     let text = format!(
         "Invalid arguments for calls to {}.{} on object {} {}",
-        call.interface.clone().unwrap_or_else(|| "".to_owned()),
-        call.member.clone().unwrap_or_else(|| "".to_owned()),
-        call.object.clone().unwrap_or_else(|| "".to_owned()),
+        call.dynheader
+            .interface
+            .clone()
+            .unwrap_or_else(|| "".to_owned()),
+        call.dynheader
+            .member
+            .clone()
+            .unwrap_or_else(|| "".to_owned()),
+        call.dynheader
+            .object
+            .clone()
+            .unwrap_or_else(|| "".to_owned()),
         if let Some(sig) = sig {
             format!("expected signature: {}", sig)
         } else {

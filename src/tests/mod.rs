@@ -40,7 +40,7 @@ fn test_marshal_unmarshal() {
     params.push(128u64.into());
     params.push(128i32.into());
 
-    msg.serial = Some(1);
+    msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
     let (_, header) = unmarshal_header(&buf, 0).unwrap();
@@ -94,7 +94,7 @@ fn test_invalid_stuff() {
             "/io/killing/spark".into(),
         )
         .build();
-    msg.serial = Some(1);
+    msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
         Err(crate::message::Error::InvalidInterface),
@@ -109,7 +109,7 @@ fn test_invalid_stuff() {
             "/io/killing/spark".into(),
         )
         .build();
-    msg.serial = Some(1);
+    msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
         Err(crate::message::Error::InvalidMembername),

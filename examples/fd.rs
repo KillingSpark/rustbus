@@ -25,8 +25,12 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         let sig = loop {
             let signal = con.wait_signal(Timeout::Infinite)?;
             println!("Got signal: {:?}", signal);
-            if signal.interface.eq(&Some("io.killing.spark".to_owned())) {
-                if signal.member.eq(&Some("TestSignal".to_owned())) {
+            if signal
+                .dynheader
+                .interface
+                .eq(&Some("io.killing.spark".to_owned()))
+            {
+                if signal.dynheader.member.eq(&Some("TestSignal".to_owned())) {
                     break signal;
                 }
             }
@@ -53,7 +57,7 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
         .build();
 
     sig.raw_fds.push(0);
-    sig.num_fds = Some(1);
+    sig.dynheader.num_fds = Some(1);
     con.send_message(&mut sig, Timeout::Infinite)?;
 
     let mut sig = MessageBuilder::new()

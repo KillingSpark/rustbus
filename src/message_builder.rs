@@ -33,31 +33,31 @@ impl MessageBuilder {
 
     pub fn call(mut self, member: String) -> CallBuilder {
         self.msg.typ = message::MessageType::Call;
-        self.msg.member = Some(member);
+        self.msg.dynheader.member = Some(member);
         CallBuilder { msg: self.msg }
     }
     pub fn signal(mut self, interface: String, member: String, object: String) -> SignalBuilder {
         self.msg.typ = message::MessageType::Signal;
-        self.msg.member = Some(member);
-        self.msg.interface = Some(interface);
-        self.msg.object = Some(object);
+        self.msg.dynheader.member = Some(member);
+        self.msg.dynheader.interface = Some(interface);
+        self.msg.dynheader.object = Some(object);
         SignalBuilder { msg: self.msg }
     }
 }
 
 impl CallBuilder {
     pub fn on(mut self, object_path: String) -> Self {
-        self.msg.object = Some(object_path);
+        self.msg.dynheader.object = Some(object_path);
         self
     }
 
     pub fn with_interface(mut self, interface: String) -> Self {
-        self.msg.interface = Some(interface);
+        self.msg.dynheader.interface = Some(interface);
         self
     }
 
     pub fn at(mut self, destination: String) -> Self {
-        self.msg.destination = Some(destination);
+        self.msg.dynheader.destination = Some(destination);
         self
     }
 
@@ -68,7 +68,7 @@ impl CallBuilder {
 
 impl SignalBuilder {
     pub fn to(mut self, destination: String) -> Self {
-        self.msg.destination = Some(destination);
+        self.msg.dynheader.destination = Some(destination);
         self
     }
 
@@ -81,16 +81,7 @@ impl SignalBuilder {
 pub struct OutMessage {
     pub body: OutMessageBody,
 
-    // dynamic header
-    pub interface: Option<String>,
-    pub member: Option<String>,
-    pub object: Option<String>,
-    pub destination: Option<String>,
-    pub serial: Option<u32>,
-    pub sender: Option<String>,
-    pub error_name: Option<String>,
-    pub response_serial: Option<u32>,
-    pub num_fds: Option<u32>,
+    pub dynheader: message::DynamicHeader,
 
     // out of band data
     pub raw_fds: Vec<RawFd>,
@@ -121,18 +112,10 @@ impl OutMessage {
     pub fn new() -> Self {
         OutMessage {
             typ: message::MessageType::Invalid,
-            interface: None,
-            member: None,
-            object: None,
-            destination: None,
-            serial: None,
-            raw_fds: Vec::new(),
-            num_fds: None,
-            response_serial: None,
-            sender: None,
-            error_name: None,
-            flags: 0,
+            dynheader: message::DynamicHeader::default(),
 
+            raw_fds: Vec::new(),
+            flags: 0,
             body: OutMessageBody::new(),
         }
     }
@@ -141,18 +124,10 @@ impl OutMessage {
     pub fn with_byteorder(b: message::ByteOrder) -> Self {
         OutMessage {
             typ: message::MessageType::Invalid,
-            interface: None,
-            member: None,
-            object: None,
-            destination: None,
-            serial: None,
-            raw_fds: Vec::new(),
-            num_fds: None,
-            response_serial: None,
-            sender: None,
-            error_name: None,
-            flags: 0,
+            dynheader: message::DynamicHeader::default(),
 
+            raw_fds: Vec::new(),
+            flags: 0,
             body: OutMessageBody::with_byteorder(b),
         }
     }

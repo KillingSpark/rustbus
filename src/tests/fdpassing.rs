@@ -35,8 +35,12 @@ fn test_fd_passing() {
 
     let sig = loop {
         let signal = con2.wait_signal(client_conn::Timeout::Infinite).unwrap();
-        if signal.interface.eq(&Some("io.killing.spark".to_owned())) {
-            if signal.member.eq(&Some("TestSignal".to_owned())) {
+        if signal
+            .dynheader
+            .interface
+            .eq(&Some("io.killing.spark".to_owned()))
+        {
+            if signal.dynheader.member.eq(&Some("TestSignal".to_owned())) {
                 break signal;
             }
         }
@@ -69,7 +73,7 @@ fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), clien
         .build();
 
     sig.raw_fds.push(fd);
-    sig.num_fds = Some(1);
+    sig.dynheader.num_fds = Some(1);
 
     sig.body
         .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(0)))

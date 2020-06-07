@@ -49,10 +49,10 @@ pub struct RpcConn<'msga, 'msge> {
 ///
 ///     rpc_con.set_filter(Box::new(|msg| match msg.typ {
 ///     MessageType::Call => {
-///         let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
-///             && msg.interface.eq(&Some("io.killing.spark".into()));
+///         let right_interface_object = msg.dynheader.object.eq(&Some("/io/killing/spark".into()))
+///             && msg.dynheader.interface.eq(&Some("io.killing.spark".into()));
 ///
-///         let right_member = if let Some(member) = &msg.member {
+///         let right_member = if let Some(member) = &msg.dynheader.member {
 ///             member.eq("Echo") || member.eq("Reverse")
 ///         } else {
 ///             false
@@ -187,10 +187,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
                 }
                 message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
                 message::MessageType::Error => {
-                    self.responses.insert(msg.response_serial.unwrap(), msg);
+                    self.responses
+                        .insert(msg.dynheader.response_serial.unwrap(), msg);
                 }
                 message::MessageType::Reply => {
-                    self.responses.insert(msg.response_serial.unwrap(), msg);
+                    self.responses
+                        .insert(msg.dynheader.response_serial.unwrap(), msg);
                 }
                 message::MessageType::Signal => {
                     self.signals.push_back(msg);
@@ -271,10 +273,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
                     }
                     message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
                     message::MessageType::Error => {
-                        self.responses.insert(msg.response_serial.unwrap(), msg);
+                        self.responses
+                            .insert(msg.dynheader.response_serial.unwrap(), msg);
                     }
                     message::MessageType::Reply => {
-                        self.responses.insert(msg.response_serial.unwrap(), msg);
+                        self.responses
+                            .insert(msg.dynheader.response_serial.unwrap(), msg);
                     }
                     message::MessageType::Signal => {
                         self.signals.push_back(msg);
@@ -569,12 +573,12 @@ impl<'msga, 'msge> Conn {
         timeout: Timeout,
     ) -> Result<u32> {
         self.msg_buf_out.clear();
-        let (remove_later, serial) = if let Some(serial) = msg.serial {
+        let (remove_later, serial) = if let Some(serial) = msg.dynheader.serial {
             (false, serial)
         } else {
             let serial = self.serial_counter;
             self.serial_counter += 1;
-            msg.serial = Some(serial);
+            msg.dynheader.serial = Some(serial);
             (true, serial)
         };
 
@@ -616,7 +620,7 @@ impl<'msga, 'msge> Conn {
         assert_eq!(l, self.msg_buf_out.len());
 
         if remove_later {
-            msg.serial = None;
+            msg.dynheader.serial = None;
         }
 
         Ok(serial)

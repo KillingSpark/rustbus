@@ -14,7 +14,10 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         MessageType::Invalid => false,
         MessageType::Error => true,
         MessageType::Reply => true,
-        MessageType::Signal => msg.interface.eq(&Some("io.killing.spark".to_owned())),
+        MessageType::Signal => msg
+            .dynheader
+            .interface
+            .eq(&Some("io.killing.spark".to_owned())),
     }));
 
     //println!("Send message: {:?}", hello_msg);

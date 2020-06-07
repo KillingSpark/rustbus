@@ -13,13 +13,8 @@ pub enum MessageType {
     Invalid,
 }
 
-/// A message with all the different fields it may or may not have
-#[derive(Debug, Clone)]
-pub struct Message<'a, 'e> {
-    pub typ: MessageType,
-    pub flags: u8,
-
-    // dynamic header
+#[derive(Debug, Clone, Default)]
+pub struct DynamicHeader {
     pub interface: Option<String>,
     pub member: Option<String>,
     pub object: Option<String>,
@@ -29,6 +24,16 @@ pub struct Message<'a, 'e> {
     pub error_name: Option<String>,
     pub response_serial: Option<u32>,
     pub num_fds: Option<u32>,
+}
+
+/// A message with all the different fields it may or may not have
+#[derive(Debug, Clone)]
+pub struct Message<'a, 'e> {
+    pub typ: MessageType,
+    pub flags: u8,
+
+    // dynamic header
+    pub dynheader: DynamicHeader,
 
     // body
     pub params: Vec<Param<'a, 'e>>,
@@ -47,33 +52,25 @@ impl<'a, 'e> Message<'a, 'e> {
     /// Create a new empty message
     pub fn new() -> Message<'a, 'e> {
         Message {
-            typ: MessageType::Invalid,
-            interface: None,
-            member: None,
-            params: Vec::new(),
-            object: None,
-            destination: None,
-            serial: None,
-            raw_fds: Vec::new(),
-            num_fds: None,
-            response_serial: None,
-            sender: None,
-            error_name: None,
+            dynheader: DynamicHeader::default(),
             flags: 0,
+            raw_fds: Vec::new(),
+            typ: MessageType::Invalid,
+            params: Vec::new(),
         }
     }
 
     pub fn set_interface(&mut self, interface: String) {
-        self.interface = Some(interface);
+        self.dynheader.interface = Some(interface);
     }
     pub fn set_member(&mut self, member: String) {
-        self.member = Some(member);
+        self.dynheader.member = Some(member);
     }
     pub fn set_object(&mut self, object: String) {
-        self.object = Some(object);
+        self.dynheader.object = Some(object);
     }
     pub fn set_destination(&mut self, dest: String) {
-        self.destination = Some(dest);
+        self.dynheader.destination = Some(dest);
     }
     pub fn push_params<P: Into<Param<'a, 'e>>>(&mut self, params: Vec<P>) {
         self.params
@@ -87,16 +84,18 @@ impl<'a, 'e> Message<'a, 'e> {
     pub fn make_response(&self) -> crate::message_builder::OutMessage {
         crate::message_builder::OutMessage {
             typ: MessageType::Reply,
-            interface: None,
-            member: None,
-            object: None,
-            destination: self.sender.clone(),
-            serial: None,
+            dynheader: DynamicHeader {
+                interface: None,
+                member: None,
+                object: None,
+                destination: self.dynheader.sender.clone(),
+                serial: None,
+                num_fds: None,
+                sender: None,
+                response_serial: self.dynheader.serial,
+                error_name: None,
+            },
             raw_fds: Vec::new(),
-            num_fds: None,
-            sender: None,
-            response_serial: self.serial,
-            error_name: None,
             flags: 0,
             body: crate::message_builder::OutMessageBody::new(),
         }
@@ -110,16 +109,18 @@ impl<'a, 'e> Message<'a, 'e> {
     ) -> crate::message_builder::OutMessage {
         let mut err_resp = crate::message_builder::OutMessage {
             typ: MessageType::Reply,
-            interface: None,
-            member: None,
-            object: None,
-            destination: self.sender.clone(),
-            serial: None,
+            dynheader: DynamicHeader {
+                interface: None,
+                member: None,
+                object: None,
+                destination: self.dynheader.sender.clone(),
+                serial: None,
+                num_fds: None,
+                sender: None,
+                response_serial: self.dynheader.serial,
+                error_name: Some(error_name),
+            },
             raw_fds: Vec::new(),
-            num_fds: None,
-            sender: None,
-            response_serial: self.serial,
-            error_name: Some(error_name),
             flags: 0,
             body: crate::message_builder::OutMessageBody::new(),
         };

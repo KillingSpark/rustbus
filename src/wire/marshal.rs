@@ -56,7 +56,7 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
 
-    match msg.serial {
+    match msg.dynheader.serial {
         Some(serial) => write_u32(serial, byteorder, buf),
         None => return Err(message::Error::NoSerial),
     }
@@ -68,30 +68,30 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
 
-    if let Some(int) = &msg.interface {
+    if let Some(int) = &msg.dynheader.interface {
         marshal_header_field(
             byteorder,
             &message::HeaderField::Interface(int.clone()),
             buf,
         )?;
     }
-    if let Some(dest) = &msg.destination {
+    if let Some(dest) = &msg.dynheader.destination {
         marshal_header_field(
             byteorder,
             &message::HeaderField::Destination(dest.clone()),
             buf,
         )?;
     }
-    if let Some(mem) = &msg.member {
+    if let Some(mem) = &msg.dynheader.member {
         marshal_header_field(byteorder, &message::HeaderField::Member(mem.clone()), buf)?;
     }
-    if let Some(obj) = &msg.object {
+    if let Some(obj) = &msg.dynheader.object {
         marshal_header_field(byteorder, &message::HeaderField::Path(obj.clone()), buf)?;
     }
-    if let Some(numfds) = &msg.num_fds {
+    if let Some(numfds) = &msg.dynheader.num_fds {
         marshal_header_field(byteorder, &message::HeaderField::UnixFds(*numfds), buf)?;
     }
-    if let Some(serial) = &msg.response_serial {
+    if let Some(serial) = &msg.dynheader.response_serial {
         marshal_header_field(byteorder, &message::HeaderField::ReplySerial(*serial), buf)?;
     }
     if !msg.get_buf().is_empty() {

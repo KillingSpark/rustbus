@@ -4,9 +4,9 @@ static MACHINE_ID_FILE_PATH: &str = "/tmp/dbus_machine_uuid";
 
 /// Can be used in the RpcConn filters to allow for peer messages
 pub fn filter_peer(msg: &Message) -> bool {
-    if let Some(interface) = &msg.interface {
+    if let Some(interface) = &msg.dynheader.interface {
         if interface.eq("org.freedesktop.DBus.Peer") {
-            if let Some(member) = &msg.member {
+            if let Some(member) = &msg.dynheader.member {
                 match member.as_str() {
                     "Ping" => true,
                     "GetMachineId" => true,
@@ -69,9 +69,9 @@ pub fn handle_peer_message(
     con: &mut Conn,
     timeout: client_conn::Timeout,
 ) -> Result<bool, crate::client_conn::Error> {
-    if let Some(interface) = &msg.interface {
+    if let Some(interface) = &msg.dynheader.interface {
         if interface.eq("org.freedesktop.DBus.Peer") {
-            if let Some(member) = &msg.member {
+            if let Some(member) = &msg.dynheader.member {
                 match member.as_str() {
                     "Ping" => {
                         let mut reply = msg.make_response();

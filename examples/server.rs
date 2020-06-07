@@ -41,10 +41,11 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
             if rustbus::peer::filter_peer(msg) {
                 true
             } else {
-                let right_interface_object = msg.object.eq(&Some("/io/killing/spark".into()))
-                    && msg.interface.eq(&Some("io.killing.spark".into()));
+                let right_interface_object =
+                    msg.dynheader.object.eq(&Some("/io/killing/spark".into()))
+                        && msg.dynheader.interface.eq(&Some("io.killing.spark".into()));
 
-                let right_member = if let Some(member) = &msg.member {
+                let right_member = if let Some(member) = &msg.dynheader.member {
                     member.eq("Echo") || member.eq("Reverse")
                 } else {
                     false
@@ -70,7 +71,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
             continue;
         }
         println!("Got call: {:?}", call);
-        if let Some(member) = &call.member {
+        if let Some(member) = &call.dynheader.member {
             let cmd = match member.as_str() {
                 "Echo" => Commands::Echo,
                 "Reverse" => {
