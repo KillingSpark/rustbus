@@ -76,7 +76,7 @@ pub fn add_match(match_rule: String) -> MarshalledMessage {
 }
 
 /// Error message to tell the caller that this method is not known by your server
-pub fn unknown_method<'a, 'e>(call: &message::DynamicHeader) -> MarshalledMessage {
+pub fn unknown_method(call: &message::DynamicHeader) -> MarshalledMessage {
     let text = format!(
         "No calls to {}.{} are accepted for object {}",
         call.interface.clone().unwrap_or_else(|| "".to_owned()),
@@ -90,7 +90,7 @@ pub fn unknown_method<'a, 'e>(call: &message::DynamicHeader) -> MarshalledMessag
 }
 
 /// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
-pub fn invalid_args<'a, 'e>(call: &message::DynamicHeader, sig: Option<&str>) -> MarshalledMessage {
+pub fn invalid_args(call: &message::DynamicHeader, sig: Option<&str>) -> MarshalledMessage {
     let text = format!(
         "Invalid arguments for calls to {}.{} on object {} {}",
         call.interface.clone().unwrap_or_else(|| "".to_owned()),

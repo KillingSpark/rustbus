@@ -135,7 +135,9 @@ impl MarshalledMessage {
     pub fn unmarshall_all<'a, 'e>(
         self,
     ) -> Result<message::Message<'a, 'e>, crate::wire::unmarshal::Error> {
-        let params = if self.body.sig.len() > 0 {
+        let params = if self.body.sig.is_empty() {
+            vec![]
+        } else {
             let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)
                 .map_err(|_| crate::wire::unmarshal::Error::InvalidSignature)?;
 
@@ -146,8 +148,6 @@ impl MarshalledMessage {
                 0,
             )?;
             params
-        } else {
-            vec![]
         };
         Ok(message::Message {
             dynheader: self.dynheader,

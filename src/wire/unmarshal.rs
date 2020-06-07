@@ -110,7 +110,7 @@ pub fn unmarshal_next_message(
     buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<MarshalledMessage> {
-    let sig = dynheader.signature.clone().unwrap_or("".to_owned());
+    let sig = dynheader.signature.clone().unwrap_or_else(|| "".to_owned());
 
     if header.body_len == 0 {
         let padding = align_offset(8, buf, offset)?;
