@@ -422,38 +422,45 @@ fn test_marshal_trait() {
     type WrongNestedDict =
         std::collections::HashMap<String, std::collections::HashMap<String, u64>>;
     assert_eq!(
-        body_iter.get::<WrongNestedDict>().err().unwrap(),
+        body_iter.get::<WrongNestedDict>().unwrap().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
     type WrongStruct = (u64, i32, String);
     assert_eq!(
-        body_iter.get::<WrongStruct>().err().unwrap(),
+        body_iter.get::<WrongStruct>().unwrap().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
 
     // the get the correct type and make sure the content is correct
     type NestedDict = std::collections::HashMap<String, std::collections::HashMap<String, u32>>;
-    let newmap2: NestedDict = body_iter.get().unwrap();
+    let newmap2: NestedDict = body_iter.get().unwrap().unwrap();
     assert_eq!(newmap2.len(), 1);
     assert_eq!(newmap2.get("a").unwrap().len(), 1);
     assert_eq!(*newmap2.get("a").unwrap().get("a").unwrap(), 4);
 
     // again try some stuff that has the wrong signature
     assert_eq!(
-        body_iter.get::<WrongNestedDict>().err().unwrap(),
+        body_iter.get::<WrongNestedDict>().unwrap().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
     assert_eq!(
-        body_iter.get::<WrongStruct>().err().unwrap(),
+        body_iter.get::<WrongStruct>().unwrap().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
 
     // get the empty map next
-    let newemptymap: std::collections::HashMap<&str, u32> = body_iter.get().unwrap();
+    let newemptymap: std::collections::HashMap<&str, u32> = body_iter.get().unwrap().unwrap();
     assert_eq!(newemptymap.len(), 0);
 }
 
 use crate::wire::unmarshal_trait::Unmarshal;
+/// Iterate over the messages parameters
+///
+/// Because dbus allows for multiple toplevel params without an enclosing struct, this provides a simple Iterator (sadly not std::iterator::Iterator, since the types
+/// of the parameters can be different)
+/// that you can use to get the params one by one, calling `get::<T>` until you have obtained all the parameters.
+/// If you try to get more parameters than the signature has types, it will return None, if you try to get a parameter that doesn not
+/// fit the current one, it will return an Error::WrongSignature, but you can safely try other types, the iterator stays valid.
 pub struct MessageBodyIter<'body> {
     buf_idx: usize,
     sig_idx: usize,
@@ -461,7 +468,7 @@ pub struct MessageBodyIter<'body> {
     body: &'body MarshalledMessageBody,
 }
 
-impl<'body> MessageBodyIter<'body> {
+impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
     pub fn new(body: &'body MarshalledMessageBody) -> Self {
         Self {
             buf_idx: 0,
@@ -471,21 +478,23 @@ impl<'body> MessageBodyIter<'body> {
         }
     }
 
-    pub fn get<T: Unmarshal<'body, 'body>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
+    pub fn get<T: Unmarshal<'ret, 'body>>(
+        &mut self,
+    ) -> Option<Result<T, crate::wire::unmarshal::Error>> {
         if self.sig_idx >= self.sigs.len() {
-            return Err(crate::wire::unmarshal::Error::WrongSignature);
+            return None;
         }
         if self.sigs[self.sig_idx] != T::signature() {
-            return Err(crate::wire::unmarshal::Error::WrongSignature);
+            return Some(Err(crate::wire::unmarshal::Error::WrongSignature));
         }
 
         match T::unmarshal(self.body.byteorder, &self.body.buf, self.buf_idx) {
             Ok((bytes, res)) => {
                 self.buf_idx += bytes;
                 self.sig_idx += 1;
-                Ok(res)
+                Some(Ok(res))
             }
-            Err(e) => Err(e),
+            Err(e) => Some(Err(e)),
         }
     }
 }
