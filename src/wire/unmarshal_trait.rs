@@ -334,7 +334,6 @@ impl<'r, 'buf: 'r, E: Unmarshal<'r, 'buf>> Unmarshal<'r, 'buf> for Vec<E> {
 
         let mut elements = Vec::new();
         let mut bytes_used_counter = 0;
-        eprintln!("bytes used {}", bytes_used_counter);
         while bytes_used_counter < bytes_in_array as usize {
             let elem_padding =
                 util::align_offset(E::alignment(), buf, offset + bytes_used_counter)?;
@@ -342,7 +341,6 @@ impl<'r, 'buf: 'r, E: Unmarshal<'r, 'buf>> Unmarshal<'r, 'buf> for Vec<E> {
             let (bytes_used, element) = E::unmarshal(byteorder, buf, offset + bytes_used_counter)?;
             elements.push(element);
             bytes_used_counter += bytes_used;
-            eprintln!("bytes used {}", bytes_used_counter);
         }
 
         let total_bytes_used = padding + 4 + first_elem_padding + bytes_used_counter;
@@ -369,7 +367,6 @@ impl<'r, 'buf: 'r, K: Unmarshal<'r, 'buf> + std::hash::Hash + Eq, V: Unmarshal<'
 
         let mut map = std::collections::HashMap::new();
         let mut bytes_used_counter = 0;
-        eprintln!("bytes used {}", bytes_used_counter);
         while bytes_used_counter < bytes_in_array as usize {
             let elem_padding = util::align_offset(8, buf, offset + bytes_used_counter)?;
             bytes_used_counter += elem_padding;
@@ -384,7 +381,6 @@ impl<'r, 'buf: 'r, K: Unmarshal<'r, 'buf> + std::hash::Hash + Eq, V: Unmarshal<'
             bytes_used_counter += val_bytes_used;
 
             map.insert(key, val);
-            eprintln!("bytes used {}", bytes_used_counter);
         }
 
         let total_bytes_used = padding + 4 + first_elem_padding + bytes_used_counter;

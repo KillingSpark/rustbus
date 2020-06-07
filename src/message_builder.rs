@@ -405,4 +405,78 @@ fn test_marshal_trait() {
         ],
         body.buf
     );
+
+    // try to unmarshal stuff
+    let mut body_iter = MessageBodyIter::new(&body);
+
+    // first try some stuff that has the wrong signature
+    type WrongNestedDict =
+        std::collections::HashMap<String, std::collections::HashMap<String, u64>>;
+    assert_eq!(
+        body_iter.get::<WrongNestedDict>().err().unwrap(),
+        crate::wire::unmarshal::Error::WrongSignature
+    );
+    type WrongStruct = (u64, i32, String);
+    assert_eq!(
+        body_iter.get::<WrongStruct>().err().unwrap(),
+        crate::wire::unmarshal::Error::WrongSignature
+    );
+
+    // the get the correct type and make sure the content is correct
+    type NestedDict = std::collections::HashMap<String, std::collections::HashMap<String, u32>>;
+    let newmap2: NestedDict = body_iter.get().unwrap();
+    assert_eq!(newmap2.len(), 1);
+    assert_eq!(newmap2.get("a").unwrap().len(), 1);
+    assert_eq!(*newmap2.get("a").unwrap().get("a").unwrap(), 4);
+
+    // again try some stuff that has the wrong signature
+    assert_eq!(
+        body_iter.get::<WrongNestedDict>().err().unwrap(),
+        crate::wire::unmarshal::Error::WrongSignature
+    );
+    assert_eq!(
+        body_iter.get::<WrongStruct>().err().unwrap(),
+        crate::wire::unmarshal::Error::WrongSignature
+    );
+
+    // get the empty map next
+    let newemptymap: std::collections::HashMap<&str, u32> = body_iter.get().unwrap();
+    assert_eq!(newemptymap.len(), 0);
+}
+
+use crate::wire::unmarshal_trait::Unmarshal;
+pub struct MessageBodyIter<'body> {
+    buf_idx: usize,
+    sig_idx: usize,
+    sigs: Vec<crate::signature::Type>,
+    body: &'body OutMessageBody,
+}
+
+impl<'body> MessageBodyIter<'body> {
+    pub fn new(body: &'body OutMessageBody) -> Self {
+        Self {
+            buf_idx: 0,
+            sig_idx: 0,
+            sigs: crate::signature::Type::parse_description(&body.sig).unwrap(),
+            body,
+        }
+    }
+
+    pub fn get<T: Unmarshal<'body, 'body>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
+        if self.sig_idx >= self.sigs.len() {
+            return Err(crate::wire::unmarshal::Error::WrongSignature);
+        }
+        if self.sigs[self.sig_idx] != T::signature() {
+            return Err(crate::wire::unmarshal::Error::WrongSignature);
+        }
+
+        match T::unmarshal(self.body.byteorder, &self.body.buf, self.buf_idx) {
+            Ok((bytes, res)) => {
+                self.buf_idx += bytes;
+                self.sig_idx += 1;
+                Ok(res)
+            }
+            Err(e) => Err(e),
+        }
+    }
 }
