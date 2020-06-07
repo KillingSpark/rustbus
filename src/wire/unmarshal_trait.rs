@@ -431,6 +431,28 @@ fn test_unmarshal_byte_array() {
         <&[u8] as Unmarshal>::unmarshal(crate::message::ByteOrder::LittleEndian, &buf, 0).unwrap();
     assert_eq!(bytes, orig.len() + 4);
     assert_eq!(orig, unorig);
+
+    // even slices of slices of u8 work efficiently
+    let mut orig1 = vec![];
+    let mut orig2 = vec![];
+    for x in 0..1024 {
+        orig1.push((x % 255) as u8);
+    }
+    for x in 0..1024 {
+        orig2.push(((x + 4) % 255) as u8);
+    }
+
+    let orig = vec![orig1.as_slice(), orig2.as_slice()];
+
+    let mut buf = Vec::new();
+    orig.marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
+
+    // unorig[x] points into the appropriate region in buf, and unorigs lifetime is bound to buf
+    let (_bytes, unorig) =
+        <Vec<&[u8]> as Unmarshal>::unmarshal(crate::message::ByteOrder::LittleEndian, &buf, 0)
+            .unwrap();
+    assert_eq!(orig, unorig);
 }
 
 impl<E: Signature> Signature for Vec<E> {
