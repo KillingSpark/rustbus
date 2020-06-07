@@ -1,4 +1,6 @@
 use crate::message;
+use crate::message_builder::MarshalledMessage;
+use crate::message_builder::MarshalledMessageBody;
 use crate::params;
 use crate::signature;
 use crate::wire::unmarshal_container::*;
@@ -91,9 +93,6 @@ pub fn unmarshal_body<'a, 'e>(
     buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<Vec<params::Param<'a, 'e>>> {
-    let padding = align_offset(8, buf, offset)?;
-    let offset = offset + padding;
-
     let mut params = Vec::new();
     let mut body_bytes_used = 0;
     for param_sig in sigs {
@@ -102,50 +101,43 @@ pub fn unmarshal_body<'a, 'e>(
         params.push(new_param);
         body_bytes_used += bytes;
     }
-    Ok((padding + body_bytes_used, params))
+    Ok((body_bytes_used, params))
 }
 
-pub fn unmarshal_next_message<'a, 'e>(
+pub fn unmarshal_next_message(
     header: &Header,
     dynheader: message::DynamicHeader,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<message::Message<'a, 'e>> {
+) -> UnmarshalResult<MarshalledMessage> {
+    let sig = dynheader.signature.clone().unwrap_or("".to_owned());
+
     if header.body_len == 0 {
         let padding = align_offset(8, buf, offset)?;
-        let msg = message::Message {
+        let msg = MarshalledMessage {
             dynheader,
-            params: vec![],
+            body: MarshalledMessageBody::from_parts(vec![], sig, header.byteorder),
             typ: header.typ,
             raw_fds: Vec::new(),
             flags: header.flags,
         };
         Ok((padding, msg))
     } else {
-        let sigs = match &dynheader.signature {
-            Some(s) => {
-                signature::Type::parse_description(&s).map_err(|_| Error::InvalidSignature)?
-            }
-            None => {
-                // TODO this is ok if body_len == 0
-                return Err(Error::InvalidHeaderFields);
-            }
-        };
+        let padding = align_offset(8, buf, offset)?;
+        let offset = offset + padding;
 
         if buf[offset..].len() < (header.body_len as usize) {
             return Err(Error::NotEnoughBytes);
         }
 
-        let (body_bytes_used, params) = unmarshal_body(header.byteorder, &sigs, buf, offset)?;
-
-        let msg = message::Message {
+        let msg = MarshalledMessage {
             dynheader,
-            params,
+            body: MarshalledMessageBody::from_parts(buf[offset..].to_vec(), sig, header.byteorder),
             typ: header.typ,
             raw_fds: Vec::new(),
             flags: header.flags,
         };
-        Ok((body_bytes_used, msg))
+        Ok((padding + header.body_len as usize, msg))
     }
 }
 

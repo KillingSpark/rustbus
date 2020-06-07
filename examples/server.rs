@@ -38,7 +38,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {
         MessageType::Call => {
-            if rustbus::peer::filter_peer(msg) {
+            if rustbus::peer::filter_peer(&msg.dynheader) {
                 true
             } else {
                 let right_interface_object =
@@ -66,6 +66,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     loop {
         println!("Wait for call");
         let call = rpc_con.wait_call(Timeout::Infinite)?;
+        let call = call.unmarshall_all()?;
         if rustbus::peer::handle_peer_message(&call, rpc_con.conn_mut(), Timeout::Infinite).unwrap()
         {
             continue;
@@ -77,7 +78,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                 "Reverse" => {
                     if call.params.len() != 1 {
                         rpc_con.send_message(
-                            &mut standard_messages::invalid_args(&call, Some("String")),
+                            &mut standard_messages::invalid_args(&call.dynheader, Some("String")),
                             Timeout::Infinite,
                         )?;
                         continue;
@@ -86,7 +87,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                         Commands::Reverse(val.to_owned())
                     } else {
                         rpc_con.send_message(
-                            &mut standard_messages::invalid_args(&call, Some("String")),
+                            &mut standard_messages::invalid_args(&call.dynheader, Some("String")),
                             Timeout::Infinite,
                         )?;
                         continue;
@@ -97,7 +98,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
                     // If a call is filtered out, an error like this one is automatically send to the source, so this is technically unecessary
                     // but we like robust software!
                     rpc_con.send_message(
-                        &mut standard_messages::unknown_method(&call),
+                        &mut standard_messages::unknown_method(&call.dynheader),
                         Timeout::Infinite,
                     )?;
                     continue;

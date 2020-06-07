@@ -50,7 +50,9 @@ fn test_marshal_unmarshal() {
     let (_, unmarshed_msg) =
         unmarshal_next_message(&header, dynheader, &buf, hdrbytes + dynhdrbytes).unwrap();
 
-    assert_eq!(params, unmarshed_msg.params);
+    let msg = unmarshed_msg.unmarshall_all().unwrap();
+
+    assert_eq!(params, msg.params);
 }
 
 // this tests that invalid inputs return appropriate errors

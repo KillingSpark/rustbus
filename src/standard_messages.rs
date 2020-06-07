@@ -1,8 +1,8 @@
 //! Some standard messages that are often needed
 
 use crate::message;
-use crate::message_builder::MessageBuilder;
 use crate::message_builder::MarshalledMessage;
+use crate::message_builder::MessageBuilder;
 
 pub fn hello() -> MarshalledMessage {
     MessageBuilder::new()
@@ -76,21 +76,12 @@ pub fn add_match(match_rule: String) -> MarshalledMessage {
 }
 
 /// Error message to tell the caller that this method is not known by your server
-pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> MarshalledMessage {
+pub fn unknown_method<'a, 'e>(call: &message::DynamicHeader) -> MarshalledMessage {
     let text = format!(
         "No calls to {}.{} are accepted for object {}",
-        call.dynheader
-            .interface
-            .clone()
-            .unwrap_or_else(|| "".to_owned()),
-        call.dynheader
-            .member
-            .clone()
-            .unwrap_or_else(|| "".to_owned()),
-        call.dynheader
-            .object
-            .clone()
-            .unwrap_or_else(|| "".to_owned()),
+        call.interface.clone().unwrap_or_else(|| "".to_owned()),
+        call.member.clone().unwrap_or_else(|| "".to_owned()),
+        call.object.clone().unwrap_or_else(|| "".to_owned()),
     );
     call.make_error_response(
         "org.freedesktop.DBus.Error.UnknownMethod".to_owned(),
@@ -99,21 +90,12 @@ pub fn unknown_method<'a, 'e>(call: &message::Message<'a, 'e>) -> MarshalledMess
 }
 
 /// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
-pub fn invalid_args<'a, 'e>(call: &message::Message<'a, 'e>, sig: Option<&str>) -> MarshalledMessage {
+pub fn invalid_args<'a, 'e>(call: &message::DynamicHeader, sig: Option<&str>) -> MarshalledMessage {
     let text = format!(
         "Invalid arguments for calls to {}.{} on object {} {}",
-        call.dynheader
-            .interface
-            .clone()
-            .unwrap_or_else(|| "".to_owned()),
-        call.dynheader
-            .member
-            .clone()
-            .unwrap_or_else(|| "".to_owned()),
-        call.dynheader
-            .object
-            .clone()
-            .unwrap_or_else(|| "".to_owned()),
+        call.interface.clone().unwrap_or_else(|| "".to_owned()),
+        call.member.clone().unwrap_or_else(|| "".to_owned()),
+        call.object.clone().unwrap_or_else(|| "".to_owned()),
         if let Some(sig) = sig {
             format!("expected signature: {}", sig)
         } else {

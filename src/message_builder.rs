@@ -135,11 +135,20 @@ impl MarshalledMessage {
     pub fn unmarshall_all<'a, 'e>(
         self,
     ) -> Result<message::Message<'a, 'e>, crate::wire::unmarshal::Error> {
-        let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)
-            .map_err(|_| crate::wire::unmarshal::Error::InvalidSignature)?;
+        let params = if self.body.sig.len() > 0 {
+            let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)
+                .map_err(|_| crate::wire::unmarshal::Error::InvalidSignature)?;
 
-        let (_, params) =
-            crate::wire::unmarshal::unmarshal_body(self.body.byteorder, &sigs, &self.body.buf, 0)?;
+            let (_, params) = crate::wire::unmarshal::unmarshal_body(
+                self.body.byteorder,
+                &sigs,
+                &self.body.buf,
+                0,
+            )?;
+            params
+        } else {
+            vec![]
+        };
         Ok(message::Message {
             dynheader: self.dynheader,
             params,
@@ -200,6 +209,14 @@ impl MarshalledMessageBody {
             buf: Vec::new(),
             sig: String::new(),
             byteorder: b,
+        }
+    }
+
+    pub fn from_parts(buf: Vec<u8>, sig: String, byteorder: message::ByteOrder) -> Self {
+        Self {
+            buf,
+            sig,
+            byteorder,
         }
     }
 

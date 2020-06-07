@@ -46,6 +46,9 @@ fn test_fd_passing() {
         }
     };
 
+    // unmarshal content into params::Param
+    let sig = sig.unmarshall_all().unwrap();
+
     let fd_idx = match sig.params[0] {
         crate::params::Param::Base(crate::params::Base::UnixFd(fd_idx)) => fd_idx,
         _ => panic!("Did not receive unixfd param"),

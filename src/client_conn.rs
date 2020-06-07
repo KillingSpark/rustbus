@@ -3,6 +3,7 @@
 
 use crate::auth;
 use crate::message;
+use crate::message_builder::MarshalledMessage;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
 use std::collections::HashMap;
@@ -28,10 +29,10 @@ pub enum Timeout {
 }
 
 /// Convenience wrapper around the lowlevel connection
-pub struct RpcConn<'msga, 'msge> {
-    signals: VecDeque<message::Message<'msga, 'msge>>,
-    calls: VecDeque<message::Message<'msga, 'msge>>,
-    responses: HashMap<u32, message::Message<'msga, 'msge>>,
+pub struct RpcConn {
+    signals: VecDeque<MarshalledMessage>,
+    calls: VecDeque<MarshalledMessage>,
+    responses: HashMap<u32, MarshalledMessage>,
     conn: Conn,
     filter: MessageFilter,
 }
@@ -72,9 +73,9 @@ pub struct RpcConn<'msga, 'msge> {
 /// Ok(())
 /// }
 /// ```
-pub type MessageFilter = Box<dyn Fn(&message::Message) -> bool + Sync + Send>;
+pub type MessageFilter = Box<dyn Fn(&MarshalledMessage) -> bool + Sync + Send>;
 
-impl<'msga, 'msge> RpcConn<'msga, 'msge> {
+impl RpcConn {
     pub fn new(conn: Conn) -> Self {
         RpcConn {
             signals: VecDeque::new(),
@@ -117,16 +118,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     }
 
     /// Return a response if one is there but dont block
-    pub fn try_get_response(&mut self, serial: u32) -> Option<message::Message<'msga, 'msge>> {
+    pub fn try_get_response(&mut self, serial: u32) -> Option<MarshalledMessage> {
         self.responses.remove(&serial)
     }
 
     /// Return a response if one is there or block until it arrives
-    pub fn wait_response(
-        &mut self,
-        serial: u32,
-        timeout: Timeout,
-    ) -> Result<message::Message<'msga, 'msge>> {
+    pub fn wait_response(&mut self, serial: u32, timeout: Timeout) -> Result<MarshalledMessage> {
         loop {
             if let Some(msg) = self.try_get_response(serial) {
                 return Ok(msg);
@@ -136,12 +133,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     }
 
     /// Return a signal if one is there but dont block
-    pub fn try_get_signal(&mut self) -> Option<message::Message<'msga, 'msge>> {
+    pub fn try_get_signal(&mut self) -> Option<MarshalledMessage> {
         self.signals.pop_front()
     }
 
     /// Return a sginal if one is there or block until it arrives
-    pub fn wait_signal(&mut self, timeout: Timeout) -> Result<message::Message<'msga, 'msge>> {
+    pub fn wait_signal(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
         loop {
             if let Some(msg) = self.try_get_signal() {
                 return Ok(msg);
@@ -151,12 +148,12 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
     }
 
     /// Return a call if one is there but dont block
-    pub fn try_get_call(&mut self) -> Option<message::Message<'msga, 'msge>> {
+    pub fn try_get_call(&mut self) -> Option<MarshalledMessage> {
         self.calls.pop_front()
     }
 
     /// Return a call if one is there or block until it arrives
-    pub fn wait_call(&mut self, timeout: Timeout) -> Result<message::Message<'msga, 'msge>> {
+    pub fn wait_call(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
         loop {
             if let Some(msg) = self.try_get_call() {
                 return Ok(msg);
@@ -176,7 +173,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
 
     fn insert_message_or_send_error(
         &mut self,
-        msg: message::Message<'msga, 'msge>,
+        msg: MarshalledMessage,
         timeout: Timeout,
     ) -> Result<()> {
         let start_time = time::Instant::now();
@@ -201,7 +198,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
         } else {
             match msg.typ {
                 message::MessageType::Call => {
-                    let mut reply = crate::standard_messages::unknown_method(&msg);
+                    let mut reply = crate::standard_messages::unknown_method(&msg.dynheader);
                     self.conn
                         .send_message(&mut reply, calc_timeout_left(&start_time, timeout)?)?;
                 }
@@ -287,7 +284,7 @@ impl<'msga, 'msge> RpcConn<'msga, 'msge> {
             } else {
                 match msg.typ {
                     message::MessageType::Call => {
-                        let reply = crate::standard_messages::unknown_method(&msg);
+                        let reply = crate::standard_messages::unknown_method(&msg.dynheader);
                         filtered_out.push(reply);
                         // drop message but keep reply
                     }
@@ -534,7 +531,7 @@ impl<'msga, 'msge> Conn {
     }
 
     /// Blocks until a message has been read from the conn or the timeout has been reached
-    pub fn get_next_message(&mut self, timeout: Timeout) -> Result<message::Message<'msga, 'msge>> {
+    pub fn get_next_message(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
         self.read_whole_message(timeout)?;
         let (hdrbytes, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
         let (dynhdrbytes, dynheader) =
@@ -546,7 +543,7 @@ impl<'msga, 'msge> Conn {
             &self.msg_buf_in,
             hdrbytes + dynhdrbytes,
         )?;
-        
+
         if self.msg_buf_in.len() != bytes_used + hdrbytes + dynhdrbytes {
             return Err(Error::UnmarshalError(unmarshal::Error::NotAllBytesUsed));
         }
@@ -564,6 +561,7 @@ impl<'msga, 'msge> Conn {
             }
         }
         self.cmsgs_in.clear();
+
         Ok(msg)
     }
 

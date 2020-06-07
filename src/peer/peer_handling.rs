@@ -1,12 +1,13 @@
+use crate::message::DynamicHeader;
 use crate::*;
 
 static MACHINE_ID_FILE_PATH: &str = "/tmp/dbus_machine_uuid";
 
 /// Can be used in the RpcConn filters to allow for peer messages
-pub fn filter_peer(msg: &Message) -> bool {
-    if let Some(interface) = &msg.dynheader.interface {
+pub fn filter_peer(msg: &DynamicHeader) -> bool {
+    if let Some(interface) = &msg.interface {
         if interface.eq("org.freedesktop.DBus.Peer") {
-            if let Some(member) = &msg.dynheader.member {
+            if let Some(member) = &msg.member {
                 match member.as_str() {
                     "Ping" => true,
                     "GetMachineId" => true,

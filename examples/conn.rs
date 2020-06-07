@@ -45,6 +45,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     println!("\n");
     println!("\n");
 
+    let msg = msg.unmarshall_all()?;
+
     if let rustbus::params::Param::Base(rustbus::params::Base::Uint32(ret)) = msg.params[0] {
         match ret {
             standard_messages::DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER => {
@@ -61,6 +63,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     println!("Wait for list response");
     let msg = rpc_con.wait_response(list_serial, Timeout::Infinite)?;
+    let msg = msg.unmarshall_all()?;
     println!("Got response: {:?}", msg);
     println!("\n");
     println!("\n");
@@ -81,6 +84,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         loop {
             let msg = rpc_con.try_get_signal();
             if let Some(msg) = msg {
+                let msg = msg.unmarshall_all()?;
                 println!("Got signal: {:?}", msg);
             } else {
                 break;
