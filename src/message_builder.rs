@@ -349,6 +349,19 @@ fn test_marshal_trait() {
         y: String,
     }
 
+    use crate::wire::marshal_trait::Signature;
+    impl Signature for &MyStruct {
+        fn signature() -> crate::signature::Type {
+            crate::signature::Type::Container(crate::signature::Container::Struct(vec![
+                u64::signature(),
+                String::signature(),
+            ]))
+        }
+
+        fn alignment() -> usize {
+            8
+        }
+    }
     impl Marshal for &MyStruct {
         fn marshal(
             &self,
@@ -360,16 +373,6 @@ fn test_marshal_trait() {
             self.x.marshal(byteorder, buf)?;
             self.y.marshal(byteorder, buf)?;
             Ok(())
-        }
-        fn signature() -> crate::signature::Type {
-            crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-                u64::signature(),
-                String::signature(),
-            ]))
-        }
-
-        fn alignment() -> usize {
-            8
         }
     }
 

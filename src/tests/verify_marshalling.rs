@@ -102,7 +102,7 @@ fn verify_base_marshalling() {
         &[11, b'(', b'v', b'v', b'v', b')', b'a', b'a', b'{', b'i', b'i', b'}', b'\0']
     );
     buf.clear();
-    crate::wire::marshal_trait::Signature::new("(vvv)aa{ii}")
+    crate::wire::marshal_trait::SignatureWrapper::new("(vvv)aa{ii}")
         .unwrap()
         .marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
         .unwrap();

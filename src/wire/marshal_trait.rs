@@ -20,6 +20,19 @@ use crate::params;
 /// use rustbus::signature;
 /// use rustbus::wire::util;
 /// use rustbus::Marshal;
+/// use rustbus::Signature;
+/// impl Signature for &MyStruct {
+///     fn signature() -> signature::Type {
+///         signature::Type::Container(signature::Container::Struct(vec![
+///             u64::signature(),
+///             String::signature(),
+///         ]))
+///     }
+///
+///     fn alignment() -> usize {
+///         8
+///     }
+/// }    
 /// impl Marshal for &MyStruct {
 ///     fn marshal(
 ///         &self,
@@ -32,16 +45,6 @@ use crate::params;
 ///         self.y.marshal(byteorder, buf)?;
 ///         Ok(())
 ///     }
-///     fn signature() -> signature::Type {
-///         signature::Type::Container(signature::Container::Struct(vec![
-///             u64::signature(),
-///             String::signature(),
-///         ]))
-///     }
-///
-///     fn alignment() -> usize {
-///         8
-///     }
 /// }
 /// ```
 /// # Implementing for your own structs
@@ -52,15 +55,26 @@ use crate::params;
 /// 1. The signature needs to be correct, or the message will be malformed
 /// 1. The alignment must report the correct number. This does not need to be a constant like in the example, but it needs to be consistent with the type
 ///     the signature() function returns. If you are not sure, just use Self::signature().get_alignment().
-pub trait Marshal {
+pub trait Marshal: Signature {
     fn marshal(
         &self,
         byteorder: message::ByteOrder,
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error>;
+}
 
+pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
+}
+
+impl<S: Signature> Signature for &S {
+    fn signature() -> crate::signature::Type {
+        S::signature()
+    }
+    fn alignment() -> usize {
+        S::alignment()
+    }
 }
 
 impl<P: Marshal> Marshal for &P {
@@ -71,12 +85,15 @@ impl<P: Marshal> Marshal for &P {
     ) -> Result<(), message::Error> {
         (*self).marshal(byteorder, buf)
     }
+}
 
+impl Signature for () {
     fn signature() -> crate::signature::Type {
-        P::signature()
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![]))
     }
+
     fn alignment() -> usize {
-        P::alignment()
+        8
     }
 }
 
@@ -90,15 +107,17 @@ impl Marshal for () {
         crate::wire::util::pad_to_align(8, buf);
         Ok(())
     }
+}
+
+impl<E: Signature> Signature for (E,) {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![]))
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![E::signature()]))
     }
 
     fn alignment() -> usize {
         8
     }
 }
-
 impl<E: Marshal> Marshal for (E,) {
     fn marshal(
         &self,
@@ -110,15 +129,20 @@ impl<E: Marshal> Marshal for (E,) {
         self.0.marshal(byteorder, buf)?;
         Ok(())
     }
+}
+
+impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![E::signature()]))
+        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
+            E1::signature(),
+            E2::signature(),
+        ]))
     }
 
     fn alignment() -> usize {
         8
     }
 }
-
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
     fn marshal(
         &self,
@@ -131,10 +155,14 @@ impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
         self.1.marshal(byteorder, buf)?;
         Ok(())
     }
+}
+
+impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![
             E1::signature(),
             E2::signature(),
+            E3::signature(),
         ]))
     }
 
@@ -142,7 +170,6 @@ impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
         8
     }
 }
-
 impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
     fn marshal(
         &self,
@@ -156,11 +183,15 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
         self.2.marshal(byteorder, buf)?;
         Ok(())
     }
+}
+
+impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (E1, E2, E3, E4) {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![
             E1::signature(),
             E2::signature(),
             E3::signature(),
+            E4::signature(),
         ]))
     }
 
@@ -168,7 +199,6 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
         8
     }
 }
-
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
     fn marshal(
         &self,
@@ -183,12 +213,18 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3
         self.3.marshal(byteorder, buf)?;
         Ok(())
     }
+}
+
+impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> Signature
+    for (E1, E2, E3, E4, E5)
+{
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Struct(vec![
             E1::signature(),
             E2::signature(),
             E3::signature(),
             E4::signature(),
+            E5::signature(),
         ]))
     }
 
@@ -196,7 +232,6 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3
         8
     }
 }
-
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
     for (E1, E2, E3, E4, E5)
 {
@@ -214,21 +249,18 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
         self.4.marshal(byteorder, buf)?;
         Ok(())
     }
-    fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            E1::signature(),
-            E2::signature(),
-            E3::signature(),
-            E4::signature(),
-            E5::signature(),
-        ]))
-    }
-
-    fn alignment() -> usize {
-        8
-    }
 }
 
+impl<E: Signature> Signature for [E] {
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
+            E::signature(),
+        )))
+    }
+    fn alignment() -> usize {
+        4
+    }
+}
 impl<E: Marshal> Marshal for [E] {
     fn marshal(
         &self,
@@ -237,6 +269,9 @@ impl<E: Marshal> Marshal for [E] {
     ) -> Result<(), message::Error> {
         (&self).marshal(byteorder, buf)
     }
+}
+
+impl<E: Signature> Signature for &[E] {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
             E::signature(),
@@ -282,6 +317,16 @@ impl<E: Marshal> Marshal for &[E] {
 
         Ok(())
     }
+}
+
+/// **_!!! This assumes that you are marshalling to the platforms byteorder !!!_**
+///
+/// It just memcpy's the content of the array into the message. This is fine for all integer types, but you cannot use it for structs,
+/// even if they are copy!
+/// They might have padding to be correctly aligned in the slice. I would recommend to only use this for marshalling
+/// big integer arrays but I cannot express this in the type system cleanly so here is a comment.
+pub struct OptimizedMarshal<'a, E: Copy + Marshal>(pub &'a [E]);
+impl<'a, E: Copy + Marshal> Signature for OptimizedMarshal<'a, E> {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
             E::signature(),
@@ -292,14 +337,6 @@ impl<E: Marshal> Marshal for &[E] {
         4
     }
 }
-
-/// **_!!! This assumes that you are marshalling to the platforms byteorder !!!_**
-///
-/// It just memcpy's the content of the array into the message. This is fine for all integer types, but you cannot use it for structs,
-/// even if they are copy!
-/// They might have padding to be correctly aligned in the slice. I would recommend to only use this for marshalling
-/// big integer arrays but I cannot express this in the type system cleanly so here is a comment.
-pub struct OptimizedMarshal<'a, E: Copy + Marshal>(pub &'a [E]);
 impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
     fn marshal(
         &self,
@@ -339,15 +376,6 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
         );
 
         Ok(())
-    }
-    fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
-            E::signature(),
-        )))
-    }
-
-    fn alignment() -> usize {
-        4
     }
 }
 
@@ -403,6 +431,22 @@ fn verify_optimized_arrays() {
     assert_eq!(vec![0, 0, 0, 0], buf_old);
 }
 
+impl<K: Signature, V: Signature> Signature for std::collections::HashMap<K, V> {
+    fn signature() -> crate::signature::Type {
+        let ks = K::signature();
+        let vs = V::signature();
+        if let crate::signature::Type::Base(ks) = ks {
+            crate::signature::Type::Container(crate::signature::Container::Dict(ks, Box::new(vs)))
+        } else {
+            panic!("Ivalid key sig")
+        }
+    }
+
+    fn alignment() -> usize {
+        4
+    }
+}
+
 impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
     fn marshal(
         &self,
@@ -441,22 +485,16 @@ impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
 
         Ok(())
     }
-
-    fn signature() -> crate::signature::Type {
-        let ks = K::signature();
-        let vs = V::signature();
-        if let crate::signature::Type::Base(ks) = ks {
-            crate::signature::Type::Container(crate::signature::Container::Dict(ks, Box::new(vs)))
-        } else {
-            panic!("Ivalid key sig")
-        }
-    }
-
-    fn alignment() -> usize {
-        4
-    }
 }
 
+impl Signature for u64 {
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::Uint64)
+    }
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
+    }
+}
 impl Marshal for u64 {
     fn marshal(
         &self,
@@ -467,9 +505,11 @@ impl Marshal for u64 {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for i64 {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Uint64)
+        crate::signature::Type::Base(crate::signature::Base::Int64)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
@@ -485,15 +525,16 @@ impl Marshal for i64 {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for u32 {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Int64)
+        crate::signature::Type::Base(crate::signature::Base::Uint32)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
 }
-
 impl Marshal for u32 {
     fn marshal(
         &self,
@@ -504,9 +545,11 @@ impl Marshal for u32 {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for i32 {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Uint32)
+        crate::signature::Type::Base(crate::signature::Base::Int32)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
@@ -522,15 +565,16 @@ impl Marshal for i32 {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for u16 {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Int32)
+        crate::signature::Type::Base(crate::signature::Base::Uint16)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
 }
-
 impl Marshal for u16 {
     fn marshal(
         &self,
@@ -541,9 +585,11 @@ impl Marshal for u16 {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for i16 {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Uint16)
+        crate::signature::Type::Base(crate::signature::Base::Int16)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
@@ -559,15 +605,16 @@ impl Marshal for i16 {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for u8 {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Int16)
+        crate::signature::Type::Base(crate::signature::Base::Byte)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
 }
-
 impl Marshal for u8 {
     fn marshal(
         &self,
@@ -578,15 +625,16 @@ impl Marshal for u8 {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for bool {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Byte)
+        crate::signature::Type::Base(crate::signature::Base::Boolean)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
 }
-
 impl Marshal for bool {
     fn marshal(
         &self,
@@ -597,15 +645,16 @@ impl Marshal for bool {
         let b: params::Base = self.into();
         crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
     }
+}
 
+impl Signature for String {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Boolean)
+        crate::signature::Type::Base(crate::signature::Base::String)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
 }
-
 impl Marshal for String {
     fn marshal(
         &self,
@@ -616,7 +665,9 @@ impl Marshal for String {
         crate::wire::util::write_string(self.as_str(), byteorder, buf);
         Ok(())
     }
+}
 
+impl Signature for &str {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::String)
     }
@@ -624,7 +675,6 @@ impl Marshal for String {
         Self::signature().get_alignment()
     }
 }
-
 impl Marshal for &str {
     fn marshal(
         &self,
@@ -635,13 +685,6 @@ impl Marshal for &str {
         crate::wire::util::write_string(self, byteorder, buf);
         Ok(())
     }
-
-    fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::String)
-    }
-    fn alignment() -> usize {
-        Self::signature().get_alignment()
-    }
 }
 
 pub struct ObjectPath<'a>(&'a str);
@@ -649,6 +692,14 @@ impl<'a> ObjectPath<'a> {
     pub fn new(path: &'a str) -> Result<Self, message::Error> {
         crate::params::validate_object_path(path)?;
         Ok(ObjectPath(path))
+    }
+}
+impl Signature for ObjectPath<'_> {
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::ObjectPath)
+    }
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
     }
 }
 impl Marshal for ObjectPath<'_> {
@@ -659,23 +710,24 @@ impl Marshal for ObjectPath<'_> {
     ) -> Result<(), message::Error> {
         self.0.marshal(byteorder, buf)
     }
+}
 
+pub struct SignatureWrapper<'a>(&'a str);
+impl<'a> SignatureWrapper<'a> {
+    pub fn new(sig: &'a str) -> Result<Self, message::Error> {
+        crate::params::validate_signature(sig)?;
+        Ok(SignatureWrapper(sig))
+    }
+}
+impl Signature for SignatureWrapper<'_> {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::ObjectPath)
+        crate::signature::Type::Base(crate::signature::Base::Signature)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
 }
-
-pub struct Signature<'a>(&'a str);
-impl<'a> Signature<'a> {
-    pub fn new(sig: &'a str) -> Result<Self, message::Error> {
-        crate::params::validate_signature(sig)?;
-        Ok(Signature(sig))
-    }
-}
-impl Marshal for Signature<'_> {
+impl Marshal for SignatureWrapper<'_> {
     fn marshal(
         &self,
         _byteorder: message::ByteOrder,
@@ -684,15 +736,16 @@ impl Marshal for Signature<'_> {
         crate::wire::util::write_signature(self.0, buf);
         Ok(())
     }
-
+}
+pub struct UnixFd(pub u32);
+impl Signature for UnixFd {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::Signature)
+        crate::signature::Type::Base(crate::signature::Base::UnixFd)
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
 }
-pub struct UnixFd(pub u32);
 impl Marshal for UnixFd {
     fn marshal(
         &self,
@@ -700,13 +753,6 @@ impl Marshal for UnixFd {
         buf: &mut Vec<u8>,
     ) -> Result<(), message::Error> {
         self.0.marshal(byteorder, buf)
-    }
-
-    fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::UnixFd)
-    }
-    fn alignment() -> usize {
-        Self::signature().get_alignment()
     }
 }
 
@@ -717,7 +763,8 @@ fn test_trait_signature_creation() {
 
     body.push_param("a").unwrap();
     body.push_param(ObjectPath::new("/a/b").unwrap()).unwrap();
-    body.push_param(Signature::new("(a{su})").unwrap()).unwrap();
+    body.push_param(SignatureWrapper::new("(a{su})").unwrap())
+        .unwrap();
     body.push_param(UnixFd(10)).unwrap();
     body.push_param(true).unwrap();
     body.push_param(0u8).unwrap();

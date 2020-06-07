@@ -2,6 +2,7 @@ use rustbus::message;
 use rustbus::signature;
 use rustbus::wire::util;
 use rustbus::Marshal;
+use rustbus::Signature;
 
 // A Type with some trivial member and some enum
 // The enum will be packed into a Variant. The decoding can look at the signature of the Variant and figure out
@@ -17,6 +18,25 @@ enum Sub {
 }
 
 use rustbus::message_builder::marshal_as_variant;
+impl Signature for &MyType {
+    fn signature() -> signature::Type {
+        // in dbus signature coding: (t(sv))
+        // Note how the type of the `sub` is represented as `v`
+        // variants include the signature of their content in marshalled form
+        signature::Type::Container(signature::Container::Struct(vec![
+            u64::signature(),
+            signature::Type::Container(signature::Container::Struct(vec![
+                signature::Type::Base(signature::Base::String),
+                signature::Type::Container(signature::Container::Variant),
+            ])),
+        ]))
+    }
+
+    fn alignment() -> usize {
+        8
+    }
+}
+
 impl Marshal for &MyType {
     fn marshal(
         &self,
@@ -44,22 +64,6 @@ impl Marshal for &MyType {
         };
         Ok(())
     }
-    fn signature() -> signature::Type {
-        // in dbus signature coding: (t(sv))
-        // Note how the type of the `sub` is represented as `v`
-        // variants include the signature of their content in marshalled form
-        signature::Type::Container(signature::Container::Struct(vec![
-            u64::signature(),
-            signature::Type::Container(signature::Container::Struct(vec![
-                signature::Type::Base(signature::Base::String),
-                signature::Type::Container(signature::Container::Variant),
-            ])),
-        ]))
-    }
-
-    fn alignment() -> usize {
-        8
-    }
 }
 
 // The impl for these types are trivial. They should be derivable in the future.
@@ -72,6 +76,18 @@ struct MyOtherSubType {
     y: u32,
 }
 
+impl Signature for &MySubType {
+    fn signature() -> signature::Type {
+        signature::Type::Container(signature::Container::Struct(vec![
+            i32::signature(),
+            i32::signature(),
+        ]))
+    }
+
+    fn alignment() -> usize {
+        8
+    }
+}
 impl Marshal for &MySubType {
     fn marshal(
         &self,
@@ -84,10 +100,13 @@ impl Marshal for &MySubType {
         self.y.marshal(byteorder, buf)?;
         Ok(())
     }
+}
+
+impl Signature for &MyOtherSubType {
     fn signature() -> signature::Type {
         signature::Type::Container(signature::Container::Struct(vec![
-            i32::signature(),
-            i32::signature(),
+            u32::signature(),
+            u32::signature(),
         ]))
     }
 
@@ -95,7 +114,6 @@ impl Marshal for &MySubType {
         8
     }
 }
-
 impl Marshal for &MyOtherSubType {
     fn marshal(
         &self,
@@ -107,16 +125,6 @@ impl Marshal for &MyOtherSubType {
         self.x.marshal(byteorder, buf)?;
         self.y.marshal(byteorder, buf)?;
         Ok(())
-    }
-    fn signature() -> signature::Type {
-        signature::Type::Container(signature::Container::Struct(vec![
-            u32::signature(),
-            u32::signature(),
-        ]))
-    }
-
-    fn alignment() -> usize {
-        8
     }
 }
 

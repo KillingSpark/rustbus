@@ -1,17 +1,16 @@
 //! An unfinished first try at implementing an unmarshal trait. To apply this to message decoding signature checking would have to be done in some way...
 
 use crate::message::ByteOrder;
+use crate::wire::marshal_trait::Signature;
 use crate::wire::unmarshal;
 use crate::wire::util;
 
-pub trait Unmarshal<'r, 'buf: 'r>: Sized {
+pub trait Unmarshal<'r, 'buf: 'r>: Sized + Signature {
     fn unmarshal(
         byteorder: ByteOrder,
         buf: &'buf [u8],
         offset: usize,
     ) -> unmarshal::UnmarshalResult<Self>;
-
-    fn alignment() -> usize;
 }
 
 pub fn unmarshal<'r, 'buf: 'r, T: Unmarshal<'r, 'buf>>(
@@ -62,9 +61,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for () {
         let padding = util::align_offset(Self::alignment(), buf, offset)?;
         Ok((padding, ()))
     }
-    fn alignment() -> usize {
-        8
-    }
 }
 
 impl<'r, 'buf: 'r, E1> Unmarshal<'r, 'buf> for (E1,)
@@ -80,9 +76,6 @@ where
         let offset = offset + padding;
         let (bytes, val1) = E1::unmarshal(byteorder, buf, offset)?;
         Ok((bytes + padding, (val1,)))
-    }
-    fn alignment() -> usize {
-        8
     }
 }
 
@@ -109,9 +102,6 @@ where
         total_bytes += bytes;
 
         Ok((total_bytes, (val1, val2)))
-    }
-    fn alignment() -> usize {
-        8
     }
 }
 
@@ -144,9 +134,6 @@ where
         total_bytes += bytes;
 
         Ok((total_bytes, (val1, val2, val3)))
-    }
-    fn alignment() -> usize {
-        8
     }
 }
 
@@ -186,9 +173,6 @@ where
 
         Ok((total_bytes, (val1, val2, val3, val4)))
     }
-    fn alignment() -> usize {
-        8
-    }
 }
 
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u64 {
@@ -202,9 +186,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u64 {
         let (bytes, val) = util::parse_u64(&buf[offset..], byteorder)?;
         Ok((bytes + padding, val))
     }
-    fn alignment() -> usize {
-        8
-    }
 }
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u32 {
     fn unmarshal(
@@ -217,9 +198,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u32 {
         let (bytes, val) = util::parse_u32(&buf[offset..], byteorder)?;
         Ok((bytes + padding, val))
     }
-    fn alignment() -> usize {
-        4
-    }
 }
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u16 {
     fn unmarshal(
@@ -231,9 +209,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u16 {
         let offset = offset + padding;
         let (bytes, val) = util::parse_u16(&buf[offset..], byteorder)?;
         Ok((bytes + padding, val))
-    }
-    fn alignment() -> usize {
-        2
     }
 }
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i64 {
@@ -248,9 +223,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i64 {
             util::parse_u64(&buf[offset..], byteorder).map(|(bytes, val)| (bytes, val as i64))?;
         Ok((bytes + padding, val))
     }
-    fn alignment() -> usize {
-        8
-    }
 }
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i32 {
     fn unmarshal(
@@ -263,9 +235,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i32 {
         let (bytes, val) =
             util::parse_u32(&buf[offset..], byteorder).map(|(bytes, val)| (bytes, val as i32))?;
         Ok((bytes + padding, val))
-    }
-    fn alignment() -> usize {
-        4
     }
 }
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i16 {
@@ -280,9 +249,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for i16 {
             util::parse_u16(&buf[offset..], byteorder).map(|(bytes, val)| (bytes, val as i16))?;
         Ok((bytes + padding, val))
     }
-    fn alignment() -> usize {
-        2
-    }
 }
 
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u8 {
@@ -295,9 +261,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for u8 {
             return Err(crate::wire::unmarshal::Error::NotEnoughBytes);
         }
         Ok((1, buf[offset]))
-    }
-    fn alignment() -> usize {
-        2
     }
 }
 
@@ -316,9 +279,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for bool {
             _ => Err(crate::wire::unmarshal::Error::InvalidBoolean),
         }
     }
-    fn alignment() -> usize {
-        4
-    }
 }
 
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for &'r str {
@@ -332,9 +292,6 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for &'r str {
         let (bytes, val) = util::unmarshal_str(byteorder, &buf[offset..])?;
         Ok((bytes + padding, val))
     }
-    fn alignment() -> usize {
-        4
-    }
 }
 
 impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for String {
@@ -347,6 +304,14 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for String {
         let offset = offset + padding;
         let (bytes, val) = util::unmarshal_string(byteorder, &buf[offset..])?;
         Ok((bytes + padding, val))
+    }
+}
+
+impl<E: Signature> Signature for Vec<E> {
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
+            E::signature(),
+        )))
     }
     fn alignment() -> usize {
         4
@@ -383,9 +348,6 @@ impl<'r, 'buf: 'r, E: Unmarshal<'r, 'buf>> Unmarshal<'r, 'buf> for Vec<E> {
         let total_bytes_used = padding + 4 + first_elem_padding + bytes_used_counter;
 
         Ok((total_bytes_used, elements))
-    }
-    fn alignment() -> usize {
-        4
     }
 }
 
@@ -428,9 +390,6 @@ impl<'r, 'buf: 'r, K: Unmarshal<'r, 'buf> + std::hash::Hash + Eq, V: Unmarshal<'
         let total_bytes_used = padding + 4 + first_elem_padding + bytes_used_counter;
 
         Ok((total_bytes_used, map))
-    }
-    fn alignment() -> usize {
-        4
     }
 }
 
