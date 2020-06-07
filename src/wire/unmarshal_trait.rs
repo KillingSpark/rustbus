@@ -1,10 +1,63 @@
-//! An unfinished first try at implementing an unmarshal trait. To apply this to message decoding signature checking would have to be done in some way...
+//! Provides the Unmarshal trait and the implementations for the base types
 
 use crate::message::ByteOrder;
 use crate::wire::marshal_trait::Signature;
 use crate::wire::unmarshal;
 use crate::wire::util;
 
+/// This trait has to be supported to get parameters ergonomically out of a MarshalledMessage.
+/// There are implementations for the base types, Vecs, Hashmaps, and tuples of up to 5 elements
+/// if the contained types are Unmarshal.
+/// If you deal with basic messages, this should cover all your needs and you dont need to implement this type for
+/// your own types.
+///
+/// # Implementing for your own structs
+/// You can of course add your own implementations for you your own types.
+/// For this to work properly the signature must be correct and you need to report all bytes you consumed
+/// in the T::unmarshal(...) call. THIS INCLUDES PADDING.
+///
+/// Typically your code should look like this, keeping track of all padding and adjusting the local offset appropriatly
+/// ```rust
+/// struct MyStruct{ mycoolint: u64}
+/// use rustbus::wire::marshal_trait::Signature;
+/// use rustbus::signature;
+/// impl Signature for MyStruct {
+///     fn signature() -> signature::Type {
+///         signature::Type::Container(signature::Container::Struct(vec![
+///             u64::signature(),
+///         ]))
+///     }
+///
+///     fn alignment() -> usize {
+///         8
+///     }
+/// }  
+/// use rustbus::wire::unmarshal_trait::Unmarshal;
+/// use rustbus::wire::unmarshal::UnmarshalResult;
+/// use rustbus::wire::util;
+/// use rustbus::message::ByteOrder;
+/// impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for MyStruct {
+///     fn unmarshal(
+///         byteorder: ByteOrder,
+///         buf: &'buf [u8],
+///         offset: usize,
+///     ) -> UnmarshalResult<Self> {
+///         // check that we are aligned properly
+///         let padding = util::align_offset(Self::alignment(), buf, offset)?;
+///         let offset = offset + padding;
+///
+///         // decode some stuff and adjust offset
+///         let (bytes, mycoolint) = u64::unmarshal(byteorder, buf, offset)?;
+///         let offset = offset + bytes;
+///         
+///         // some more decoding if the struct had more fields
+///         // let padding2 = util::align_offset(u64::alignment(), buf, offset)?;
+///         // let offset = offset + padding2;
+///         // ect, etc
+///         Ok((padding + bytes /* + padding2  + more_bytes + ...*/, MyStruct{mycoolint}))
+///     }
+/// }
+/// ```
 pub trait Unmarshal<'r, 'buf: 'r>: Sized + Signature {
     fn unmarshal(
         byteorder: ByteOrder,
