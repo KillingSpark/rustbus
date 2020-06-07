@@ -339,3 +339,118 @@ impl Type {
         Ok(types)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::string::String;
+
+    #[test]
+    fn test_base_to_str() {
+        {
+            let mut s = String::new();
+            Type::Base(Base::Boolean).to_str(&mut s);
+            assert_eq!(s, "b");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Byte).to_str(&mut s);
+            assert_eq!(s, "y");
+        };
+        {
+            let mut s = String::new();
+
+            Type::Base(Base::Int16).to_str(&mut s);
+            assert_eq!(s, "n");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Uint16).to_str(&mut s);
+            assert_eq!(s, "q");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Int32).to_str(&mut s);
+            assert_eq!(s, "i");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Uint32).to_str(&mut s);
+            assert_eq!(s, "u");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Int64).to_str(&mut s);
+            assert_eq!(s, "x");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Uint64).to_str(&mut s);
+            assert_eq!(s, "t");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Double).to_str(&mut s);
+            assert_eq!(s, "d");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::String).to_str(&mut s);
+            assert_eq!(s, "s");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::UnixFd).to_str(&mut s);
+            assert_eq!(s, "h");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::ObjectPath).to_str(&mut s);
+            assert_eq!(s, "o");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Boolean).to_str(&mut s);
+            assert_eq!(s, "b");
+        };
+        {
+            let mut s = String::new();
+            Type::Base(Base::Signature).to_str(&mut s);
+            assert_eq!(s, "g");
+        };
+    }
+
+    macro_rules! assert_parse_and_back {
+        ($s:literal) => {{
+            let mut sig = String::new();
+            for i in Type::parse_description($s).unwrap().iter() {
+                i.to_str(&mut sig)
+            }
+            assert_eq!(sig, $s);
+        };};
+    }
+
+    #[test]
+    fn test_parse_description() {
+        assert_parse_and_back!("b");
+        assert_parse_and_back!("y");
+        assert_parse_and_back!("n");
+        assert_parse_and_back!("q");
+        assert_parse_and_back!("i");
+        assert_parse_and_back!("x");
+        assert_parse_and_back!("t");
+        assert_parse_and_back!("s");
+        assert_parse_and_back!("h");
+        assert_parse_and_back!("o");
+        assert_parse_and_back!("b");
+        assert_parse_and_back!("g");
+        assert_parse_and_back!("v");
+
+        assert_parse_and_back!("(si)");
+        assert_parse_and_back!("a(si)");
+        assert_parse_and_back!("a(sa(sv))");
+
+        assert_parse_and_back!("a{si}");
+        assert_parse_and_back!("a{s(dv)}");
+    }
+}
