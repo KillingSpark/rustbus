@@ -53,8 +53,12 @@ fn marshal_string(
     byteorder: message::ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    write_string(&s, byteorder, buf);
-    Ok(())
+    if s.contains('\0') {
+        Err(message::Error::StringContainsNullByte)
+    } else {
+        write_string(&s, byteorder, buf);
+        Ok(())
+    }
 }
 fn marshal_objectpath(
     s: &str,

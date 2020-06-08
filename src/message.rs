@@ -188,6 +188,7 @@ pub enum Error {
     DictValueTypesDiffer,
     EmptyArray,
     EmptyDict,
+    StringContainsNullByte,
 }
 
 /// The supported byte orders
