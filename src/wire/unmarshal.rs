@@ -32,6 +32,7 @@ pub enum Error {
     UnknownHeaderField,
     PaddingContainedData,
     InvalidBoolean,
+    EndOfMessage,
 }
 
 pub const HEADER_LEN: usize = 12;

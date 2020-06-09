@@ -157,107 +157,6 @@ impl MarshalledMessage {
             raw_fds: self.raw_fds,
         })
     }
-    fn parse_signature(
-        &self,
-        size: usize,
-    ) -> Result<Vec<crate::signature::Type>, crate::wire::unmarshal::Error> {
-        let ret = match &self.dynheader.signature {
-            Some(sig) => match crate::signature::Type::parse_description(sig) {
-                Ok(typ) => typ,
-                Err(_) => return Err(crate::wire::unmarshal::Error::InvalidSignature),
-            },
-            None => return Err(crate::wire::unmarshal::Error::InvalidType),
-        };
-        if ret.len() == size {
-            Ok(ret)
-        } else {
-            Err(crate::wire::unmarshal::Error::WrongSignature)
-        }
-    }
-    fn unmarshal_param1_helper<'r, 'buf: 'r, T1: Unmarshal<'r, 'buf>>(
-        &'buf self,
-        typ: &crate::signature::Type,
-    ) -> crate::wire::unmarshal::UnmarshalResult<T1> {
-        if typ != &T1::signature() {
-            return Err(crate::wire::unmarshal::Error::WrongSignature);
-        };
-        T1::unmarshal(self.body.byteorder, &self.body.buf, 0)
-    }
-    fn unmarshal_param2_helper<'r, 'buf: 'r, T1, T2>(
-        &'buf self,
-        typ: &[crate::signature::Type],
-    ) -> crate::wire::unmarshal::UnmarshalResult<(T1, T2)>
-    where
-        T1: Unmarshal<'r, 'buf>,
-        T2: Unmarshal<'r, 'buf>,
-    {
-        if typ[1] != T2::signature() {
-            return Err(crate::wire::unmarshal::Error::WrongSignature);
-        }
-        let (offset, ret1): (usize, T1) = self.unmarshal_param1_helper(&typ[0])?;
-        let (offset, ret2) = T2::unmarshal(self.body.byteorder, &self.body.buf, offset)?;
-        Ok((offset, (ret1, ret2)))
-    }
-    fn unmarshal_param3_helper<'r, 'buf: 'r, T1, T2, T3>(
-        &'buf self,
-        typ: &[crate::signature::Type],
-    ) -> crate::wire::unmarshal::UnmarshalResult<(T1, T2, T3)>
-    where
-        T1: Unmarshal<'r, 'buf>,
-        T2: Unmarshal<'r, 'buf>,
-        T3: Unmarshal<'r, 'buf>,
-    {
-        if typ[1] != T2::signature() {
-            return Err(crate::wire::unmarshal::Error::WrongSignature);
-        }
-        let (offset, ret12): (usize, (T1, T2)) = self.unmarshal_param2_helper(&typ[..2])?;
-        let (offset, ret3) = T3::unmarshal(self.body.byteorder, &self.body.buf, offset)?;
-        Ok((offset, (ret12.0, ret12.1, ret3)))
-    }
-
-    fn is_offset_end(&self, offset: usize) -> Result<(), crate::wire::unmarshal::Error> {
-        if self.body.buf.len() == offset {
-            Ok(())
-        } else {
-            Err(crate::wire::unmarshal::Error::NotAllBytesUsed)
-        }
-    }
-    pub fn unmarshal_param1<'r, 'buf: 'r, T1: Unmarshal<'r, 'buf>>(
-        &'buf self,
-    ) -> Result<T1, crate::wire::unmarshal::Error> {
-        let types = self.parse_signature(1)?;
-        if types.len() != 1 {
-            return Err(crate::wire::unmarshal::Error::WrongSignature);
-        }
-        let (end, ret): (usize, T1) = self.unmarshal_param1_helper(&types[0])?;
-        self.is_offset_end(end)?;
-        Ok(ret)
-    }
-    pub fn unmarshal_param2<'r, 'buf: 'r, T1, T2>(
-        &'buf self,
-    ) -> Result<(T1, T2), crate::wire::unmarshal::Error>
-    where
-        T1: Unmarshal<'r, 'buf>,
-        T2: Unmarshal<'r, 'buf>,
-    {
-        let types = self.parse_signature(2)?;
-        let (end, ret) = self.unmarshal_param2_helper(&types)?;
-        self.is_offset_end(end)?;
-        Ok(ret)
-    }
-    pub fn unmarshal_param3<'r, 'buf: 'r, T1, T2, T3>(
-        &'buf self,
-    ) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
-    where
-        T1: Unmarshal<'r, 'buf>,
-        T2: Unmarshal<'r, 'buf>,
-        T3: Unmarshal<'r, 'buf>,
-    {
-        let types = self.parse_signature(3)?;
-        let (end, ret) = self.unmarshal_param3_helper(&types)?;
-        self.is_offset_end(end)?;
-        Ok(ret)
-    }
 }
 /// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
 /// And you can of course write an Marshal impl for your own datastrcutures
@@ -421,6 +320,12 @@ impl MarshalledMessageBody {
         self.sig.push('v');
         marshal_as_variant(p, self.byteorder, &mut self.buf)
     }
+
+    /// Create a parser to retrieve parameters from the body.
+    #[inline]
+    pub fn parser(&self) -> MessageBodyIter {
+        MessageBodyIter::new(&self)
+    }
 }
 
 #[test]
@@ -579,23 +484,73 @@ impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
         }
     }
 
-    pub fn get<T: Unmarshal<'ret, 'body>>(
-        &mut self,
-    ) -> Option<Result<T, crate::wire::unmarshal::Error>> {
+    pub fn get<T: Unmarshal<'ret, 'body>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
         if self.sig_idx >= self.sigs.len() {
-            return None;
+            return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
         if self.sigs[self.sig_idx] != T::signature() {
-            return Some(Err(crate::wire::unmarshal::Error::WrongSignature));
+            return Err(crate::wire::unmarshal::Error::WrongSignature);
         }
 
         match T::unmarshal(self.body.byteorder, &self.body.buf, self.buf_idx) {
             Ok((bytes, res)) => {
                 self.buf_idx += bytes;
                 self.sig_idx += 1;
-                Some(Ok(res))
+                Ok(res)
             }
-            Err(e) => Some(Err(e)),
+            Err(e) => Err(e),
         }
+    }
+    pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+    {
+        let ret1 = self.get()?;
+        let ret2 = self.get()?;
+        Ok((ret1, ret2))
+    }
+    pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+        T3: Unmarshal<'ret, 'body>,
+    {
+        let ret1 = self.get()?;
+        let ret2 = self.get()?;
+        let ret3 = self.get()?;
+        Ok((ret1, ret2, ret3))
+    }
+    pub fn get4<T1, T2, T3, T4>(
+        &mut self,
+    ) -> Result<(T1, T2, T3, T4), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+        T3: Unmarshal<'ret, 'body>,
+        T4: Unmarshal<'ret, 'body>,
+    {
+        let ret1 = self.get()?;
+        let ret2 = self.get()?;
+        let ret3 = self.get()?;
+        let ret4 = self.get()?;
+        Ok((ret1, ret2, ret3, ret4))
+    }
+    pub fn get5<T1, T2, T3, T4, T5>(
+        &mut self,
+    ) -> Result<(T1, T2, T3, T4, T5), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+        T3: Unmarshal<'ret, 'body>,
+        T4: Unmarshal<'ret, 'body>,
+        T5: Unmarshal<'ret, 'body>,
+    {
+        let ret1 = self.get()?;
+        let ret2 = self.get()?;
+        let ret3 = self.get()?;
+        let ret4 = self.get()?;
+        let ret5 = self.get()?;
+        Ok((ret1, ret2, ret3, ret4, ret5))
     }
 }
