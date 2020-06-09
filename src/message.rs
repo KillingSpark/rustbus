@@ -57,6 +57,27 @@ impl DynamicHeader {
         }
         err_resp
     }
+    /// Make a correctly addressed response with the correct response serial
+    pub fn make_response(&self) -> crate::message_builder::MarshalledMessage {
+        crate::message_builder::MarshalledMessage {
+            typ: MessageType::Reply,
+            dynheader: DynamicHeader {
+                interface: None,
+                member: None,
+                object: None,
+                destination: self.sender.clone(),
+                serial: None,
+                num_fds: None,
+                sender: None,
+                signature: None,
+                response_serial: self.serial,
+                error_name: None,
+            },
+            raw_fds: Vec::new(),
+            flags: 0,
+            body: crate::message_builder::MarshalledMessageBody::new(),
+        }
+    }
 }
 
 /// A message with all the different fields it may or may not have
@@ -114,25 +135,12 @@ impl<'a, 'e> Message<'a, 'e> {
     }
 
     /// Make a correctly addressed response with the correct response serial
+    /// This is identical to calling [`self.dynheader.make_response()`].
+    ///
+    /// [`self.dynheader.make_response()`]: ./struct.DynamicHeader.html#method.make_response
+    #[inline]
     pub fn make_response(&self) -> crate::message_builder::MarshalledMessage {
-        crate::message_builder::MarshalledMessage {
-            typ: MessageType::Reply,
-            dynheader: DynamicHeader {
-                interface: None,
-                member: None,
-                object: None,
-                destination: self.dynheader.sender.clone(),
-                serial: None,
-                num_fds: None,
-                sender: None,
-                signature: None,
-                response_serial: self.dynheader.serial,
-                error_name: None,
-            },
-            raw_fds: Vec::new(),
-            flags: 0,
-            body: crate::message_builder::MarshalledMessageBody::new(),
-        }
+        self.dynheader.make_response()
     }
 
     pub fn set_flag(&mut self, flag: HeaderFlags) {
