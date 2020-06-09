@@ -428,34 +428,34 @@ fn test_marshal_trait() {
     type WrongNestedDict =
         std::collections::HashMap<String, std::collections::HashMap<String, u64>>;
     assert_eq!(
-        body_iter.get::<WrongNestedDict>().unwrap().err().unwrap(),
+        body_iter.get::<WrongNestedDict>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
     type WrongStruct = (u64, i32, String);
     assert_eq!(
-        body_iter.get::<WrongStruct>().unwrap().err().unwrap(),
+        body_iter.get::<WrongStruct>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
 
     // the get the correct type and make sure the content is correct
     type NestedDict = std::collections::HashMap<String, std::collections::HashMap<String, u32>>;
-    let newmap2: NestedDict = body_iter.get().unwrap().unwrap();
+    let newmap2: NestedDict = body_iter.get().unwrap();
     assert_eq!(newmap2.len(), 1);
     assert_eq!(newmap2.get("a").unwrap().len(), 1);
     assert_eq!(*newmap2.get("a").unwrap().get("a").unwrap(), 4);
 
     // again try some stuff that has the wrong signature
     assert_eq!(
-        body_iter.get::<WrongNestedDict>().unwrap().err().unwrap(),
+        body_iter.get::<WrongNestedDict>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
     assert_eq!(
-        body_iter.get::<WrongStruct>().unwrap().err().unwrap(),
+        body_iter.get::<WrongStruct>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
 
     // get the empty map next
-    let newemptymap: std::collections::HashMap<&str, u32> = body_iter.get().unwrap().unwrap();
+    let newemptymap: std::collections::HashMap<&str, u32> = body_iter.get().unwrap();
     assert_eq!(newemptymap.len(), 0);
 }
 
