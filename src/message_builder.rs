@@ -323,8 +323,8 @@ impl MarshalledMessageBody {
 
     /// Create a parser to retrieve parameters from the body.
     #[inline]
-    pub fn parser(&self) -> MessageBodyIter {
-        MessageBodyIter::new(&self)
+    pub fn parser(&self) -> MessageBodyParser {
+        MessageBodyParser::new(&self)
     }
 }
 
@@ -422,7 +422,7 @@ fn test_marshal_trait() {
     );
 
     // try to unmarshal stuff
-    let mut body_iter = MessageBodyIter::new(&body);
+    let mut body_iter = MessageBodyParser::new(&body);
 
     // first try some stuff that has the wrong signature
     type WrongNestedDict =
@@ -484,14 +484,14 @@ use crate::wire::unmarshal_trait::Unmarshal;
 /// that you can use to get the params one by one, calling `get::<T>` until you have obtained all the parameters.
 /// If you try to get more parameters than the signature has types, it will return None, if you try to get a parameter that doesn not
 /// fit the current one, it will return an Error::WrongSignature, but you can safely try other types, the iterator stays valid.
-pub struct MessageBodyIter<'body> {
+pub struct MessageBodyParser<'body> {
     buf_idx: usize,
     sig_idx: usize,
     sigs: Vec<crate::signature::Type>,
     body: &'body MarshalledMessageBody,
 }
 
-impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
+impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
     pub fn new(body: &'body MarshalledMessageBody) -> Self {
         Self {
             buf_idx: 0,
