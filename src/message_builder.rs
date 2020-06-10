@@ -464,6 +464,12 @@ fn test_marshal_trait() {
         body_iter.get2::<NestedDict, u16>().unwrap_err(),
         crate::wire::unmarshal::Error::WrongSignature
     );
+    assert_eq!(
+        body_iter
+            .get3::<NestedDict, std::collections::HashMap<&str, u32>, u32>()
+            .unwrap_err(),
+        crate::wire::unmarshal::Error::EndOfMessage
+    );
 
     // test to make sure body_iter is left unchanged from last failure and the map is
     // pulled out identically from above
@@ -474,6 +480,10 @@ fn test_marshal_trait() {
     assert_eq!(newmap2.get("a").unwrap().len(), 1);
     assert_eq!(*newmap2.get("a").unwrap().get("a").unwrap(), 4);
     assert_eq!(newemptymap.len(), 0);
+    assert_eq!(
+        body_iter.get::<u16>().unwrap_err(),
+        crate::wire::unmarshal::Error::EndOfMessage
+    );
 }
 
 use crate::wire::unmarshal_trait::Unmarshal;
