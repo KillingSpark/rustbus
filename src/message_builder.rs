@@ -501,14 +501,40 @@ impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
             Err(e) => Err(e),
         }
     }
+    /// Perform error handling for `get2(), get3()...` if `get_calls` fails.
+    fn get_mult_helper<T, F>(
+        &mut self,
+        count: usize,
+        get_calls: F,
+    ) -> Result<T, crate::wire::unmarshal::Error>
+    where
+        F: FnOnce(&mut Self) -> Result<T, crate::wire::unmarshal::Error>,
+    {
+        if self.sig_idx + count > self.sigs.len() {
+            return Err(crate::wire::unmarshal::Error::EndOfMessage);
+        }
+        let start_sig_idx = self.sig_idx;
+        let start_buf_idx = self.buf_idx;
+        match get_calls(self) {
+            Ok(ret) => Ok(ret),
+            Err(err) => {
+                self.sig_idx = start_sig_idx;
+                self.buf_idx = start_buf_idx;
+                Err(err)
+            }
+        }
+    }
     pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
     where
         T1: Unmarshal<'ret, 'body>,
         T2: Unmarshal<'ret, 'body>,
     {
-        let ret1 = self.get()?;
-        let ret2 = self.get()?;
-        Ok((ret1, ret2))
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            Ok((ret1, ret2))
+        };
+        self.get_mult_helper(2, get_calls)
     }
     pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
     where
@@ -516,10 +542,13 @@ impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
         T2: Unmarshal<'ret, 'body>,
         T3: Unmarshal<'ret, 'body>,
     {
-        let ret1 = self.get()?;
-        let ret2 = self.get()?;
-        let ret3 = self.get()?;
-        Ok((ret1, ret2, ret3))
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            let ret3 = parser.get()?;
+            Ok((ret1, ret2, ret3))
+        };
+        self.get_mult_helper(3, get_calls)
     }
     pub fn get4<T1, T2, T3, T4>(
         &mut self,
@@ -530,11 +559,14 @@ impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
         T3: Unmarshal<'ret, 'body>,
         T4: Unmarshal<'ret, 'body>,
     {
-        let ret1 = self.get()?;
-        let ret2 = self.get()?;
-        let ret3 = self.get()?;
-        let ret4 = self.get()?;
-        Ok((ret1, ret2, ret3, ret4))
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            let ret3 = parser.get()?;
+            let ret4 = parser.get()?;
+            Ok((ret1, ret2, ret3, ret4))
+        };
+        self.get_mult_helper(4, get_calls)
     }
     pub fn get5<T1, T2, T3, T4, T5>(
         &mut self,
@@ -546,11 +578,14 @@ impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
         T4: Unmarshal<'ret, 'body>,
         T5: Unmarshal<'ret, 'body>,
     {
-        let ret1 = self.get()?;
-        let ret2 = self.get()?;
-        let ret3 = self.get()?;
-        let ret4 = self.get()?;
-        let ret5 = self.get()?;
-        Ok((ret1, ret2, ret3, ret4, ret5))
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            let ret3 = parser.get()?;
+            let ret4 = parser.get()?;
+            let ret5 = parser.get()?;
+            Ok((ret1, ret2, ret3, ret4, ret5))
+        };
+        self.get_mult_helper(5, get_calls)
     }
 }
