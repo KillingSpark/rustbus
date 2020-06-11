@@ -320,6 +320,12 @@ impl MarshalledMessageBody {
         self.sig.push('v');
         marshal_as_variant(p, self.byteorder, &mut self.buf)
     }
+
+    /// Create a parser to retrieve parameters from the body.
+    #[inline]
+    pub fn parser(&self) -> MessageBodyParser {
+        MessageBodyParser::new(&self)
+    }
 }
 
 #[test]
@@ -416,41 +422,68 @@ fn test_marshal_trait() {
     );
 
     // try to unmarshal stuff
-    let mut body_iter = MessageBodyIter::new(&body);
+    let mut body_iter = MessageBodyParser::new(&body);
 
     // first try some stuff that has the wrong signature
     type WrongNestedDict =
         std::collections::HashMap<String, std::collections::HashMap<String, u64>>;
     assert_eq!(
-        body_iter.get::<WrongNestedDict>().unwrap().err().unwrap(),
+        body_iter.get::<WrongNestedDict>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
     type WrongStruct = (u64, i32, String);
     assert_eq!(
-        body_iter.get::<WrongStruct>().unwrap().err().unwrap(),
+        body_iter.get::<WrongStruct>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
 
     // the get the correct type and make sure the content is correct
     type NestedDict = std::collections::HashMap<String, std::collections::HashMap<String, u32>>;
-    let newmap2: NestedDict = body_iter.get().unwrap().unwrap();
+    let newmap2: NestedDict = body_iter.get().unwrap();
     assert_eq!(newmap2.len(), 1);
     assert_eq!(newmap2.get("a").unwrap().len(), 1);
     assert_eq!(*newmap2.get("a").unwrap().get("a").unwrap(), 4);
 
     // again try some stuff that has the wrong signature
     assert_eq!(
-        body_iter.get::<WrongNestedDict>().unwrap().err().unwrap(),
+        body_iter.get::<WrongNestedDict>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
     assert_eq!(
-        body_iter.get::<WrongStruct>().unwrap().err().unwrap(),
+        body_iter.get::<WrongStruct>().err().unwrap(),
         crate::wire::unmarshal::Error::WrongSignature
     );
 
     // get the empty map next
-    let newemptymap: std::collections::HashMap<&str, u32> = body_iter.get().unwrap().unwrap();
+    let newemptymap: std::collections::HashMap<&str, u32> = body_iter.get().unwrap();
     assert_eq!(newemptymap.len(), 0);
+
+    // test get2()
+    let mut body_iter = body.parser();
+    assert_eq!(
+        body_iter.get2::<NestedDict, u16>().unwrap_err(),
+        crate::wire::unmarshal::Error::WrongSignature
+    );
+    assert_eq!(
+        body_iter
+            .get3::<NestedDict, std::collections::HashMap<&str, u32>, u32>()
+            .unwrap_err(),
+        crate::wire::unmarshal::Error::EndOfMessage
+    );
+
+    // test to make sure body_iter is left unchanged from last failure and the map is
+    // pulled out identically from above
+    let (newmap2, newemptymap): (NestedDict, std::collections::HashMap<&str, u32>) =
+        body_iter.get2().unwrap();
+    // repeat assertions from above
+    assert_eq!(newmap2.len(), 1);
+    assert_eq!(newmap2.get("a").unwrap().len(), 1);
+    assert_eq!(*newmap2.get("a").unwrap().get("a").unwrap(), 4);
+    assert_eq!(newemptymap.len(), 0);
+    assert_eq!(
+        body_iter.get::<u16>().unwrap_err(),
+        crate::wire::unmarshal::Error::EndOfMessage
+    );
 }
 
 use crate::wire::unmarshal_trait::Unmarshal;
@@ -461,14 +494,14 @@ use crate::wire::unmarshal_trait::Unmarshal;
 /// that you can use to get the params one by one, calling `get::<T>` until you have obtained all the parameters.
 /// If you try to get more parameters than the signature has types, it will return None, if you try to get a parameter that doesn not
 /// fit the current one, it will return an Error::WrongSignature, but you can safely try other types, the iterator stays valid.
-pub struct MessageBodyIter<'body> {
+pub struct MessageBodyParser<'body> {
     buf_idx: usize,
     sig_idx: usize,
     sigs: Vec<crate::signature::Type>,
     body: &'body MarshalledMessageBody,
 }
 
-impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
+impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
     pub fn new(body: &'body MarshalledMessageBody) -> Self {
         Self {
             buf_idx: 0,
@@ -478,23 +511,108 @@ impl<'ret, 'body: 'ret> MessageBodyIter<'body> {
         }
     }
 
-    pub fn get<T: Unmarshal<'ret, 'body>>(
-        &mut self,
-    ) -> Option<Result<T, crate::wire::unmarshal::Error>> {
+    pub fn get<T: Unmarshal<'ret, 'body>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
         if self.sig_idx >= self.sigs.len() {
-            return None;
+            return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
         if self.sigs[self.sig_idx] != T::signature() {
-            return Some(Err(crate::wire::unmarshal::Error::WrongSignature));
+            return Err(crate::wire::unmarshal::Error::WrongSignature);
         }
 
         match T::unmarshal(self.body.byteorder, &self.body.buf, self.buf_idx) {
             Ok((bytes, res)) => {
                 self.buf_idx += bytes;
                 self.sig_idx += 1;
-                Some(Ok(res))
+                Ok(res)
             }
-            Err(e) => Some(Err(e)),
+            Err(e) => Err(e),
         }
+    }
+    /// Perform error handling for `get2(), get3()...` if `get_calls` fails.
+    fn get_mult_helper<T, F>(
+        &mut self,
+        count: usize,
+        get_calls: F,
+    ) -> Result<T, crate::wire::unmarshal::Error>
+    where
+        F: FnOnce(&mut Self) -> Result<T, crate::wire::unmarshal::Error>,
+    {
+        if self.sig_idx + count > self.sigs.len() {
+            return Err(crate::wire::unmarshal::Error::EndOfMessage);
+        }
+        let start_sig_idx = self.sig_idx;
+        let start_buf_idx = self.buf_idx;
+        match get_calls(self) {
+            Ok(ret) => Ok(ret),
+            Err(err) => {
+                self.sig_idx = start_sig_idx;
+                self.buf_idx = start_buf_idx;
+                Err(err)
+            }
+        }
+    }
+    pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+    {
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            Ok((ret1, ret2))
+        };
+        self.get_mult_helper(2, get_calls)
+    }
+    pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+        T3: Unmarshal<'ret, 'body>,
+    {
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            let ret3 = parser.get()?;
+            Ok((ret1, ret2, ret3))
+        };
+        self.get_mult_helper(3, get_calls)
+    }
+    pub fn get4<T1, T2, T3, T4>(
+        &mut self,
+    ) -> Result<(T1, T2, T3, T4), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+        T3: Unmarshal<'ret, 'body>,
+        T4: Unmarshal<'ret, 'body>,
+    {
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            let ret3 = parser.get()?;
+            let ret4 = parser.get()?;
+            Ok((ret1, ret2, ret3, ret4))
+        };
+        self.get_mult_helper(4, get_calls)
+    }
+    pub fn get5<T1, T2, T3, T4, T5>(
+        &mut self,
+    ) -> Result<(T1, T2, T3, T4, T5), crate::wire::unmarshal::Error>
+    where
+        T1: Unmarshal<'ret, 'body>,
+        T2: Unmarshal<'ret, 'body>,
+        T3: Unmarshal<'ret, 'body>,
+        T4: Unmarshal<'ret, 'body>,
+        T5: Unmarshal<'ret, 'body>,
+    {
+        let get_calls = |parser: &mut Self| {
+            let ret1 = parser.get()?;
+            let ret2 = parser.get()?;
+            let ret3 = parser.get()?;
+            let ret4 = parser.get()?;
+            let ret5 = parser.get()?;
+            Ok((ret1, ret2, ret3, ret4, ret5))
+        };
+        self.get_mult_helper(5, get_calls)
     }
 }

@@ -32,6 +32,15 @@ pub enum Error {
     UnknownHeaderField,
     PaddingContainedData,
     InvalidBoolean,
+    EndOfMessage,
+}
+
+impl Error {
+    /// Checks if `self` is an `EndOfMessage` error.
+    #[inline]
+    pub fn is_end_of_message(&self) -> bool {
+        self == &Error::EndOfMessage
+    }
 }
 
 pub const HEADER_LEN: usize = 12;
