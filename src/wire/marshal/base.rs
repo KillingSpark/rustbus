@@ -1,7 +1,7 @@
 //! Marshal base params into raw bytes
 
-use crate::params::message;
 use crate::params;
+use crate::params::message;
 use crate::wire::util::*;
 use crate::ByteOrder;
 

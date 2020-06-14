@@ -1,8 +1,8 @@
 //! Some standard messages that are often needed
 
-use crate::params::message;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MessageBuilder;
+use crate::params::message;
 
 pub fn hello() -> MarshalledMessage {
     MessageBuilder::new()

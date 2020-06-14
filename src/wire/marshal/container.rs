@@ -1,7 +1,7 @@
 //! Marshal container params into raw bytes
 
-use crate::params::message;
 use crate::params;
+use crate::params::message;
 use crate::signature;
 use crate::wire::marshal::base::*;
 use crate::wire::util::*;

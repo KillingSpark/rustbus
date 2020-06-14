@@ -3,8 +3,8 @@
 //! * `base` and `container` are for the Param approach that map dbus concepts to enums/structs
 //! * `traits` is for the trait based approach
 
-use crate::params::message;
 use crate::params;
+use crate::params::message;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
 

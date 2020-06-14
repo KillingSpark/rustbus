@@ -1,8 +1,8 @@
 //! Provide a few Into<...> implementations to make working with Param a bit easier
 
 use super::*;
-use crate::Error;
 use crate::signature;
+use crate::Error;
 
 impl<'a, 'e> Param<'a, 'e> {
     pub fn into_container(self) -> Result<Container<'a, 'e>, Param<'a, 'e>> {

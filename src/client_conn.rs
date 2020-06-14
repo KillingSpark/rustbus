@@ -2,8 +2,8 @@
 //! over the Conn struct.
 
 use crate::auth;
-use crate::params::message;
 use crate::message_builder::MarshalledMessage;
+use crate::params::message;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
 use crate::ByteOrder;
