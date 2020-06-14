@@ -1,6 +1,6 @@
 //! Messages that have been completetly converted
 
-use crate::message_builder::{DynamicHeader, MessageType, HeaderFlags};
+use crate::message_builder::{DynamicHeader, HeaderFlags, MessageType};
 use crate::params::*;
 use crate::signature;
 use std::os::unix::io::RawFd;
