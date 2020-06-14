@@ -3,7 +3,7 @@
 
 use crate::auth;
 use crate::message_builder::MarshalledMessage;
-use crate::params::message;
+use crate::message_builder::MessageType;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
 use crate::ByteOrder;
@@ -180,37 +180,37 @@ impl RpcConn {
         let start_time = time::Instant::now();
         if self.filter.as_ref()(&msg) {
             match msg.typ {
-                message::MessageType::Call => {
+                MessageType::Call => {
                     self.calls.push_back(msg);
                 }
-                message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
-                message::MessageType::Error => {
+                MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                MessageType::Error => {
                     self.responses
                         .insert(msg.dynheader.response_serial.unwrap(), msg);
                 }
-                message::MessageType::Reply => {
+                MessageType::Reply => {
                     self.responses
                         .insert(msg.dynheader.response_serial.unwrap(), msg);
                 }
-                message::MessageType::Signal => {
+                MessageType::Signal => {
                     self.signals.push_back(msg);
                 }
             }
         } else {
             match msg.typ {
-                message::MessageType::Call => {
+                MessageType::Call => {
                     let mut reply = crate::standard_messages::unknown_method(&msg.dynheader);
                     self.conn
                         .send_message(&mut reply, calc_timeout_left(&start_time, timeout)?)?;
                 }
-                message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
-                message::MessageType::Error => {
+                MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                MessageType::Error => {
                     // just drop it
                 }
-                message::MessageType::Reply => {
+                MessageType::Reply => {
                     // just drop it
                 }
-                message::MessageType::Signal => {
+                MessageType::Signal => {
                     // just drop it
                 }
             }
@@ -222,7 +222,7 @@ impl RpcConn {
     /// if any message type was received. The message will be placed into the appropriate queue in the RpcConn.
     ///
     /// If a call is received that should be filtered out an error message is sent automatically
-    pub fn try_refill_once(&mut self, timeout: Timeout) -> Result<Option<message::MessageType>> {
+    pub fn try_refill_once(&mut self, timeout: Timeout) -> Result<Option<MessageType>> {
         let start_time = time::Instant::now();
         let msg = self
             .conn
@@ -238,7 +238,7 @@ impl RpcConn {
     /// has been received.
     ///
     /// If calls are received that should be filtered out an error message is sent automatically
-    pub fn refill_once(&mut self, timeout: Timeout) -> Result<message::MessageType> {
+    pub fn refill_once(&mut self, timeout: Timeout) -> Result<MessageType> {
         let start_time = time::Instant::now();
         loop {
             if let Some(typ) = self.try_refill_once(calc_timeout_left(&start_time, timeout)?)? {
@@ -266,37 +266,37 @@ impl RpcConn {
             };
             if self.filter.as_ref()(&msg) {
                 match msg.typ {
-                    message::MessageType::Call => {
+                    MessageType::Call => {
                         self.calls.push_back(msg);
                     }
-                    message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
-                    message::MessageType::Error => {
+                    MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                    MessageType::Error => {
                         self.responses
                             .insert(msg.dynheader.response_serial.unwrap(), msg);
                     }
-                    message::MessageType::Reply => {
+                    MessageType::Reply => {
                         self.responses
                             .insert(msg.dynheader.response_serial.unwrap(), msg);
                     }
-                    message::MessageType::Signal => {
+                    MessageType::Signal => {
                         self.signals.push_back(msg);
                     }
                 }
             } else {
                 match msg.typ {
-                    message::MessageType::Call => {
+                    MessageType::Call => {
                         let reply = crate::standard_messages::unknown_method(&msg.dynheader);
                         filtered_out.push(reply);
                         // drop message but keep reply
                     }
-                    message::MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
-                    message::MessageType::Error => {
+                    MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                    MessageType::Error => {
                         // just drop it
                     }
-                    message::MessageType::Reply => {
+                    MessageType::Reply => {
                         // just drop it
                     }
-                    message::MessageType::Signal => {
+                    MessageType::Signal => {
                         // just drop it
                     }
                 }

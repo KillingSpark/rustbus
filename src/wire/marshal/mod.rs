@@ -3,6 +3,7 @@
 //! * `base` and `container` are for the Param approach that map dbus concepts to enums/structs
 //! * `traits` is for the trait based approach
 
+use crate::message_builder;
 use crate::params;
 use crate::params::message;
 use crate::wire::HeaderField;
@@ -48,11 +49,11 @@ fn marshal_header(
     }
 
     let msg_type = match msg.typ {
-        message::MessageType::Invalid => return Err(crate::Error::InvalidType),
-        message::MessageType::Call => 1,
-        message::MessageType::Reply => 2,
-        message::MessageType::Error => 3,
-        message::MessageType::Signal => 4,
+        message_builder::MessageType::Invalid => return Err(crate::Error::InvalidType),
+        message_builder::MessageType::Call => 1,
+        message_builder::MessageType::Reply => 2,
+        message_builder::MessageType::Error => 3,
+        message_builder::MessageType::Signal => 4,
     };
     buf.push(msg_type);
 

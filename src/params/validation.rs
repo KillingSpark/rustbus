@@ -1,6 +1,6 @@
 use super::*;
 use crate::params;
-use crate::params::message::MessageType;
+use crate::message_builder::MessageType;
 use crate::signature;
 use crate::wire::HeaderField;
 

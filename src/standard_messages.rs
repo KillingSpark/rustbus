@@ -1,8 +1,8 @@
 //! Some standard messages that are often needed
 
+use crate::message_builder::DynamicHeader;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MessageBuilder;
-use crate::params::message;
 
 pub fn hello() -> MarshalledMessage {
     MessageBuilder::new()
@@ -76,7 +76,7 @@ pub fn add_match(match_rule: String) -> MarshalledMessage {
 }
 
 /// Error message to tell the caller that this method is not known by your server
-pub fn unknown_method(call: &message::DynamicHeader) -> MarshalledMessage {
+pub fn unknown_method(call: &DynamicHeader) -> MarshalledMessage {
     let text = format!(
         "No calls to {}.{} are accepted for object {}",
         call.interface.clone().unwrap_or_else(|| "".to_owned()),
@@ -90,7 +90,7 @@ pub fn unknown_method(call: &message::DynamicHeader) -> MarshalledMessage {
 }
 
 /// Error message to tell the caller that this method uses a different interface than what the caller provided as parameters
-pub fn invalid_args(call: &message::DynamicHeader, sig: Option<&str>) -> MarshalledMessage {
+pub fn invalid_args(call: &DynamicHeader, sig: Option<&str>) -> MarshalledMessage {
     let text = format!(
         "Invalid arguments for calls to {}.{} on object {} {}",
         call.interface.clone().unwrap_or_else(|| "".to_owned()),

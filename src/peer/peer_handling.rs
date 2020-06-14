@@ -1,4 +1,4 @@
-use crate::params::message::DynamicHeader;
+use crate::message_builder::DynamicHeader;
 use crate::params::message::Message;
 use crate::*;
 

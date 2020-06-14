@@ -1,84 +1,9 @@
-//! lowlevel message stuff
+//! Messages that have been completetly converted
 
+use crate::message_builder::{DynamicHeader, MessageType, HeaderFlags};
 use crate::params::*;
 use crate::signature;
 use std::os::unix::io::RawFd;
-
-#[derive(Copy, Clone, Debug)]
-pub enum MessageType {
-    Signal,
-    Error,
-    Call,
-    Reply,
-    Invalid,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct DynamicHeader {
-    pub interface: Option<String>,
-    pub member: Option<String>,
-    pub object: Option<String>,
-    pub destination: Option<String>,
-    pub serial: Option<u32>,
-    pub sender: Option<String>,
-    pub signature: Option<String>,
-    pub error_name: Option<String>,
-    pub response_serial: Option<u32>,
-    pub num_fds: Option<u32>,
-}
-
-impl DynamicHeader {
-    /// Make a correctly addressed error response with the correct response serial
-    pub fn make_error_response(
-        &self,
-        error_name: String,
-        error_msg: Option<String>,
-    ) -> crate::message_builder::MarshalledMessage {
-        let mut err_resp = crate::message_builder::MarshalledMessage {
-            typ: MessageType::Reply,
-            dynheader: DynamicHeader {
-                interface: None,
-                member: None,
-                object: None,
-                destination: self.sender.clone(),
-                serial: None,
-                num_fds: None,
-                sender: None,
-                signature: None,
-                response_serial: self.serial,
-                error_name: Some(error_name),
-            },
-            raw_fds: Vec::new(),
-            flags: 0,
-            body: crate::message_builder::MarshalledMessageBody::new(),
-        };
-        if let Some(text) = error_msg {
-            err_resp.body.push_param(text).unwrap();
-        }
-        err_resp
-    }
-    /// Make a correctly addressed response with the correct response serial
-    pub fn make_response(&self) -> crate::message_builder::MarshalledMessage {
-        crate::message_builder::MarshalledMessage {
-            typ: MessageType::Reply,
-            dynheader: DynamicHeader {
-                interface: None,
-                member: None,
-                object: None,
-                destination: self.sender.clone(),
-                serial: None,
-                num_fds: None,
-                sender: None,
-                signature: None,
-                response_serial: self.serial,
-                error_name: None,
-            },
-            raw_fds: Vec::new(),
-            flags: 0,
-            body: crate::message_builder::MarshalledMessageBody::new(),
-        }
-    }
-}
 
 /// A message with all the different fields it may or may not have
 #[derive(Debug, Clone)]
@@ -173,42 +98,6 @@ impl<'a, 'e> Message<'a, 'e> {
         self.params.push(p1.into());
         self.params.push(p2.into());
         self.params.push(p3.into());
-    }
-}
-
-#[derive(Copy, Clone)]
-pub enum HeaderFlags {
-    NoReplyExpected,
-    NoAutoStart,
-    AllowInteractiveAuthorization,
-}
-
-impl HeaderFlags {
-    pub fn into_raw(self) -> u8 {
-        match self {
-            HeaderFlags::NoReplyExpected => 1,
-            HeaderFlags::NoAutoStart => 2,
-            HeaderFlags::AllowInteractiveAuthorization => 4,
-        }
-    }
-
-    pub fn is_set(self, flags: u8) -> bool {
-        flags & self.into_raw() == 1
-    }
-
-    pub fn set(self, flags: &mut u8) {
-        *flags |= self.into_raw()
-    }
-
-    pub fn unset(self, flags: &mut u8) {
-        *flags &= 0xFF - self.into_raw()
-    }
-    pub fn toggle(self, flags: &mut u8) {
-        if self.is_set(*flags) {
-            self.unset(flags)
-        } else {
-            self.set(flags)
-        }
     }
 }
 

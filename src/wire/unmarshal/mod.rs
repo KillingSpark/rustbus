@@ -4,10 +4,11 @@
 //! * `traits` is for the trait based approach
 //! * `iter` is an experimental approach to an libdbus-like iterator
 
+use crate::message_builder::DynamicHeader;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MarshalledMessageBody;
+use crate::message_builder::MessageType;
 use crate::params;
-use crate::params::message;
 use crate::signature;
 use crate::wire::util::*;
 use crate::wire::HeaderField;
@@ -23,7 +24,7 @@ use container::*;
 #[derive(Debug)]
 pub struct Header {
     pub byteorder: ByteOrder,
-    pub typ: message::MessageType,
+    pub typ: MessageType,
     pub flags: u8,
     pub version: u8,
     pub body_len: u32,
@@ -85,10 +86,10 @@ pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
     };
 
     let typ = match header_slice[1] {
-        1 => message::MessageType::Call,
-        2 => message::MessageType::Reply,
-        3 => message::MessageType::Error,
-        4 => message::MessageType::Signal,
+        1 => MessageType::Call,
+        2 => MessageType::Reply,
+        3 => MessageType::Error,
+        4 => MessageType::Signal,
         _ => return Err(Error::InvalidType),
     };
     let flags = header_slice[2];
@@ -113,9 +114,9 @@ pub fn unmarshal_dynamic_header(
     header: &Header,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<message::DynamicHeader> {
+) -> UnmarshalResult<DynamicHeader> {
     let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
-    let mut hdr = message::DynamicHeader::default();
+    let mut hdr = DynamicHeader::default();
     hdr.serial = Some(header.serial);
     collect_header_fields(&fields, &mut hdr);
     Ok((fields_bytes_used, hdr))
@@ -140,7 +141,7 @@ pub fn unmarshal_body<'a, 'e>(
 
 pub fn unmarshal_next_message(
     header: &Header,
-    dynheader: message::DynamicHeader,
+    dynheader: DynamicHeader,
     buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<MarshalledMessage> {
@@ -302,7 +303,7 @@ fn unmarshal_header_field(
     }
 }
 
-fn collect_header_fields(header_fields: &[HeaderField], hdr: &mut message::DynamicHeader) {
+fn collect_header_fields(header_fields: &[HeaderField], hdr: &mut DynamicHeader) {
     for h in header_fields {
         match h {
             HeaderField::Destination(d) => hdr.destination = Some(d.clone()),

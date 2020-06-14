@@ -56,7 +56,7 @@ pub mod wire;
 // TODO create a rustbus::prelude
 
 // needed to make own filters in RpcConn
-pub use params::message::MessageType;
+pub use message_builder::MessageType;
 
 // needed to create a connection
 pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
