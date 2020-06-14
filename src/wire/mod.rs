@@ -1,4 +1,4 @@
-//! Everything that deals with converting from/to raw bytes
+//! Everything that deals with converting from/to raw bytes. You probably do not need this.
 
 pub mod marshal;
 pub mod unmarshal;

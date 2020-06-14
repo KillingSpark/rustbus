@@ -1,3 +1,5 @@
+//! Various validation functions for e.g. ObjectPath constraints
+
 use super::*;
 use crate::message_builder::MessageType;
 use crate::params;

@@ -1,4 +1,4 @@
-//! Messages that have been completetly converted
+//! Messages that have been completetly unmarshalled
 
 use crate::message_builder::{DynamicHeader, HeaderFlags, MessageType};
 use crate::params::*;
@@ -6,6 +6,7 @@ use crate::signature;
 use std::os::unix::io::RawFd;
 
 /// A message with all the different fields it may or may not have
+/// and only Params as the body
 #[derive(Debug, Clone)]
 pub struct Message<'a, 'e> {
     pub typ: MessageType,

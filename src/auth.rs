@@ -1,3 +1,5 @@
+//! Deals with authentication to the other side. You probably do not need this.
+
 use nix::unistd::getuid;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;

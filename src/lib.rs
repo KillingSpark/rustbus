@@ -3,7 +3,7 @@
 //! in the src/bin directory but the gist is:
 //!
 //! ```rust,no_run
-//! use rustbus::{get_session_bus_path, standard_messages, Conn, params::Container, params::DictMap, MessageBuilder, client_conn::Timeout};
+//! use rustbus::{get_session_bus_path, standard_messages, Conn, MessageBuilder, client_conn::Timeout};
 //!
 //! fn main() -> Result<(), rustbus::client_conn::Error> {
 //!     // Connect to the session bus

@@ -5,6 +5,7 @@ use crate::wire::marshal::traits::Marshal;
 use crate::ByteOrder;
 use std::os::unix::io::RawFd;
 
+/// Types a message might have
 #[derive(Copy, Clone, Debug)]
 pub enum MessageType {
     Signal,
@@ -14,6 +15,7 @@ pub enum MessageType {
     Invalid,
 }
 
+/// Flags that can be set in the message header
 #[derive(Copy, Clone)]
 pub enum HeaderFlags {
     NoReplyExpected,
@@ -50,6 +52,7 @@ impl HeaderFlags {
     }
 }
 
+/// The dynamic part of a dbus message header
 #[derive(Debug, Clone, Default)]
 pub struct DynamicHeader {
     pub interface: Option<String>,
@@ -117,14 +120,18 @@ impl DynamicHeader {
     }
 }
 
+/// Starting point for new messages. Create either a call or a signal
 #[derive(Default)]
 pub struct MessageBuilder {
     msg: MarshalledMessage,
 }
 
+/// Created by MessageBuilder::call. Use it to make a new call to a service
 pub struct CallBuilder {
     msg: MarshalledMessage,
 }
+
+/// Created by MessageBuilder::signal. Use it to make a new signal
 pub struct SignalBuilder {
     msg: MarshalledMessage,
 }
@@ -190,6 +197,12 @@ impl SignalBuilder {
     }
 }
 
+/// Message received by a connection or in preparation before being sent over a connection.
+///
+/// This represents a message while it is being built before it is sent over the connection.
+/// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
+/// And you can of course write an Marshal impl for your own datastructures. See the doc on the Marshal trait what you have
+/// to look out for when doing this though.
 #[derive(Debug)]
 pub struct MarshalledMessage {
     pub body: MarshalledMessageBody,
@@ -209,10 +222,6 @@ impl Default for MarshalledMessage {
     }
 }
 
-/// This represents a message while it is being built before it is sent over the connection.
-/// The body accepts everything that implements the Marshal trait (e.g. all basic types, strings, slices, Hashmaps,.....)
-/// And you can of course write an Marshal impl for your own datastructures. See the doc on the Marshal trait what you have
-/// to look out for when doing this though.
 impl MarshalledMessage {
     pub fn get_buf(&self) -> &[u8] {
         &self.body.buf

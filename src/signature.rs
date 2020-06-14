@@ -1,3 +1,6 @@
+//! Everything needed to deal with dbus signatures
+
+/// Base types that might occur in a signature
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Base {
     Byte,
@@ -15,6 +18,7 @@ pub enum Base {
     Boolean,
 }
 
+/// Containers for other types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Container {
     Array(Box<Type>),
@@ -23,6 +27,7 @@ pub enum Container {
     Variant,
 }
 
+/// Either a Base or a Container
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Type {
     Base(Base),
