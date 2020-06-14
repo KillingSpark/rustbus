@@ -1,4 +1,5 @@
-use crate::message::DynamicHeader;
+use crate::params::message::DynamicHeader;
+use crate::params::message::Message;
 use crate::*;
 
 static MACHINE_ID_FILE_PATH: &str = "/tmp/dbus_machine_uuid";

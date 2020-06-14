@@ -1,4 +1,6 @@
-use rustbus::{client_conn::Timeout, standard_messages, Message, MessageType, RpcConn};
+use rustbus::{
+    client_conn::Timeout, params::message::Message, standard_messages, MessageType, RpcConn,
+};
 
 pub enum Commands {
     Echo,

@@ -1,6 +1,6 @@
 //! Helps in building messages conveniently
 
-use crate::message;
+use crate::params::message;
 use crate::wire::marshal::traits::Marshal;
 use crate::ByteOrder;
 use std::os::unix::io::RawFd;
@@ -133,7 +133,7 @@ impl MarshalledMessage {
         }
     }
 
-    pub fn unmarshall_all<'a, 'e>(self) -> Result<message::Message<'a, 'e>, crate::message::Error> {
+    pub fn unmarshall_all<'a, 'e>(self) -> Result<message::Message<'a, 'e>, crate::Error> {
         let params = if self.body.sig.is_empty() {
             vec![]
         } else {
@@ -177,7 +177,7 @@ pub fn marshal_as_variant<P: Marshal>(
     p: P,
     byteorder: ByteOrder,
     buf: &mut Vec<u8>,
-) -> Result<(), message::Error> {
+) -> Result<(), crate::Error> {
     let mut sig_str = String::new();
     P::signature().to_str(&mut sig_str);
     crate::wire::util::pad_to_align(P::alignment(), buf);
@@ -228,14 +228,14 @@ impl MarshalledMessageBody {
 
     /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
     /// the new trait/type based API does not work.
-    pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), message::Error> {
+    pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), crate::Error> {
         crate::wire::marshal::container::marshal_param(p, self.byteorder, &mut self.buf)?;
         p.sig().to_str(&mut self.sig);
         Ok(())
     }
 
     /// Convenience function to call push_old_param on a slice of Param
-    pub fn push_old_params(&mut self, ps: &[crate::params::Param]) -> Result<(), message::Error> {
+    pub fn push_old_params(&mut self, ps: &[crate::params::Param]) -> Result<(), crate::Error> {
         for p in ps {
             self.push_old_param(p)?;
         }
@@ -243,7 +243,7 @@ impl MarshalledMessageBody {
     }
 
     /// Append something that is Marshal to the message body
-    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
+    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
         p.marshal(self.byteorder, &mut self.buf)?;
         P::signature().to_str(&mut self.sig);
         Ok(())
@@ -254,7 +254,7 @@ impl MarshalledMessageBody {
         &mut self,
         p1: P1,
         p2: P2,
-    ) -> Result<(), message::Error> {
+    ) -> Result<(), crate::Error> {
         self.push_param(p1)?;
         self.push_param(p2)?;
         Ok(())
@@ -266,7 +266,7 @@ impl MarshalledMessageBody {
         p1: P1,
         p2: P2,
         p3: P3,
-    ) -> Result<(), message::Error> {
+    ) -> Result<(), crate::Error> {
         self.push_param(p1)?;
         self.push_param(p2)?;
         self.push_param(p3)?;
@@ -280,7 +280,7 @@ impl MarshalledMessageBody {
         p2: P2,
         p3: P3,
         p4: P4,
-    ) -> Result<(), message::Error> {
+    ) -> Result<(), crate::Error> {
         self.push_param(p1)?;
         self.push_param(p2)?;
         self.push_param(p3)?;
@@ -296,7 +296,7 @@ impl MarshalledMessageBody {
         p3: P3,
         p4: P4,
         p5: P5,
-    ) -> Result<(), message::Error> {
+    ) -> Result<(), crate::Error> {
         self.push_param(p1)?;
         self.push_param(p2)?;
         self.push_param(p3)?;
@@ -306,7 +306,7 @@ impl MarshalledMessageBody {
     }
 
     /// Append any number of things that have the same type that is Marshal to the message body
-    pub fn push_params<P: Marshal>(&mut self, params: &[P]) -> Result<(), message::Error> {
+    pub fn push_params<P: Marshal>(&mut self, params: &[P]) -> Result<(), crate::Error> {
         for p in params {
             self.push_param(p)?;
         }
@@ -314,7 +314,7 @@ impl MarshalledMessageBody {
     }
 
     /// Append something that is Marshal to the body but use a dbus Variant in the signature. This is necessary for some APIs
-    pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), message::Error> {
+    pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
         self.sig.push('v');
         marshal_as_variant(p, self.byteorder, &mut self.buf)
     }
@@ -376,7 +376,7 @@ fn test_marshal_trait() {
         }
     }
     impl Marshal for &MyStruct {
-        fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
+        fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), crate::Error> {
             // always align to 8
             crate::wire::util::pad_to_align(8, buf);
             self.x.marshal(byteorder, buf)?;

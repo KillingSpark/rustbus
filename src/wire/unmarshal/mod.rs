@@ -4,7 +4,7 @@
 //! * `traits` is for the trait based approach
 //! * `iter` is an experimental approach to an libdbus-like iterator
 
-use crate::message;
+use crate::params::message;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MarshalledMessageBody;
 use crate::params;

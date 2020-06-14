@@ -1,6 +1,6 @@
 //! Some standard messages that are often needed
 
-use crate::message;
+use crate::params::message;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MessageBuilder;
 

@@ -1,7 +1,7 @@
 //! Provide a few Into<...> implementations to make working with Param a bit easier
 
 use super::*;
-use crate::message::Error;
+use crate::Error;
 use crate::signature;
 
 impl<'a, 'e> Param<'a, 'e> {

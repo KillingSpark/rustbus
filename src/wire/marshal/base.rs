@@ -1,6 +1,6 @@
 //! Marshal base params into raw bytes
 
-use crate::message;
+use crate::params::message;
 use crate::params;
 use crate::wire::util::*;
 use crate::ByteOrder;
@@ -49,7 +49,7 @@ fn marshal_u64(i: u64, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Resu
 
 fn marshal_string(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     if s.contains('\0') {
-        Err(message::Error::StringContainsNullByte)
+        Err(params::validation::Error::StringContainsNullByte.into())
     } else {
         write_string(&s, byteorder, buf);
         Ok(())

@@ -7,6 +7,7 @@
 mod container_constructors;
 mod conversion;
 mod types;
+pub mod message;
 pub mod validation;
 
 pub use conversion::*;

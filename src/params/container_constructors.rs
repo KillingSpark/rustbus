@@ -3,7 +3,7 @@
 //! These allow for easier construction of containers. Note that empty containers require you to specify the
 //! signature.
 
-use crate::message::Result;
+use crate::params::message::Result;
 use crate::params::*;
 use crate::signature;
 

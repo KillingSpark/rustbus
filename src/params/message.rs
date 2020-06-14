@@ -176,33 +176,6 @@ impl<'a, 'e> Message<'a, 'e> {
     }
 }
 
-/// The different errors that can occur when dealing with messages
-#[derive(Debug, Eq, PartialEq)]
-pub enum Error {
-    InvalidType,
-    EmptyArray,
-    EmptyDict,
-    StringContainsNullByte,
-    Unmarshal(crate::wire::unmarshal::Error),
-    Validation(crate::params::validation::Error),
-}
-
-impl From<crate::params::validation::Error> for Error {
-    fn from(e: crate::params::validation::Error) -> Self {
-        Error::Validation(e)
-    }
-}
-impl From<crate::wire::unmarshal::Error> for Error {
-    fn from(e: crate::wire::unmarshal::Error) -> Self {
-        Error::Unmarshal(e)
-    }
-}
-impl From<crate::signature::Error> for Error {
-    fn from(e: crate::signature::Error) -> Self {
-        Error::Validation(crate::params::validation::Error::InvalidSignature(e))
-    }
-}
-
 #[derive(Copy, Clone)]
 pub enum HeaderFlags {
     NoReplyExpected,
@@ -239,4 +212,4 @@ impl HeaderFlags {
     }
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, crate::Error>;

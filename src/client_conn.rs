@@ -2,7 +2,7 @@
 //! over the Conn struct.
 
 use crate::auth;
-use crate::message;
+use crate::params::message;
 use crate::message_builder::MarshalledMessage;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
@@ -42,7 +42,7 @@ pub struct RpcConn {
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
 /// ```rust,no_run
-/// use rustbus::{get_session_bus_path, standard_messages, Conn, Container, params::DictMap, MessageBuilder, MessageType, RpcConn};
+/// use rustbus::{get_session_bus_path, standard_messages, Conn, params::Container, params::DictMap, MessageBuilder, MessageType, RpcConn};
 ///
 /// fn main() -> Result<(), rustbus::client_conn::Error> {
 ///     let session_path = get_session_bus_path()?;
@@ -328,7 +328,7 @@ pub enum Error {
     IoError(std::io::Error),
     NixError(nix::Error),
     UnmarshalError(unmarshal::Error),
-    MarshalError(message::Error),
+    MarshalError(crate::Error),
     AuthFailed,
     UnixFdNegotiationFailed,
     NameTaken,
@@ -357,8 +357,8 @@ impl std::convert::From<nix::Error> for Error {
     }
 }
 
-impl std::convert::From<message::Error> for Error {
-    fn from(e: message::Error) -> Error {
+impl std::convert::From<crate::Error> for Error {
+    fn from(e: crate::Error) -> Error {
         Error::MarshalError(e)
     }
 }
