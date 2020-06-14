@@ -1,7 +1,27 @@
 use super::*;
-use crate::message::*;
+use crate::message::MessageType;
 use crate::params;
 use crate::signature;
+use crate::wire::HeaderField;
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Error {
+    InvalidSignature(signature::Error),
+    InvalidObjectPath,
+    InvalidBusname,
+    InvalidErrorname,
+    InvalidMembername,
+    InvalidInterface,
+    InvalidHeaderFields,
+    StringContainsNullByte,
+    InvalidUtf8,
+    DuplicatedHeaderFields,
+    ArrayElementTypesDiffer,
+    DictKeyTypesDiffer,
+    DictValueTypesDiffer,
+}
+
+type Result<T> = std::result::Result<T, Error>;
 
 pub fn validate_object_path(op: &str) -> Result<()> {
     if op.is_empty() {
@@ -243,22 +263,22 @@ pub fn validate_header_fields(msg_type: MessageType, header_fields: &[HeaderFiel
 fn test_objectpath_constraints() {
     let no_beginning_slash = "da/di/du";
     assert_eq!(
-        Err(crate::message::Error::InvalidObjectPath),
+        Err(Error::InvalidObjectPath),
         crate::params::validate_object_path(no_beginning_slash)
     );
     let empty_element = "/da//du";
     assert_eq!(
-        Err(crate::message::Error::InvalidObjectPath),
+        Err(Error::InvalidObjectPath),
         crate::params::validate_object_path(empty_element)
     );
     let trailing_slash = "/da/di/du/";
     assert_eq!(
-        Err(crate::message::Error::InvalidObjectPath),
+        Err(Error::InvalidObjectPath),
         crate::params::validate_object_path(trailing_slash)
     );
     let invalid_chars = "/da$$/di!!/du~~";
     assert_eq!(
-        Err(crate::message::Error::InvalidObjectPath),
+        Err(Error::InvalidObjectPath),
         crate::params::validate_object_path(invalid_chars)
     );
     let trailing_slash_on_root = "/";
@@ -271,17 +291,17 @@ fn test_objectpath_constraints() {
 fn test_interface_constraints() {
     let invalid_chars = "/da$$/di!!/du~~";
     assert_eq!(
-        Err(crate::message::Error::InvalidInterface),
+        Err(Error::InvalidInterface),
         crate::params::validate_interface(invalid_chars)
     );
     let leading_digits = "1leading.digits";
     assert_eq!(
-        Err(crate::message::Error::InvalidInterface),
+        Err(Error::InvalidInterface),
         crate::params::validate_interface(leading_digits)
     );
     let too_short = "have_more_than_one_element";
     assert_eq!(
-        Err(crate::message::Error::InvalidInterface),
+        Err(Error::InvalidInterface),
         crate::params::validate_interface(too_short)
     );
     let too_long = (0..256).fold(String::new(), |mut s, _| {
@@ -290,7 +310,7 @@ fn test_interface_constraints() {
         s
     });
     assert_eq!(
-        Err(crate::message::Error::InvalidInterface),
+        Err(Error::InvalidInterface),
         crate::params::validate_interface(&too_long)
     );
 }
@@ -298,17 +318,17 @@ fn test_interface_constraints() {
 fn test_busname_constraints() {
     let invalid_chars = "/da$$/di!!/du~~";
     assert_eq!(
-        Err(crate::message::Error::InvalidBusname),
+        Err(Error::InvalidBusname),
         crate::params::validate_busname(invalid_chars)
     );
     let empty = "";
     assert_eq!(
-        Err(crate::message::Error::InvalidBusname),
+        Err(Error::InvalidBusname),
         crate::params::validate_busname(empty)
     );
     let too_short = "have_more_than_one_element";
     assert_eq!(
-        Err(crate::message::Error::InvalidBusname),
+        Err(Error::InvalidBusname),
         crate::params::validate_busname(too_short)
     );
 
@@ -318,7 +338,7 @@ fn test_busname_constraints() {
         s
     });
     assert_eq!(
-        Err(crate::message::Error::InvalidBusname),
+        Err(Error::InvalidBusname),
         crate::params::validate_busname(&too_long)
     );
 }
@@ -326,17 +346,17 @@ fn test_busname_constraints() {
 fn test_membername_constraints() {
     let invalid_chars = "/da$$/di!!/du~~";
     assert_eq!(
-        Err(crate::message::Error::InvalidMembername),
+        Err(Error::InvalidMembername),
         crate::params::validate_membername(invalid_chars)
     );
     let dots = "Shouldnt.have.dots";
     assert_eq!(
-        Err(crate::message::Error::InvalidMembername),
+        Err(Error::InvalidMembername),
         crate::params::validate_membername(dots)
     );
     let empty = "";
     assert_eq!(
-        Err(crate::message::Error::InvalidMembername),
+        Err(Error::InvalidMembername),
         crate::params::validate_membername(empty)
     );
 
@@ -346,7 +366,7 @@ fn test_membername_constraints() {
         s
     });
     assert_eq!(
-        Err(crate::message::Error::InvalidMembername),
+        Err(Error::InvalidMembername),
         crate::params::validate_membername(&too_long)
     );
 }
@@ -354,42 +374,42 @@ fn test_membername_constraints() {
 fn test_signature_constraints() {
     let wrong_parans = "((i)";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
         )),
         crate::params::validate_signature(wrong_parans)
     );
     let wrong_parans = "(i))";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
         )),
         crate::params::validate_signature(wrong_parans)
     );
     let wrong_parans = "a{{i}";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
         )),
         crate::params::validate_signature(wrong_parans)
     );
     let wrong_parans = "a{i}}";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
         )),
         crate::params::validate_signature(wrong_parans)
     );
     let array_without_type = "(i)a";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
         )),
         crate::params::validate_signature(array_without_type)
     );
     let invalid_chars = "!!§$%&(i)a";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::InvalidSignature
         )),
         crate::params::validate_signature(invalid_chars)
@@ -397,7 +417,7 @@ fn test_signature_constraints() {
 
     let too_deep_nesting = "((((((((((((((((((((((((((((((((()))))))))))))))))))))))))))))))))";
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::NestingTooDeep
         )),
         crate::params::validate_signature(too_deep_nesting)
@@ -408,7 +428,7 @@ fn test_signature_constraints() {
         s
     });
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
+        Err(Error::InvalidSignature(
             crate::signature::Error::SignatureTooLong
         )),
         crate::params::validate_signature(&too_long)

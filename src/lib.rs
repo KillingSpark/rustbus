@@ -69,11 +69,18 @@ pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
 
 // needed to make new messages
 pub use message_builder::{CallBuilder, MessageBuilder, SignalBuilder};
-pub use wire::marshal_trait::Marshal;
-pub use wire::marshal_trait::Signature;
+pub use wire::marshal::traits::Marshal;
+pub use wire::marshal::traits::Signature;
 
 // needed for destructuring received messages
 pub use params::{Base, Container, Param};
 
 #[cfg(test)]
 mod tests;
+
+/// The supported byte orders
+#[derive(Clone, Copy, Debug)]
+pub enum ByteOrder {
+    LittleEndian,
+    BigEndian,
+}

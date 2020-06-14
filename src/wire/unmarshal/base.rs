@@ -1,9 +1,11 @@
-use crate::message::ByteOrder;
+//! Unmarshal base params from raw bytes
+
 use crate::params;
 use crate::signature;
 use crate::wire::unmarshal::Error;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::util::*;
+use crate::ByteOrder;
 
 pub fn unmarshal_base<'a>(
     byteorder: ByteOrder,

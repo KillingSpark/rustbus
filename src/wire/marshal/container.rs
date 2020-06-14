@@ -1,12 +1,15 @@
+//! Marshal container params into raw bytes
+
 use crate::message;
 use crate::params;
 use crate::signature;
-use crate::wire::marshal_base::*;
+use crate::wire::marshal::base::*;
 use crate::wire::util::*;
+use crate::ByteOrder;
 
 pub fn marshal_param(
     p: &params::Param,
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     match p {
@@ -18,7 +21,7 @@ pub fn marshal_param(
 fn marshal_array(
     array: &[params::Param],
     sig: &signature::Type,
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     pad_to_align(4, buf);
@@ -42,7 +45,7 @@ fn marshal_array(
 
 fn marshal_struct(
     params: &[params::Param],
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     pad_to_align(8, buf);
@@ -54,7 +57,7 @@ fn marshal_struct(
 
 fn marshal_variant(
     var: &params::Variant,
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     let mut sig_str = String::new();
@@ -66,7 +69,7 @@ fn marshal_variant(
 
 fn marshal_dict(
     dict: &params::DictMap,
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     pad_to_align(4, buf);
@@ -90,7 +93,7 @@ fn marshal_dict(
 
 pub fn marshal_container_param(
     p: &params::Container,
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     match p {

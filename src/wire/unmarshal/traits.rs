@@ -1,9 +1,9 @@
 //! Provides the Unmarshal trait and the implementations for the base types
 
-use crate::message::ByteOrder;
-use crate::wire::marshal_trait::Signature;
+use crate::wire::marshal::traits::Signature;
 use crate::wire::unmarshal;
 use crate::wire::util;
+use crate::ByteOrder;
 
 /// This trait has to be supported to get parameters ergonomically out of a MarshalledMessage.
 /// There are implementations for the base types, Vecs, Hashmaps, and tuples of up to 5 elements
@@ -19,7 +19,7 @@ use crate::wire::util;
 /// Typically your code should look like this, keeping track of all padding and adjusting the local offset appropriatly
 /// ```rust
 /// struct MyStruct{ mycoolint: u64}
-/// use rustbus::wire::marshal_trait::Signature;
+/// use rustbus::wire::marshal::traits::Signature;
 /// use rustbus::signature;
 /// impl Signature for MyStruct {
 ///     fn signature() -> signature::Type {
@@ -32,10 +32,10 @@ use crate::wire::util;
 ///         8
 ///     }
 /// }  
-/// use rustbus::wire::unmarshal_trait::Unmarshal;
+/// use rustbus::wire::unmarshal::traits::Unmarshal;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
 /// use rustbus::wire::util;
-/// use rustbus::message::ByteOrder;
+/// use rustbus::ByteOrder;
 /// impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for MyStruct {
 ///     fn unmarshal(
 ///         byteorder: ByteOrder,
@@ -423,12 +423,11 @@ fn test_unmarshal_byte_array() {
     }
 
     let mut buf = Vec::new();
-    orig.marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
     assert_eq!(&buf[..4], &[0, 4, 0, 0]);
     assert_eq!(buf.len(), 1028);
     let (bytes, unorig) =
-        <&[u8] as Unmarshal>::unmarshal(crate::message::ByteOrder::LittleEndian, &buf, 0).unwrap();
+        <&[u8] as Unmarshal>::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap();
     assert_eq!(bytes, orig.len() + 4);
     assert_eq!(orig, unorig);
 
@@ -445,13 +444,11 @@ fn test_unmarshal_byte_array() {
     let orig = vec![orig1.as_slice(), orig2.as_slice()];
 
     let mut buf = Vec::new();
-    orig.marshal(crate::message::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
 
     // unorig[x] points into the appropriate region in buf, and unorigs lifetime is bound to buf
     let (_bytes, unorig) =
-        <Vec<&[u8]> as Unmarshal>::unmarshal(crate::message::ByteOrder::LittleEndian, &buf, 0)
-            .unwrap();
+        <Vec<&[u8]> as Unmarshal>::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap();
     assert_eq!(orig, unorig);
 }
 
@@ -537,17 +534,17 @@ impl<'r, 'buf: 'r, K: Unmarshal<'r, 'buf> + std::hash::Hash + Eq, V: Unmarshal<'
     }
 }
 
-impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal_trait::UnixFd {
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal::traits::UnixFd {
     fn unmarshal(
         byteorder: ByteOrder,
         buf: &'buf [u8],
         offset: usize,
     ) -> unmarshal::UnmarshalResult<Self> {
         let (bytes, val) = u32::unmarshal(byteorder, buf, offset)?;
-        Ok((bytes, crate::wire::marshal_trait::UnixFd(val)))
+        Ok((bytes, crate::wire::marshal::traits::UnixFd(val)))
     }
 }
-impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal_trait::SignatureWrapper<'r> {
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal::traits::SignatureWrapper<'r> {
     fn unmarshal(
         _byteorder: ByteOrder,
         buf: &'buf [u8],
@@ -556,26 +553,24 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal_trait::Signature
         let padding = util::align_offset(Self::alignment(), buf, offset)?;
         let offset = offset + padding;
         let (bytes, val) = util::unmarshal_signature(&buf[offset..])?;
-        let sig = crate::wire::marshal_trait::SignatureWrapper::new(val)
-            .map_err(|_err| crate::wire::unmarshal::Error::InvalidSignature)?;
+        let sig = crate::wire::marshal::traits::SignatureWrapper::new(val)?;
         Ok((bytes, sig))
     }
 }
-impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal_trait::ObjectPath<'r> {
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal::traits::ObjectPath<'r> {
     fn unmarshal(
         byteorder: ByteOrder,
         buf: &'buf [u8],
         offset: usize,
     ) -> unmarshal::UnmarshalResult<Self> {
         let (bytes, val) = <&str as Unmarshal>::unmarshal(byteorder, buf, offset)?;
-        let path = crate::wire::marshal_trait::ObjectPath::new(val)
-            .map_err(|_err| crate::wire::unmarshal::Error::InvalidSignature)?;
+        let path = crate::wire::marshal::traits::ObjectPath::new(val)?;
         Ok((bytes, path))
     }
 }
 
 #[test]
-fn test_unmarshal_trait() {
+fn test_unmarshal_traits() {
     use crate::Marshal;
 
     let mut buf = Vec::new();
@@ -610,7 +605,7 @@ fn test_unmarshal_trait() {
 
     buf.clear();
 
-    use crate::wire::marshal_trait::{ObjectPath, SignatureWrapper, UnixFd};
+    use crate::wire::marshal::traits::{ObjectPath, SignatureWrapper, UnixFd};
     let orig = (
         ObjectPath::new("/a/b/c").unwrap(),
         SignatureWrapper::new("ss(aiau)").unwrap(),

@@ -8,7 +8,7 @@ use rustbus::wire::unmarshal::unmarshal_header;
 use rustbus::wire::unmarshal::unmarshal_next_message;
 
 fn marsh(msg: &rustbus::message_builder::MarshalledMessage, buf: &mut Vec<u8>) {
-    marshal(msg, rustbus::message::ByteOrder::LittleEndian, &[], buf).unwrap();
+    marshal(msg, rustbus::ByteOrder::LittleEndian, &[], buf).unwrap();
 }
 
 fn unmarshal(buf: &[u8]) {

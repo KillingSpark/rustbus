@@ -31,6 +31,8 @@ pub enum Type {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
+    TooManyTypes,
+    ShouldBeBaseType,
     InvalidSignature,
     SignatureTooLong,
     NestingTooDeep,

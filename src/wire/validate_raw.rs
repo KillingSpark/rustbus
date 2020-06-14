@@ -1,8 +1,14 @@
-use crate::message::ByteOrder;
+//! Check a raw message (part) for validity given a signature
+//!
+//! This could be useful for proxies that want to make sure they only forward valid messages. Since this does not
+//! try to unmarshal anything it should be more efficient than doing a whole unmarshalling just to check for correctness.
+
 use crate::signature;
 use crate::wire::unmarshal::Error;
+use crate::ByteOrder;
 
-type ValidationResult = Result<usize, (usize, crate::wire::unmarshal::Error)>;
+/// Either Ok(amount_of_bytes) or Err(position, ErrorCode)
+pub type ValidationResult = Result<usize, (usize, crate::wire::unmarshal::Error)>;
 
 pub fn validate_marshalled(
     byteorder: ByteOrder,
@@ -105,16 +111,14 @@ pub fn validate_marshalled_base(
             let offset = offset + padding;
             let (bytes, string) = crate::wire::util::unmarshal_str(byteorder, &buf[offset..])
                 .map_err(|err| (offset, err))?;
-            crate::params::validate_object_path(string)
-                .map_err(|_| (offset, Error::InvalidObjectpath))?;
+            crate::params::validate_object_path(string).map_err(|e| (offset, e.into()))?;
             Ok(bytes + padding)
         }
         signature::Base::Signature => {
             // TODO validate
             let (bytes, string) = crate::wire::util::unmarshal_signature(buf)
                 .map_err(|err| (offset + padding, err))?;
-            crate::params::validate_signature(string)
-                .map_err(|_| (offset, Error::InvalidSignature))?;
+            crate::params::validate_signature(string).map_err(|e| (offset, e.into()))?;
             Ok(bytes + padding)
         }
     }
@@ -210,11 +214,11 @@ pub fn validate_marshalled_container(
         signature::Container::Variant => {
             let (sig_bytes_used, sig_str) =
                 util::unmarshal_signature(&buf[offset..]).map_err(|err| (offset, err))?;
-            let mut sig = signature::Type::parse_description(&sig_str)
-                .map_err(|_| (offset, Error::InvalidSignature))?;
+            let mut sig =
+                signature::Type::parse_description(&sig_str).map_err(|e| (offset, e.into()))?;
             if sig.len() != 1 {
                 // There must be exactly one type in the signature!
-                return Err((offset, Error::InvalidSignature));
+                return Err((offset, Error::WrongSignature));
             }
             let sig = sig.remove(0);
             let offset = offset + sig_bytes_used;

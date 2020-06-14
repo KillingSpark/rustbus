@@ -1,6 +1,7 @@
 use rustbus::message;
 use rustbus::signature;
 use rustbus::wire::util;
+use rustbus::ByteOrder;
 use rustbus::Marshal;
 use rustbus::Signature;
 
@@ -38,11 +39,7 @@ impl Signature for &MyType {
 }
 
 impl Marshal for &MyType {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align structs to 8!
         util::pad_to_align(8, buf);
 
@@ -89,11 +86,7 @@ impl Signature for &MySubType {
     }
 }
 impl Marshal for &MySubType {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         util::pad_to_align(8, buf);
         self.x.marshal(byteorder, buf)?;
@@ -115,11 +108,7 @@ impl Signature for &MyOtherSubType {
     }
 }
 impl Marshal for &MyOtherSubType {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         util::pad_to_align(8, buf);
         self.x.marshal(byteorder, buf)?;

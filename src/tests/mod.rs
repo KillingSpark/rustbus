@@ -43,7 +43,7 @@ fn test_marshal_unmarshal() {
 
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
-    marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
+    marshal(&msg, crate::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
     let (hdrbytes, header) = unmarshal_header(&buf, 0).unwrap();
     let (dynhdrbytes, dynheader) = unmarshal_dynamic_header(&header, &buf, hdrbytes).unwrap();
 
@@ -71,8 +71,10 @@ fn test_invalid_stuff() {
         .body
         .push_old_param(&Param::Base(Base::Signature("((((((((}}}}}}}".into())));
     assert_eq!(
-        Err(crate::message::Error::InvalidSignature(
-            crate::signature::Error::InvalidSignature
+        Err(crate::message::Error::Validation(
+            crate::params::validation::Error::InvalidSignature(
+                crate::signature::Error::InvalidSignature
+            )
         )),
         err
     );
@@ -88,7 +90,12 @@ fn test_invalid_stuff() {
     let err = msg
         .body
         .push_old_param(&Param::Base(Base::ObjectPath("invalid/object/path".into())));
-    assert_eq!(Err(crate::message::Error::InvalidObjectPath), err);
+    assert_eq!(
+        Err(crate::message::Error::Validation(
+            crate::params::validation::Error::InvalidObjectPath
+        )),
+        err
+    );
 
     // invalid interface
     let mut msg = crate::message_builder::MessageBuilder::new()
@@ -101,8 +108,10 @@ fn test_invalid_stuff() {
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
-        Err(crate::message::Error::InvalidInterface),
-        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
+        Err(crate::message::Error::Validation(
+            crate::params::validation::Error::InvalidInterface
+        )),
+        marshal(&msg, crate::ByteOrder::LittleEndian, &[], &mut buf)
     );
 
     // invalid member
@@ -116,7 +125,9 @@ fn test_invalid_stuff() {
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
-        Err(crate::message::Error::InvalidMembername),
-        marshal(&msg, crate::message::ByteOrder::LittleEndian, &[], &mut buf)
+        Err(crate::message::Error::Validation(
+            crate::params::validation::Error::InvalidMembername
+        )),
+        marshal(&msg, crate::ByteOrder::LittleEndian, &[], &mut buf)
     );
 }

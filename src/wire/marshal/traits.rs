@@ -2,6 +2,8 @@
 
 use crate::message;
 use crate::params;
+use crate::wire::marshal::base::marshal_base_param;
+use crate::ByteOrder;
 
 /// The Marshal trait allows to push any type onto an message_builder::OutMessage as a parameter.
 /// There are some useful implementations here for slices and hashmaps which map to arrays and dicts in the dbus message.
@@ -17,6 +19,7 @@ use crate::params;
 /// }
 ///
 /// use rustbus::message;
+/// use rustbus::ByteOrder;
 /// use rustbus::signature;
 /// use rustbus::wire::util;
 /// use rustbus::Marshal;
@@ -36,7 +39,7 @@ use crate::params;
 /// impl Marshal for &MyStruct {
 ///     fn marshal(
 ///         &self,
-///         byteorder: message::ByteOrder,
+///         byteorder: ByteOrder,
 ///         buf: &mut Vec<u8>,
 ///     ) -> Result<(), message::Error> {
 ///         // always align to 8
@@ -56,11 +59,7 @@ use crate::params;
 /// 1. The alignment must report the correct number. This does not need to be a constant like in the example, but it needs to be consistent with the type
 ///     the signature() function returns. If you are not sure, just use Self::signature().get_alignment().
 pub trait Marshal: Signature {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error>;
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error>;
 }
 
 pub trait Signature {
@@ -78,11 +77,7 @@ impl<S: Signature> Signature for &S {
 }
 
 impl<P: Marshal> Marshal for &P {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         (*self).marshal(byteorder, buf)
     }
 }
@@ -98,11 +93,7 @@ impl Signature for () {
 }
 
 impl Marshal for () {
-    fn marshal(
-        &self,
-        _byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, _byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         crate::wire::util::pad_to_align(8, buf);
         Ok(())
@@ -119,11 +110,7 @@ impl<E: Signature> Signature for (E,) {
     }
 }
 impl<E: Marshal> Marshal for (E,) {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
@@ -144,11 +131,7 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
@@ -171,11 +154,7 @@ impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
@@ -200,11 +179,7 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
@@ -235,11 +210,7 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> 
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
     for (E1, E2, E3, E4, E5)
 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 8
         crate::wire::util::pad_to_align(8, buf);
         self.0.marshal(byteorder, buf)?;
@@ -262,11 +233,7 @@ impl<E: Signature> Signature for [E] {
     }
 }
 impl<E: Marshal> Marshal for [E] {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         (&self).marshal(byteorder, buf)
     }
 }
@@ -282,11 +249,7 @@ impl<E: Signature> Signature for &[E] {
     }
 }
 impl<E: Marshal> Marshal for &[E] {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 4
         crate::wire::util::pad_to_align(4, buf);
 
@@ -338,11 +301,7 @@ impl<'a, E: Copy + Marshal> Signature for OptimizedMarshal<'a, E> {
     }
 }
 impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 4
         crate::wire::util::pad_to_align(4, buf);
 
@@ -381,16 +340,17 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
 
 #[test]
 fn verify_optimized_arrays() {
+    use crate::wire::marshal::container::marshal_container_param;
     // marshal array of u64 optimized and non-optimized and compare
     let mut buf_normal = Vec::new();
     let mut buf_optimized = Vec::new();
     let arru64: Vec<u64> = vec![1, 2, 3, 4, 5, 6, u64::MAX, u64::MAX / 2, u64::MAX / 1024];
     arru64
         .as_slice()
-        .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
+        .marshal(ByteOrder::LittleEndian, &mut buf_normal)
         .unwrap();
     OptimizedMarshal(arru64.as_slice())
-        .marshal(message::ByteOrder::LittleEndian, &mut buf_optimized)
+        .marshal(ByteOrder::LittleEndian, &mut buf_optimized)
         .unwrap();
     assert_eq!(buf_normal, buf_optimized);
 
@@ -400,10 +360,10 @@ fn verify_optimized_arrays() {
     let arru8: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 255, 128, 80, 180];
     arru8
         .as_slice()
-        .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
+        .marshal(ByteOrder::LittleEndian, &mut buf_normal)
         .unwrap();
     OptimizedMarshal(arru8.as_slice())
-        .marshal(message::ByteOrder::LittleEndian, &mut buf_otpimized)
+        .marshal(ByteOrder::LittleEndian, &mut buf_otpimized)
         .unwrap();
     assert_eq!(buf_normal, buf_otpimized);
 
@@ -415,17 +375,12 @@ fn verify_optimized_arrays() {
     let mut buf_otpimized = Vec::new();
     empty
         .as_slice()
-        .marshal(message::ByteOrder::LittleEndian, &mut buf_normal)
+        .marshal(ByteOrder::LittleEndian, &mut buf_normal)
         .unwrap();
     OptimizedMarshal(empty.as_slice())
-        .marshal(message::ByteOrder::LittleEndian, &mut buf_otpimized)
+        .marshal(ByteOrder::LittleEndian, &mut buf_otpimized)
         .unwrap();
-    crate::wire::marshal_container::marshal_container_param(
-        &x,
-        message::ByteOrder::LittleEndian,
-        &mut buf_old,
-    )
-    .unwrap();
+    marshal_container_param(&x, ByteOrder::LittleEndian, &mut buf_old).unwrap();
     assert_eq!(buf_normal, buf_otpimized);
     assert_eq!(buf_normal, buf_old);
     assert_eq!(vec![0, 0, 0, 0], buf_old);
@@ -448,11 +403,7 @@ impl<K: Signature, V: Signature> Signature for std::collections::HashMap<K, V> {
 }
 
 impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         // always align to 4
         crate::wire::util::pad_to_align(4, buf);
 
@@ -496,14 +447,10 @@ impl Signature for u64 {
     }
 }
 impl Marshal for u64 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -516,14 +463,10 @@ impl Signature for i64 {
     }
 }
 impl Marshal for i64 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -536,14 +479,10 @@ impl Signature for u32 {
     }
 }
 impl Marshal for u32 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -556,14 +495,10 @@ impl Signature for i32 {
     }
 }
 impl Marshal for i32 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -576,14 +511,10 @@ impl Signature for u16 {
     }
 }
 impl Marshal for u16 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -596,14 +527,10 @@ impl Signature for i16 {
     }
 }
 impl Marshal for i16 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -616,14 +543,10 @@ impl Signature for u8 {
     }
 }
 impl Marshal for u8 {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -636,14 +559,10 @@ impl Signature for bool {
     }
 }
 impl Marshal for bool {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         let b: params::Base = self.into();
-        crate::wire::marshal_base::marshal_base_param(byteorder, &b, buf)
+        marshal_base_param(byteorder, &b, buf)
     }
 }
 
@@ -656,11 +575,7 @@ impl Signature for String {
     }
 }
 impl Marshal for String {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         crate::wire::util::write_string(self.as_str(), byteorder, buf);
         Ok(())
@@ -676,11 +591,7 @@ impl Signature for &str {
     }
 }
 impl Marshal for &str {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), buf);
         crate::wire::util::write_string(self, byteorder, buf);
         Ok(())
@@ -689,7 +600,7 @@ impl Marshal for &str {
 
 pub struct ObjectPath<'a>(&'a str);
 impl<'a> ObjectPath<'a> {
-    pub fn new(path: &'a str) -> Result<Self, message::Error> {
+    pub fn new(path: &'a str) -> Result<Self, crate::params::validation::Error> {
         crate::params::validate_object_path(path)?;
         Ok(ObjectPath(path))
     }
@@ -708,18 +619,14 @@ impl Signature for ObjectPath<'_> {
     }
 }
 impl Marshal for ObjectPath<'_> {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         self.0.marshal(byteorder, buf)
     }
 }
 
 pub struct SignatureWrapper<'a>(&'a str);
 impl<'a> SignatureWrapper<'a> {
-    pub fn new(sig: &'a str) -> Result<Self, message::Error> {
+    pub fn new(sig: &'a str) -> Result<Self, crate::params::validation::Error> {
         crate::params::validate_signature(sig)?;
         Ok(SignatureWrapper(sig))
     }
@@ -738,11 +645,7 @@ impl Signature for SignatureWrapper<'_> {
     }
 }
 impl Marshal for SignatureWrapper<'_> {
-    fn marshal(
-        &self,
-        _byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, _byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         crate::wire::util::write_signature(self.0, buf);
         Ok(())
     }
@@ -757,11 +660,7 @@ impl Signature for UnixFd {
     }
 }
 impl Marshal for UnixFd {
-    fn marshal(
-        &self,
-        byteorder: message::ByteOrder,
-        buf: &mut Vec<u8>,
-    ) -> Result<(), message::Error> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
         self.0.marshal(byteorder, buf)
     }
 }
@@ -795,6 +694,8 @@ fn test_trait_signature_creation() {
 
 #[test]
 fn test_empty_array_padding() {
+    use crate::wire::marshal::container::marshal_container_param;
+
     let mut msg = crate::message_builder::MarshalledMessage::new();
     let body = &mut msg.body;
     let empty = vec![0u64; 0];
@@ -807,12 +708,7 @@ fn test_empty_array_padding() {
     .unwrap();
 
     let mut buf = Vec::new();
-    crate::wire::marshal_container::marshal_container_param(
-        &empty,
-        crate::message::ByteOrder::LittleEndian,
-        &mut buf,
-    )
-    .unwrap();
+    marshal_container_param(&empty, crate::ByteOrder::LittleEndian, &mut buf).unwrap();
 
     // 0 length and padded to 8 bytes even if there are no elements
     assert_eq!(msg.get_buf(), &[0, 0, 0, 0, 0, 0, 0, 0]);

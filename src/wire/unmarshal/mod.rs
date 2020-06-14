@@ -1,14 +1,28 @@
+//! All things relevant to unmarshalling content from raw bytes
+//!
+//! * `base` and `container` are for the Param approach that map dbus concepts to enums/structs
+//! * `traits` is for the trait based approach
+//! * `iter` is an experimental approach to an libdbus-like iterator
+
 use crate::message;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MarshalledMessageBody;
 use crate::params;
 use crate::signature;
-use crate::wire::unmarshal_container::*;
 use crate::wire::util::*;
+use crate::wire::HeaderField;
+use crate::ByteOrder;
+
+pub mod base;
+pub mod container;
+pub mod iter;
+pub mod traits;
+
+use container::*;
 
 #[derive(Debug)]
 pub struct Header {
-    pub byteorder: message::ByteOrder,
+    pub byteorder: ByteOrder,
     pub typ: message::MessageType,
     pub flags: u8,
     pub version: u8,
@@ -23,16 +37,27 @@ pub enum Error {
     NotAllBytesUsed,
     InvalidByteOrder,
     InvalidType,
-    InvalidSignature,
-    InvalidObjectpath,
     WrongSignature,
-    InvalidUtf8,
+    Validation(crate::params::validation::Error),
     InvalidHeaderField,
     InvalidHeaderFields,
     UnknownHeaderField,
     PaddingContainedData,
     InvalidBoolean,
     EndOfMessage,
+    NoSerial,
+    NoSignature,
+}
+
+impl From<crate::params::validation::Error> for Error {
+    fn from(e: crate::params::validation::Error) -> Self {
+        Error::Validation(e)
+    }
+}
+impl From<crate::signature::Error> for Error {
+    fn from(e: crate::signature::Error) -> Self {
+        Error::Validation(crate::params::validation::Error::InvalidSignature(e))
+    }
 }
 
 impl Error {
@@ -54,8 +79,8 @@ pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
     let header_slice = &buf[offset..offset + HEADER_LEN];
 
     let byteorder = match header_slice[0] {
-        b'l' => message::ByteOrder::LittleEndian,
-        b'B' => message::ByteOrder::BigEndian,
+        b'l' => ByteOrder::LittleEndian,
+        b'B' => ByteOrder::BigEndian,
         _ => return Err(Error::InvalidByteOrder),
     };
 
@@ -97,7 +122,7 @@ pub fn unmarshal_dynamic_header(
 }
 
 pub fn unmarshal_body<'a, 'e>(
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     sigs: &[crate::signature::Type],
     buf: &[u8],
     offset: usize,
@@ -154,7 +179,7 @@ fn unmarshal_header_fields(
     header: &Header,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<Vec<message::HeaderField>> {
+) -> UnmarshalResult<Vec<HeaderField>> {
     let (_, header_fields_bytes) = parse_u32(&buf[offset..], header.byteorder)?;
     let offset = offset + 4;
 
@@ -182,7 +207,7 @@ fn unmarshal_header_field(
     header: &Header,
     buf: &[u8],
     offset: usize,
-) -> UnmarshalResult<message::HeaderField> {
+) -> UnmarshalResult<HeaderField> {
     let padding = align_offset(8, buf, offset)?;
     let offset = offset + padding;
 
@@ -194,13 +219,12 @@ fn unmarshal_header_field(
     let offset = offset + typ_bytes_used;
 
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
-    let mut sig =
-        signature::Type::parse_description(&sig_str).map_err(|_| Error::InvalidSignature)?;
+    let mut sig = signature::Type::parse_description(&sig_str).map_err(|_| Error::NoSignature)?;
     let offset = offset + sig_bytes_used;
 
     if sig.len() != 1 {
         // There must be exactly one type in the signature!
-        return Err(Error::InvalidSignature);
+        return Err(Error::NoSignature);
     }
     let sig = sig.remove(0);
     let (field_bytes_used, field) = match typ {
@@ -208,63 +232,63 @@ fn unmarshal_header_field(
             signature::Type::Base(signature::Base::ObjectPath) => {
                 let (b, objpath) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 // TODO validate
-                (b, Ok(message::HeaderField::Path(objpath)))
+                (b, Ok(HeaderField::Path(objpath)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         2 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, int) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(message::HeaderField::Interface(int)))
+                (b, Ok(HeaderField::Interface(int)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         3 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, mem) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(message::HeaderField::Member(mem)))
+                (b, Ok(HeaderField::Member(mem)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         4 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, name) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(message::HeaderField::ErrorName(name)))
+                (b, Ok(HeaderField::ErrorName(name)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         5 => match sig {
             signature::Type::Base(signature::Base::Uint32) => {
                 let (b, serial) = parse_u32(&buf[offset..], header.byteorder)?;
-                (b, Ok(message::HeaderField::ReplySerial(serial)))
+                (b, Ok(HeaderField::ReplySerial(serial)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         6 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, dest) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(message::HeaderField::Destination(dest)))
+                (b, Ok(HeaderField::Destination(dest)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         7 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, snd) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(message::HeaderField::Sender(snd)))
+                (b, Ok(HeaderField::Sender(snd)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         8 => match sig {
             signature::Type::Base(signature::Base::Signature) => {
                 let (b, sig) = unmarshal_signature(&buf[offset..])?;
-                (b, Ok(message::HeaderField::Signature(sig.to_owned())))
+                (b, Ok(HeaderField::Signature(sig.to_owned())))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
         9 => match sig {
             signature::Type::Base(signature::Base::Uint32) => {
                 let (b, fds) = parse_u32(&buf[offset..], header.byteorder)?;
-                (b, Ok(message::HeaderField::UnixFds(fds)))
+                (b, Ok(HeaderField::UnixFds(fds)))
             }
             _ => (0, Err(Error::WrongSignature)),
         },
@@ -278,18 +302,18 @@ fn unmarshal_header_field(
     }
 }
 
-fn collect_header_fields(header_fields: &[message::HeaderField], hdr: &mut message::DynamicHeader) {
+fn collect_header_fields(header_fields: &[HeaderField], hdr: &mut message::DynamicHeader) {
     for h in header_fields {
         match h {
-            message::HeaderField::Destination(d) => hdr.destination = Some(d.clone()),
-            message::HeaderField::ErrorName(e) => hdr.error_name = Some(e.clone()),
-            message::HeaderField::Interface(s) => hdr.interface = Some(s.clone()),
-            message::HeaderField::Member(m) => hdr.member = Some(m.clone()),
-            message::HeaderField::Path(p) => hdr.object = Some(p.clone()),
-            message::HeaderField::ReplySerial(r) => hdr.response_serial = Some(*r),
-            message::HeaderField::Sender(s) => hdr.sender = Some(s.clone()),
-            message::HeaderField::Signature(s) => hdr.signature = Some(s.clone()),
-            message::HeaderField::UnixFds(u) => hdr.num_fds = Some(*u),
+            HeaderField::Destination(d) => hdr.destination = Some(d.clone()),
+            HeaderField::ErrorName(e) => hdr.error_name = Some(e.clone()),
+            HeaderField::Interface(s) => hdr.interface = Some(s.clone()),
+            HeaderField::Member(m) => hdr.member = Some(m.clone()),
+            HeaderField::Path(p) => hdr.object = Some(p.clone()),
+            HeaderField::ReplySerial(r) => hdr.response_serial = Some(*r),
+            HeaderField::Sender(s) => hdr.sender = Some(s.clone()),
+            HeaderField::Signature(s) => hdr.signature = Some(s.clone()),
+            HeaderField::UnixFds(u) => hdr.num_fds = Some(*u),
         }
     }
 }

@@ -1,12 +1,11 @@
+//! Marshal base params into raw bytes
+
 use crate::message;
 use crate::params;
 use crate::wire::util::*;
+use crate::ByteOrder;
 
-fn marshal_boolean(
-    b: bool,
-    byteorder: message::ByteOrder,
-    buf: &mut Vec<u8>,
-) -> message::Result<()> {
+fn marshal_boolean(b: bool, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     if b {
         write_u32(1, byteorder, buf);
     } else {
@@ -20,39 +19,35 @@ fn marshal_byte(i: u8, buf: &mut Vec<u8>) -> message::Result<()> {
     Ok(())
 }
 
-fn marshal_i16(i: i16, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_i16(i: i16, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     write_u16(i as u16, byteorder, buf);
     Ok(())
 }
 
-fn marshal_u16(i: u16, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_u16(i: u16, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     write_u16(i, byteorder, buf);
     Ok(())
 }
-fn marshal_i32(i: i32, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_i32(i: i32, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     write_u32(i as u32, byteorder, buf);
     Ok(())
 }
 
-fn marshal_u32(i: u32, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_u32(i: u32, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     write_u32(i, byteorder, buf);
     Ok(())
 }
-fn marshal_i64(i: i64, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_i64(i: i64, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     write_u64(i as u64, byteorder, buf);
     Ok(())
 }
 
-fn marshal_u64(i: u64, byteorder: message::ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_u64(i: u64, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     write_u64(i, byteorder, buf);
     Ok(())
 }
 
-fn marshal_string(
-    s: &str,
-    byteorder: message::ByteOrder,
-    buf: &mut Vec<u8>,
-) -> message::Result<()> {
+fn marshal_string(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     if s.contains('\0') {
         Err(message::Error::StringContainsNullByte)
     } else {
@@ -60,11 +55,7 @@ fn marshal_string(
         Ok(())
     }
 }
-fn marshal_objectpath(
-    s: &str,
-    byteorder: message::ByteOrder,
-    buf: &mut Vec<u8>,
-) -> message::Result<()> {
+fn marshal_objectpath(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     params::validate_object_path(&s)?;
     write_string(&s, byteorder, buf);
     Ok(())
@@ -76,7 +67,7 @@ pub(super) fn marshal_signature(s: &str, buf: &mut Vec<u8>) -> message::Result<(
 }
 
 pub fn marshal_base_param(
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     p: &params::Base,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {

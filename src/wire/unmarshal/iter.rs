@@ -1,11 +1,11 @@
 //! This is a working module to parse a dbus message. It is currently not used in rustbus but it could be in the future. This
 //! was more or less a test to see how well/bad this would work out to be.
 
-use crate::message::ByteOrder;
 use crate::params;
 use crate::signature;
+use crate::wire::unmarshal::base::unmarshal_base;
 use crate::wire::unmarshal::Error;
-use crate::wire::unmarshal_base::unmarshal_base;
+use crate::ByteOrder;
 
 pub struct MessageIter<'a> {
     byteorder: ByteOrder,
@@ -48,7 +48,7 @@ impl<'a> MessageIter<'a> {
         }
     }
 
-    pub fn unmarshal_next<'r, 'buf: 'r, T: crate::wire::unmarshal_trait::Unmarshal<'r, 'buf>>(
+    pub fn unmarshal_next<'r, 'buf: 'r, T: crate::wire::unmarshal::traits::Unmarshal<'r, 'buf>>(
         &'buf mut self,
     ) -> Option<Result<T, Error>> {
         if self.counter >= self.sig.len() {
@@ -348,9 +348,7 @@ fn make_new_variant_iter<'a>(
     let (bytes, sig) = crate::wire::util::unmarshal_signature(&source[*offset..])?;
     debug_assert_eq!(bytes, 4);
 
-    let sig = signature::Type::parse_description(&sig)
-        .map_err(|_| Error::InvalidSignature)?
-        .remove(0);
+    let sig = signature::Type::parse_description(&sig)?.remove(0);
 
     // move offset
     let padding = crate::wire::util::align_offset(sig.get_alignment(), source, *offset)?;
@@ -401,9 +399,9 @@ fn test_array_iter() {
     let arr = params::Container::try_from(vec![0i32.into(), 1i32.into(), 2i32.into()]).unwrap();
 
     let mut buf = Vec::new();
-    crate::wire::marshal_container::marshal_container_param(
+    crate::wire::marshal::container::marshal_container_param(
         &arr,
-        crate::message::ByteOrder::LittleEndian,
+        ByteOrder::LittleEndian,
         &mut buf,
     )
     .unwrap();
@@ -440,12 +438,8 @@ fn test_struct_iter() {
     ]);
 
     let mut buf = Vec::new();
-    crate::wire::marshal_container::marshal_container_param(
-        &s,
-        crate::message::ByteOrder::LittleEndian,
-        &mut buf,
-    )
-    .unwrap();
+    crate::wire::marshal::container::marshal_container_param(&s, ByteOrder::LittleEndian, &mut buf)
+        .unwrap();
     let mut offset = 0;
 
     let sig = s.sig();

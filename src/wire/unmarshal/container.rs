@@ -1,10 +1,12 @@
-use crate::message::ByteOrder;
+//! Unmarshal container params from raw bytes
+
 use crate::params;
 use crate::signature;
 use crate::wire::unmarshal;
+use crate::wire::unmarshal::base::unmarshal_base;
 use crate::wire::unmarshal::UnmarshalResult;
-use crate::wire::unmarshal_base::unmarshal_base;
 use crate::wire::util::*;
+use crate::ByteOrder;
 
 pub fn unmarshal_with_sig<'a, 'e>(
     byteorder: ByteOrder,
@@ -31,11 +33,10 @@ pub fn unmarshal_variant<'a, 'e>(
     offset: usize,
 ) -> UnmarshalResult<params::Variant<'a, 'e>> {
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
-    let mut sig = signature::Type::parse_description(&sig_str)
-        .map_err(|_| unmarshal::Error::InvalidSignature)?;
+    let mut sig = signature::Type::parse_description(&sig_str)?;
     if sig.len() != 1 {
         // There must be exactly one type in the signature!
-        return Err(unmarshal::Error::InvalidSignature);
+        return Err(unmarshal::Error::WrongSignature);
     }
     let sig = sig.remove(0);
     let offset = offset + sig_bytes_used;

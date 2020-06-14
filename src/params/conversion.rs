@@ -1,3 +1,5 @@
+//! Provide a few Into<...> implementations to make working with Param a bit easier
+
 use super::*;
 use crate::message::Error;
 use crate::signature;
@@ -564,7 +566,7 @@ impl<'a, 'e> std::convert::TryFrom<DictMap<'a, 'e>> for Container<'a, 'e> {
         if let signature::Type::Base(key_sig) = key_sig {
             Container::try_from((key_sig, value_sig, elems))
         } else {
-            Err(Error::InvalidSignatureShouldBeBase)
+            Err(crate::signature::Error::ShouldBeBaseType.into())
         }
     }
 }

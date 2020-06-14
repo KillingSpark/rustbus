@@ -1,4 +1,8 @@
-use crate::message::Error;
+//! A bit more convenient ways to make containers
+//!
+//! These allow for easier construction of containers. Note that empty containers require you to specify the
+//! signature.
+
 use crate::message::Result;
 use crate::params::*;
 use crate::signature;
@@ -16,10 +20,13 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
                     arr.values.push(new);
                     Ok(())
                 } else {
-                    Err(Error::ArrayElementTypesDiffer)
+                    Err(crate::params::validation::Error::ArrayElementTypesDiffer.into())
                 }
             }
-            _ => Err(Error::InvalidSignature(signature::Error::InvalidSignature)),
+            _ => Err(crate::params::validation::Error::InvalidSignature(
+                signature::Error::InvalidSignature,
+            )
+            .into()),
         }
     }
     pub fn insert<K: Into<Base<'a>>, V: Into<Param<'a, 'e>>>(
@@ -32,15 +39,18 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
                 let key = key.into();
                 let val = val.into();
                 if !key.sig().eq(&signature::Type::Base(dict.key_sig)) {
-                    return Err(Error::DictKeyTypesDiffer);
+                    return Err(crate::params::validation::Error::DictKeyTypesDiffer.into());
                 }
                 if !val.sig().eq(&dict.value_sig) {
-                    return Err(Error::DictKeyTypesDiffer);
+                    return Err(crate::params::validation::Error::DictKeyTypesDiffer.into());
                 }
                 dict.map.insert(key, val);
                 Ok(())
             }
-            _ => Err(Error::InvalidSignature(signature::Error::InvalidSignature)),
+            _ => Err(crate::params::validation::Error::InvalidSignature(
+                signature::Error::InvalidSignature,
+            )
+            .into()),
         }
     }
 }
@@ -86,11 +96,10 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         element_sig: &str,
         elements: &'a [Param<'a, 'e>],
     ) -> Result<Container<'a, 'e>> {
-        let mut sigs =
-            signature::Type::parse_description(element_sig).map_err(Error::InvalidSignature)?;
+        let mut sigs = signature::Type::parse_description(element_sig)?;
 
         if sigs.len() != 1 {
-            return Err(Error::InvalidSignatureTooManyTypes);
+            return Err(crate::signature::Error::TooManyTypes.into());
         }
 
         let sig = sigs.remove(0);
@@ -115,11 +124,10 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         element_sig: &str,
         elements: I,
     ) -> Result<Container<'a, 'e>> {
-        let mut sigs =
-            signature::Type::parse_description(element_sig).map_err(Error::InvalidSignature)?;
+        let mut sigs = signature::Type::parse_description(element_sig)?;
 
         if sigs.len() != 1 {
-            return Err(Error::InvalidSignatureTooManyTypes);
+            return Err(crate::signature::Error::TooManyTypes.into());
         }
 
         let sig = sigs.remove(0);
@@ -145,25 +153,23 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         val_sig: &str,
         map: I,
     ) -> Result<Container<'a, 'e>> {
-        let mut valsigs =
-            signature::Type::parse_description(val_sig).map_err(Error::InvalidSignature)?;
+        let mut valsigs = signature::Type::parse_description(val_sig)?;
 
         if valsigs.len() != 1 {
-            return Err(Error::InvalidSignatureTooManyTypes);
+            return Err(crate::signature::Error::TooManyTypes.into());
         }
 
         let value_sig = valsigs.remove(0);
-        let mut keysigs =
-            signature::Type::parse_description(key_sig).map_err(Error::InvalidSignature)?;
+        let mut keysigs = signature::Type::parse_description(key_sig)?;
 
         if keysigs.len() != 1 {
-            return Err(Error::InvalidSignatureTooManyTypes);
+            return Err(crate::signature::Error::TooManyTypes.into());
         }
         let key_sig = keysigs.remove(0);
         let key_sig = if let signature::Type::Base(sig) = key_sig {
             sig
         } else {
-            return Err(Error::InvalidSignatureShouldBeBase);
+            return Err(crate::signature::Error::ShouldBeBaseType.into());
         };
 
         Self::make_dict_with_sig(key_sig, value_sig, map)
@@ -193,25 +199,23 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         val_sig: &str,
         map: &'a DictMap,
     ) -> Result<Container<'a, 'e>> {
-        let mut valsigs =
-            signature::Type::parse_description(val_sig).map_err(Error::InvalidSignature)?;
+        let mut valsigs = signature::Type::parse_description(val_sig)?;
 
         if valsigs.len() != 1 {
-            return Err(Error::InvalidSignatureTooManyTypes);
+            return Err(crate::signature::Error::TooManyTypes.into());
         }
 
         let value_sig = valsigs.remove(0);
-        let mut keysigs =
-            signature::Type::parse_description(key_sig).map_err(Error::InvalidSignature)?;
+        let mut keysigs = signature::Type::parse_description(key_sig)?;
 
         if keysigs.len() != 1 {
-            return Err(Error::InvalidSignatureTooManyTypes);
+            return Err(crate::signature::Error::TooManyTypes.into());
         }
         let key_sig = keysigs.remove(0);
         let key_sig = if let signature::Type::Base(sig) = key_sig {
             sig
         } else {
-            return Err(Error::InvalidSignatureShouldBeBase);
+            return Err(crate::signature::Error::ShouldBeBaseType.into());
         };
 
         Self::make_dict_ref_with_sig(key_sig, value_sig, map)

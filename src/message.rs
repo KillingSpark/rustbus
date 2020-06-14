@@ -179,31 +179,28 @@ impl<'a, 'e> Message<'a, 'e> {
 /// The different errors that can occur when dealing with messages
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
-    InvalidObjectPath,
-    InvalidSignature(signature::Error),
-    InvalidSignatureTooManyTypes,
-    InvalidSignatureShouldBeBase,
-    InvalidBusname,
-    InvalidErrorname,
-    InvalidMembername,
-    InvalidInterface,
-    InvalidHeaderFields,
-    DuplicatedHeaderFields,
-    NoSerial,
     InvalidType,
-    ArrayElementTypesDiffer,
-    DictKeyTypesDiffer,
-    DictValueTypesDiffer,
     EmptyArray,
     EmptyDict,
     StringContainsNullByte,
+    Unmarshal(crate::wire::unmarshal::Error),
+    Validation(crate::params::validation::Error),
 }
 
-/// The supported byte orders
-#[derive(Clone, Copy, Debug)]
-pub enum ByteOrder {
-    LittleEndian,
-    BigEndian,
+impl From<crate::params::validation::Error> for Error {
+    fn from(e: crate::params::validation::Error) -> Self {
+        Error::Validation(e)
+    }
+}
+impl From<crate::wire::unmarshal::Error> for Error {
+    fn from(e: crate::wire::unmarshal::Error) -> Self {
+        Error::Unmarshal(e)
+    }
+}
+impl From<crate::signature::Error> for Error {
+    fn from(e: crate::signature::Error) -> Self {
+        Error::Validation(crate::params::validation::Error::InvalidSignature(e))
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -240,20 +237,6 @@ impl HeaderFlags {
             self.set(flags)
         }
     }
-}
-
-/// The different header fields a message may or maynot have
-#[derive(Debug)]
-pub enum HeaderField {
-    Path(String),
-    Interface(String),
-    Member(String),
-    ErrorName(String),
-    ReplySerial(u32),
-    Destination(String),
-    Sender(String),
-    Signature(String),
-    UnixFds(u32),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

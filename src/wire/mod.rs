@@ -1,11 +1,20 @@
+//! Everything that deals with converting from/to raw bytes
+
 pub mod marshal;
-pub mod marshal_base;
-pub mod marshal_container;
-pub mod marshal_trait;
 pub mod unmarshal;
-pub mod unmarshal_base;
-pub mod unmarshal_container;
-pub mod unmarshal_iter;
-pub mod unmarshal_trait;
 pub mod util;
 pub mod validate_raw;
+
+/// The different header fields a message may or maynot have
+#[derive(Debug)]
+pub enum HeaderField {
+    Path(String),
+    Interface(String),
+    Member(String),
+    ErrorName(String),
+    ReplySerial(u32),
+    Destination(String),
+    Sender(String),
+    Signature(String),
+    UnixFds(u32),
+}

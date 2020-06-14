@@ -6,6 +6,7 @@ use crate::message;
 use crate::message_builder::MarshalledMessage;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
+use crate::ByteOrder;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::os::unix::io::RawFd;
@@ -311,7 +312,7 @@ pub struct Conn {
     socket_addr: UnixAddr,
     stream: UnixStream,
 
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
 
     msg_buf_in: Vec<u8>,
     cmsgs_in: Vec<ControlMessageOwned>,
@@ -349,14 +350,16 @@ impl std::convert::From<unmarshal::Error> for Error {
         Error::UnmarshalError(e)
     }
 }
-impl std::convert::From<message::Error> for Error {
-    fn from(e: message::Error) -> Error {
-        Error::MarshalError(e)
-    }
-}
+
 impl std::convert::From<nix::Error> for Error {
     fn from(e: nix::Error) -> Error {
         Error::NixError(e)
+    }
+}
+
+impl std::convert::From<message::Error> for Error {
+    fn from(e: message::Error) -> Error {
+        Error::MarshalError(e)
     }
 }
 
@@ -366,7 +369,7 @@ impl<'msga, 'msge> Conn {
     /// Connect to a unix socket and choose a byteorder
     pub fn connect_to_bus_with_byteorder(
         addr: UnixAddr,
-        byteorder: message::ByteOrder,
+        byteorder: ByteOrder,
         with_unix_fd: bool,
     ) -> Result<Conn> {
         let sock = socket(
@@ -418,7 +421,7 @@ impl<'msga, 'msge> Conn {
 
     /// Connect to a unix socket. The default little endian byteorder is used
     pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> Result<Conn> {
-        Self::connect_to_bus_with_byteorder(addr, message::ByteOrder::LittleEndian, with_unix_fd)
+        Self::connect_to_bus_with_byteorder(addr, ByteOrder::LittleEndian, with_unix_fd)
     }
 
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
@@ -588,12 +591,7 @@ impl<'msga, 'msge> Conn {
             (true, serial)
         };
 
-        marshal::marshal(
-            &msg,
-            message::ByteOrder::LittleEndian,
-            &[],
-            &mut self.msg_buf_out,
-        )?;
+        marshal::marshal(&msg, ByteOrder::LittleEndian, &[], &mut self.msg_buf_out)?;
 
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
         let flags = MsgFlags::empty();

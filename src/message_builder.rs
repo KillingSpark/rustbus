@@ -1,7 +1,8 @@
 //! Helps in building messages conveniently
 
 use crate::message;
-use crate::wire::marshal_trait::Marshal;
+use crate::wire::marshal::traits::Marshal;
+use crate::ByteOrder;
 use std::os::unix::io::RawFd;
 
 #[derive(Default)]
@@ -25,7 +26,7 @@ impl MessageBuilder {
     }
 
     /// New messagebuilder with a chosen byteorder
-    pub fn with_byteorder(b: message::ByteOrder) -> MessageBuilder {
+    pub fn with_byteorder(b: ByteOrder) -> MessageBuilder {
         MessageBuilder {
             msg: MarshalledMessage::with_byteorder(b),
         }
@@ -121,7 +122,7 @@ impl MarshalledMessage {
     }
 
     /// New messagebody with a chosen byteorder
-    pub fn with_byteorder(b: message::ByteOrder) -> Self {
+    pub fn with_byteorder(b: ByteOrder) -> Self {
         MarshalledMessage {
             typ: message::MessageType::Invalid,
             dynheader: message::DynamicHeader::default(),
@@ -132,14 +133,11 @@ impl MarshalledMessage {
         }
     }
 
-    pub fn unmarshall_all<'a, 'e>(
-        self,
-    ) -> Result<message::Message<'a, 'e>, crate::wire::unmarshal::Error> {
+    pub fn unmarshall_all<'a, 'e>(self) -> Result<message::Message<'a, 'e>, crate::message::Error> {
         let params = if self.body.sig.is_empty() {
             vec![]
         } else {
-            let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)
-                .map_err(|_| crate::wire::unmarshal::Error::InvalidSignature)?;
+            let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)?;
 
             let (_, params) = crate::wire::unmarshal::unmarshal_body(
                 self.body.byteorder,
@@ -164,7 +162,7 @@ impl MarshalledMessage {
 pub struct MarshalledMessageBody {
     buf: Vec<u8>,
     sig: String,
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
 }
 
 impl Default for MarshalledMessageBody {
@@ -177,14 +175,14 @@ impl Default for MarshalledMessageBody {
 /// API has a Variant at the top-level you can use OutMessageBody::push_variant.
 pub fn marshal_as_variant<P: Marshal>(
     p: P,
-    byteorder: message::ByteOrder,
+    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> Result<(), message::Error> {
     let mut sig_str = String::new();
     P::signature().to_str(&mut sig_str);
     crate::wire::util::pad_to_align(P::alignment(), buf);
-    crate::wire::marshal_base::marshal_base_param(
-        message::ByteOrder::LittleEndian,
+    crate::wire::marshal::base::marshal_base_param(
+        ByteOrder::LittleEndian,
         &crate::params::Base::Signature(sig_str),
         buf,
     )
@@ -199,12 +197,12 @@ impl MarshalledMessageBody {
         MarshalledMessageBody {
             buf: Vec::new(),
             sig: String::new(),
-            byteorder: message::ByteOrder::LittleEndian,
+            byteorder: ByteOrder::LittleEndian,
         }
     }
 
     /// New messagebody with a chosen byteorder
-    pub fn with_byteorder(b: message::ByteOrder) -> Self {
+    pub fn with_byteorder(b: ByteOrder) -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
             sig: String::new(),
@@ -212,7 +210,7 @@ impl MarshalledMessageBody {
         }
     }
 
-    pub fn from_parts(buf: Vec<u8>, sig: String, byteorder: message::ByteOrder) -> Self {
+    pub fn from_parts(buf: Vec<u8>, sig: String, byteorder: ByteOrder) -> Self {
         Self {
             buf,
             sig,
@@ -231,7 +229,7 @@ impl MarshalledMessageBody {
     /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
     /// the new trait/type based API does not work.
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), message::Error> {
-        crate::wire::marshal_container::marshal_param(p, self.byteorder, &mut self.buf)?;
+        crate::wire::marshal::container::marshal_param(p, self.byteorder, &mut self.buf)?;
         p.sig().to_str(&mut self.sig);
         Ok(())
     }
@@ -364,7 +362,7 @@ fn test_marshal_trait() {
         y: String,
     }
 
-    use crate::wire::marshal_trait::Signature;
+    use crate::wire::marshal::traits::Signature;
     impl Signature for &MyStruct {
         fn signature() -> crate::signature::Type {
             crate::signature::Type::Container(crate::signature::Container::Struct(vec![
@@ -378,11 +376,7 @@ fn test_marshal_trait() {
         }
     }
     impl Marshal for &MyStruct {
-        fn marshal(
-            &self,
-            byteorder: message::ByteOrder,
-            buf: &mut Vec<u8>,
-        ) -> Result<(), message::Error> {
+        fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), message::Error> {
             // always align to 8
             crate::wire::util::pad_to_align(8, buf);
             self.x.marshal(byteorder, buf)?;
@@ -484,9 +478,39 @@ fn test_marshal_trait() {
         body_iter.get::<u16>().unwrap_err(),
         crate::wire::unmarshal::Error::EndOfMessage
     );
+
+    // test mixed get() and get_param()
+    let mut body_iter = body.parser();
+
+    // test to make sure body_iter is left unchanged from last failure and the map is
+    // pulled out identically from above
+    let newmap2: NestedDict = body_iter.get().unwrap();
+    let newemptymap = body_iter.get_param().unwrap();
+    // repeat assertions from above
+    assert_eq!(newmap2.len(), 1);
+    assert_eq!(newmap2.get("a").unwrap().len(), 1);
+    assert_eq!(*newmap2.get("a").unwrap().get("a").unwrap(), 4);
+
+    use crate::params::Container;
+    use crate::params::Param;
+    match newemptymap {
+        Param::Container(Container::Dict(dict)) => {
+            assert_eq!(dict.map.len(), 0);
+            assert_eq!(dict.key_sig, crate::signature::Base::String);
+            assert_eq!(
+                dict.value_sig,
+                crate::signature::Type::Base(crate::signature::Base::Uint32)
+            );
+        }
+        _ => panic!("Expected to get a dict"),
+    }
+    assert_eq!(
+        body_iter.get::<u16>().unwrap_err(),
+        crate::wire::unmarshal::Error::EndOfMessage
+    );
 }
 
-use crate::wire::unmarshal_trait::Unmarshal;
+use crate::wire::unmarshal::traits::Unmarshal;
 /// Iterate over the messages parameters
 ///
 /// Because dbus allows for multiple toplevel params without an enclosing struct, this provides a simple Iterator (sadly not std::iterator::Iterator, since the types
@@ -614,5 +638,25 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
             Ok((ret1, ret2, ret3, ret4, ret5))
         };
         self.get_mult_helper(5, get_calls)
+    }
+
+    pub fn get_param(&mut self) -> Result<crate::params::Param, crate::wire::unmarshal::Error> {
+        if self.sig_idx >= self.sigs.len() {
+            return Err(crate::wire::unmarshal::Error::EndOfMessage);
+        }
+
+        match crate::wire::unmarshal::container::unmarshal_with_sig(
+            self.body.byteorder,
+            &self.sigs[self.sig_idx],
+            &self.body.buf,
+            self.buf_idx,
+        ) {
+            Ok((bytes, res)) => {
+                self.buf_idx += bytes;
+                self.sig_idx += 1;
+                Ok(res)
+            }
+            Err(e) => Err(e),
+        }
     }
 }
