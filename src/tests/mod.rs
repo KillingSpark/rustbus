@@ -7,6 +7,7 @@ use crate::wire::unmarshal::unmarshal_next_message;
 
 mod fdpassing;
 mod verify_marshalling;
+mod dbus_send;
 
 // this tests the happy path
 #[test]
