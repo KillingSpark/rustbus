@@ -197,6 +197,6 @@ fn test_dbus_send_comp() -> Result<(), crate::client_conn::Error> {
     assert_eq!(msg.dynheader.member, Some("Member".to_owned()));
     let ints: Vec<u64> = msg.body.parser().get().unwrap();
     assert_eq!(ints[0], 10);
-    
+
     Ok(())
 }

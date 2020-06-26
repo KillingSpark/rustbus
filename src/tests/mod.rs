@@ -5,9 +5,9 @@ use crate::wire::unmarshal::unmarshal_dynamic_header;
 use crate::wire::unmarshal::unmarshal_header;
 use crate::wire::unmarshal::unmarshal_next_message;
 
+mod dbus_send;
 mod fdpassing;
 mod verify_marshalling;
-mod dbus_send;
 
 // this tests the happy path
 #[test]
