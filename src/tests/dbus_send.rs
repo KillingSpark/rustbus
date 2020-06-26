@@ -5,6 +5,7 @@ use crate::standard_messages;
 // This tests that messages sent by dbus-send are understood
 
 #[test]
+#[ignore]
 fn test_dbus_send_comp() -> Result<(), crate::client_conn::Error> {
     let mut rpc_con = RpcConn::session_conn(Timeout::Infinite).unwrap();
 
