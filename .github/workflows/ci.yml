@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dbus-send
-        run: apt install dbus
+        run: sudo apt install dbus
 
       - name: Checkout sources
         uses: actions/checkout@v2
