@@ -29,6 +29,9 @@ jobs:
       - name: Install dbus-send
         run: sudo apt install dbus
 
+      - name: start dbus-daemon
+        run: sudo systemctl start dbus
+
       - name: Checkout sources
         uses: actions/checkout@v2
 
