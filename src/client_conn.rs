@@ -631,27 +631,31 @@ impl<'msga, 'msge> Conn {
     }
 }
 
+fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
+    if addr.starts_with("unix:path=") {
+        let ps = addr.trim_start_matches("unix:path=");
+        let p = PathBuf::from(&ps);
+        if p.exists() {
+            Ok(UnixAddr::new(&p)?)
+        } else {
+            Err(Error::PathDoesNotExist(ps.to_owned()))
+        }
+    } else if addr.starts_with("unix:abstract=") {
+        let mut ps = addr.trim_start_matches("unix:abstract=").to_string();
+        let end_path_offset = ps.find(',').unwrap_or_else(|| ps.len());
+        let ps: String = ps.drain(..end_path_offset).collect();
+        let path_buf = ps.as_bytes();
+        Ok(UnixAddr::new_abstract(&path_buf)?)
+    } else {
+        Err(Error::AddressTypeNotSupported(addr.to_owned()))
+    }
+}
+
 /// Convenience function that returns the UnixAddr of the session bus according to the env
 /// var $DBUS_SESSION_BUS_ADDRESS.
 pub fn get_session_bus_path() -> Result<UnixAddr> {
     if let Ok(envvar) = std::env::var("DBUS_SESSION_BUS_ADDRESS") {
-        if envvar.starts_with("unix:path=") {
-            let ps = envvar.trim_start_matches("unix:path=");
-            let p = PathBuf::from(&ps);
-            if p.exists() {
-                Ok(UnixAddr::new(&p)?)
-            } else {
-                Err(Error::PathDoesNotExist(ps.to_owned()))
-            }
-        } else if envvar.starts_with("unix:abstract=") {
-            let mut ps = envvar.trim_start_matches("unix:abstract=").to_string();
-            let end_path_offset = ps.find(',').unwrap_or_else(|| ps.len());
-            let ps: String = ps.drain(..end_path_offset).collect();
-            let path_buf = ps.as_bytes();
-            Ok(UnixAddr::new_abstract(&path_buf)?)
-        } else {
-            Err(Error::AddressTypeNotSupported(envvar))
-        }
+        parse_dbus_addr_str(&envvar)
     } else {
         Err(Error::NoAddressFound)
     }
@@ -687,25 +691,20 @@ mod tests {
     use super::*;
 
     use nix::sys::socket::UnixAddr;
-    use std::env;
 
     #[test]
     fn test_get_session_bus_path() {
-        let dbus_key = "DBUS_SESSION_BUS_ADDRESS";
         let path = "unix:path=/tmp/dbus-test-not-exist";
         let abstract_path = "unix:abstract=/tmp/dbus-test";
         let abstract_path_with_keys = "unix:abstract=/tmp/dbus-test,guid=aaaaaaaa,test=bbbbbbbb";
 
-        env::set_var(dbus_key, path);
-        let addr = get_session_bus_path();
+        let addr = parse_dbus_addr_str(path);
         assert!(addr.is_err());
 
-        env::set_var(dbus_key, abstract_path);
-        let addr = get_session_bus_path().unwrap();
+        let addr = parse_dbus_addr_str(abstract_path).unwrap();
         assert_eq!(addr, UnixAddr::new_abstract(b"/tmp/dbus-test").unwrap());
 
-        env::set_var(dbus_key, abstract_path_with_keys);
-        let addr = get_session_bus_path().unwrap();
+        let addr = parse_dbus_addr_str(abstract_path_with_keys).unwrap();
         assert_eq!(addr, UnixAddr::new_abstract(b"/tmp/dbus-test").unwrap());
     }
 }
