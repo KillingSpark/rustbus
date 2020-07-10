@@ -648,10 +648,17 @@ pub struct MessageBodyParser<'body> {
 
 impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
     pub fn new(body: &'body MarshalledMessageBody) -> Self {
+        let sigs = match crate::signature::Type::parse_description(&body.sig) {
+            Ok(sigs) => sigs,
+            Err(e) => match e {
+                crate::signature::Error::EmptySignature => Vec::new(),
+                _ => panic!("MarshalledMessageBody has bad signature: {:?}", e),
+            },
+        };
         Self {
             buf_idx: 0,
             sig_idx: 0,
-            sigs: crate::signature::Type::parse_description(&body.sig).unwrap(),
+            sigs,
             body,
         }
     }
