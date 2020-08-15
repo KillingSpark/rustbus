@@ -1,5 +1,6 @@
 //! Provides the Unmarshal trait and the implementations for the base types
 
+use crate::signature;
 use crate::wire::marshal::traits::Signature;
 use crate::wire::unmarshal;
 use crate::wire::util;
@@ -629,4 +630,59 @@ fn test_unmarshal_traits() {
     assert_eq!(p.as_ref(), "/a/b/c");
     assert_eq!(s.as_ref(), "ss(aiau)");
     assert_eq!(fd.0, 10);
+}
+
+pub struct Variant<'buf> {
+    sig: signature::Type,
+    byteorder: ByteOrder,
+    offset: usize,
+    buf: &'buf [u8],
+}
+impl<'r, 'buf: 'r> Variant<'buf> {
+    pub fn get_value_sig(&self) -> &signature::Type {
+        &self.sig
+    }
+    pub fn get<T: Unmarshal<'r, 'buf>>(&self) -> Result<T, unmarshal::Error> {
+        if (self.sig != T::signature()) {
+            return Err(unmarshal::Error::WrongSignature);
+        }
+        T::unmarshal(self.byteorder, self.buf, self.offset).map(|r| r.1)
+    }
+}
+impl Signature for Variant<'_> {
+    fn signature() -> signature::Type {
+        signature::Type::Container(signature::Container::Variant)
+    }
+    fn alignment() -> usize {
+        Variant::signature().get_alignment()
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for Variant<'buf> {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        // let padding = rustbus::wire::util::align_offset(Self::get_alignment());
+        let (offset, desc) = crate::wire::util::unmarshal_signature(&buf[offset..])?;
+        let mut sigs = match signature::Type::parse_description(desc) {
+            Ok(sigs) => sigs,
+            Err(_) => return Err(unmarshal::Error::WrongSignature),
+        };
+        if sigs.len() != 1 {
+            return Err(unmarshal::Error::WrongSignature);
+        }
+        let sig = sigs.remove(0);
+        let end = crate::wire::validate_raw::validate_marshalled(byteorder, offset, buf, &sig)
+            .map_err(|e| e.1)?;
+        Ok((
+            end,
+            Variant {
+                sig,
+                buf: &buf[..end],
+                offset,
+                byteorder,
+            },
+        ))
+    }
 }
