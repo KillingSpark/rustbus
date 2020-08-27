@@ -301,7 +301,6 @@ pub fn marshal_as_variant<P: Marshal>(
 ) -> Result<(), crate::Error> {
     let mut sig_str = String::new();
     P::signature().to_str(&mut sig_str);
-    crate::wire::util::pad_to_align(P::alignment(), buf);
     crate::wire::marshal::base::marshal_base_param(
         ByteOrder::LittleEndian,
         &crate::params::Base::Signature(sig_str),
