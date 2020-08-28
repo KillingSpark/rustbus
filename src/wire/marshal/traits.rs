@@ -622,6 +622,22 @@ impl Marshal for ObjectPath<'_> {
     }
 }
 
+impl Marshal for &std::path::Path {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), crate::Error> {
+        let path_str = self.to_str().ok_or(crate::Error::Validation(
+            crate::params::validation::Error::InvalidUtf8,
+        ))?;
+        crate::params::validate_object_path(path_str)?;
+        path_str.marshal(byteorder, buf)
+    }
+}
+impl Marshal for std::path::PathBuf {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), crate::Error> {
+        let path: &std::path::Path = &self;
+        path.marshal(byteorder, buf)
+    }
+}
+
 pub struct SignatureWrapper<'a>(&'a str);
 impl<'a> SignatureWrapper<'a> {
     pub fn new(sig: &'a str) -> Result<Self, crate::params::validation::Error> {
@@ -729,4 +745,34 @@ fn test_variant_marshalling() {
             b'B', b'C', b'D', b'\0', 0, 0, 0, 1, 0, 0, 0
         ]
     )
+}
+
+#[test]
+fn test_path_marshalling() {
+    use crate::message_builder::MarshalledMessageBody;
+    use std::path::{Path, PathBuf};
+    let mut body = MarshalledMessageBody::new();
+    let pathbuf_input = PathBuf::from("/pathbuf/to/path");
+    let path_input: &Path = "/path/to/pathbuf".as_ref();
+    body.push_param(pathbuf_input.clone()).unwrap();
+    body.push_param(path_input).unwrap();
+
+    // check invalid paths
+    body.push_param(PathBuf::from("/!pathbuf/to/path"))
+        .unwrap_err();
+    body.push_param(PathBuf::from("/pathbuf/ to/path"))
+        .unwrap_err();
+    body.push_param(PathBuf::from("pathbuf/to/path"))
+        .unwrap_err();
+    body.push_param::<&Path>("/!path/to/pathbuf".as_ref())
+        .unwrap_err();
+    body.push_param::<&Path>("/path/ to/pathbuf".as_ref())
+        .unwrap_err();
+    body.push_param::<&Path>("path/to/pathbuf".as_ref())
+        .unwrap_err();
+
+    // check unmarshalling
+    let (out1, out2): (&Path, PathBuf) = body.parser().get2().unwrap();
+    assert_eq!(pathbuf_input, out1);
+    assert_eq!(path_input, out2);
 }
