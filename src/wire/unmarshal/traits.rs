@@ -568,6 +568,43 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal::traits::ObjectP
         Ok((bytes, path))
     }
 }
+impl Signature for &std::path::Path {
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::ObjectPath)
+    }
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for &'r std::path::Path {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        let (bytes, val) = <&str>::unmarshal(byteorder, buf, offset)?;
+        crate::params::validate_object_path(&val)?;
+        Ok((bytes, val.as_ref()))
+    }
+}
+impl Signature for std::path::PathBuf {
+    fn signature() -> crate::signature::Type {
+        <&std::path::Path>::signature()
+    }
+    fn alignment() -> usize {
+        <&std::path::Path>::alignment()
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for std::path::PathBuf {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        <&std::path::Path>::unmarshal(byteorder, buf, offset)
+            .map(|(bytes, path)| (bytes, path.to_owned()))
+    }
+}
 
 #[test]
 fn test_unmarshal_traits() {
