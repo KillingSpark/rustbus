@@ -153,13 +153,13 @@ fn variant_trait_impl() {
 #[macro_export(local_inner_macros)]
 /// This macro provides a convenient way to create enums to represent relatively simple Variants, with fitting marshal/unmarshal implementations.
 /// It can be used like this:
-/// ```rust
+/// ```rust, ignore
 ///    type Map = std::collections::HashMap<String, (i32, u8, (u64, MyVariant))>;
 ///    type Struct = (u32, u32, MyVariant);
 ///    dbus_variant!(MyVariant, CaseMap => Map; CaseStruct => Struct);
 /// ```
 /// And it will generate an enum like this:
-/// ```rust
+/// ```rust, ignore
 /// enum MyVariant {
 ///     CaseMap(Map),
 ///     CaseStruct(Struct),
