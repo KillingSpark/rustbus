@@ -179,7 +179,7 @@ macro_rules! dbus_variant {
             $name => $typ
         )+);
 
-        impl marshal::traits::Signature for $vname {
+        impl rustbus::Signature for $vname {
             fn signature() -> rustbus::signature::Type {
                 rustbus::signature::Type::Container(rustbus::signature::Container::Variant)
             }
@@ -245,12 +245,12 @@ macro_rules! dbus_variant_marshal {
 #[macro_export]
 macro_rules! dbus_variant_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'ret, 'buf: 'ret> unmarshal::traits::Unmarshal<'ret, 'buf> for $vname {
+        impl<'ret, 'buf: 'ret> rustbus::Unmarshal<'ret, 'buf> for $vname {
             fn unmarshal(
                 byteorder: rustbus::ByteOrder,
                 buf: &'buf [u8],
                 offset: usize,
-            ) -> unmarshal::UnmarshalResult<Self> {
+            ) -> rustbus::wire::unmarshal::UnmarshalResult<Self> {
                 use rustbus::Signature;
 
                 let (bytes, sig_str) = rustbus::wire::util::unmarshal_signature(&buf[offset..])?;
@@ -264,7 +264,7 @@ macro_rules! dbus_variant_unmarshal {
 
                 $(
                 if sig == <$typ as Signature>::signature() {
-                    let (vbytes, v) = <$typ as Unmarshal>::unmarshal(byteorder, buf, offset)?;
+                    let (vbytes, v) = <$typ as rustbus::Unmarshal>::unmarshal(byteorder, buf, offset)?;
                     return Ok((bytes + vbytes, Self::$name(v)));
                 }
                 )+
