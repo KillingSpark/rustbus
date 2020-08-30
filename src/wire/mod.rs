@@ -174,7 +174,7 @@ fn variant_trait_impl() {
 /// as shown in the example above.
 /// 1. References like &str are not supported
 macro_rules! dbus_variant {
-    ($vname: ident, $($name: ident => $typ: ident);+) => {
+    ($vname: ident, $($name: ident => $typ: path);+) => {
         dbus_variant_type!($vname, $(
             $name => $typ
         )+);
@@ -200,7 +200,7 @@ macro_rules! dbus_variant {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! dbus_variant_type {
-    ($vname: ident, $($name: ident => $typ: ident)+) => {
+    ($vname: ident, $($name: ident => $typ: path)+) => {
         #[derive(Eq, PartialEq, Debug)]
         pub enum $vname {
             $(
@@ -214,7 +214,7 @@ macro_rules! dbus_variant_type {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! dbus_variant_marshal {
-    ($vname: ident, $($name: ident => $typ: ident)+) => {
+    ($vname: ident, $($name: ident => $typ: path)+) => {
         impl rustbus::Marshal for $vname {
             fn marshal(&self, byteorder: rustbus::ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
@@ -223,7 +223,7 @@ macro_rules! dbus_variant_marshal {
                     $(
                         Self::$name(v) => {
                             let mut sig_str = String::new();
-                            $typ::signature().to_str(&mut sig_str);
+                            <$typ as Signature>::signature().to_str(&mut sig_str);
                             rustbus::wire::marshal::base::marshal_base_param(
                                 byteorder,
                                 &rustbus::params::Base::Signature(sig_str),
@@ -244,7 +244,7 @@ macro_rules! dbus_variant_marshal {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! dbus_variant_unmarshal {
-    ($vname: ident, $($name: ident => $typ: ident)+) => {
+    ($vname: ident, $($name: ident => $typ: path)+) => {
         impl<'ret, 'buf: 'ret> unmarshal::traits::Unmarshal<'ret, 'buf> for $vname {
             fn unmarshal(
                 byteorder: rustbus::ByteOrder,
@@ -263,8 +263,8 @@ macro_rules! dbus_variant_unmarshal {
                 let offset = offset + bytes;
 
                 $(
-                if sig == $typ::signature() {
-                    let (vbytes, v) = $typ::unmarshal(byteorder, buf, offset)?;
+                if sig == <$typ as Signature>::signature() {
+                    let (vbytes, v) = <$typ as Unmarshal>::unmarshal(byteorder, buf, offset)?;
                     return Ok((bytes + vbytes, Self::$name(v)));
                 }
                 )+
@@ -286,7 +286,7 @@ fn test_variant_macro() {
     use crate as rustbus;
 
     let mut buf = vec![];
-    dbus_variant!(MyVariant, String => String; V2 => i32; Integer => u32);
+    dbus_variant!(MyVariant, String => std::string::String; V2 => i32; Integer => u32);
     let v1 = MyVariant::String("ABCD".to_owned());
     let v2 = MyVariant::V2(0);
     let v3 = MyVariant::Integer(100);
