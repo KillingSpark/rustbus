@@ -150,7 +150,6 @@ fn variant_trait_impl() {
     );
 }
 
-
 #[macro_export(local_inner_macros)]
 /// This macro provides a convenient way to create enums to represent relatively simple Variants, with fitting marshal/unmarshal implementations.
 /// It can be used like this:
@@ -163,14 +162,14 @@ fn variant_trait_impl() {
 /// ```rust
 /// enum MyVariant {
 ///     CaseMap(Map),
-///     CaseStruct(Struct), 
+///     CaseStruct(Struct),
 ///     Catchall(rustbus::signature::Type),   
 /// }
 /// ```
 /// The `Catchall` case is used for unmarshalling, when encountering a Value that did not match any of the other cases. **The generated marshal impl will
 /// refuse to marshal the Catchall case!** If you want to have a case for a signature you need to make it explicitly.
-/// 
-/// ## Current limitations 
+///
+/// ## Current limitations
 /// 1. The type needs to be an identifier, so a single word. std::u64 does not work, but you can use local type-aliases to make this work
 /// as shown in the example above.
 /// 1. References like &str are not supported
