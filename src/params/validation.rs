@@ -21,7 +21,7 @@ pub enum Error {
     ArrayElementTypesDiffer,
     DictKeyTypesDiffer,
     DictValueTypesDiffer,
-	ByteOrderMismatch
+    ByteOrderMismatch,
 }
 
 type Result<T> = std::result::Result<T, Error>;
