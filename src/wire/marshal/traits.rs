@@ -663,6 +663,21 @@ impl Marshal for UnixFd {
     }
 }
 
+impl Marshal for crate::wire::unmarshal::traits::Variant<'_> {
+    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), crate::Error> {
+		if byteorder != self.byteorder {
+			return Err(crate::Error::Validation(params::validation::Error::ByteOrderMismatch));
+		}
+        let mut sig_str = String::new();
+        self.sig.to_str(&mut sig_str);
+        debug_assert!(sig_str.len() <= 255);
+        buf.push(sig_str.len() as u8);
+        buf.extend_from_slice(sig_str.as_bytes());
+        crate::wire::util::pad_to_align(self.sig.get_alignment(), buf);
+        buf.extend_from_slice(&self.buf[self.offset..]);
+        Ok(())
+    }
+}
 #[test]
 fn test_trait_signature_creation() {
     let mut msg = crate::message_builder::MarshalledMessage::new();

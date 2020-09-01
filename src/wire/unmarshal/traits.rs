@@ -633,18 +633,18 @@ fn test_unmarshal_traits() {
 }
 
 pub struct Variant<'buf> {
-    sig: signature::Type,
-    byteorder: ByteOrder,
-    offset: usize,
-    buf: &'buf [u8],
+    pub(crate) sig: signature::Type,
+    pub(crate) byteorder: ByteOrder,
+    pub(crate) offset: usize,
+    pub(crate) buf: &'buf [u8],
 }
 impl<'r, 'buf: 'r> Variant<'buf> {
     pub fn get_value_sig(&self) -> &signature::Type {
         &self.sig
     }
-    pub fn get<T: Unmarshal<'r, 'buf>>(&self) -> Result<T, UnmarshalError> {
+    pub fn get<T: Unmarshal<'r, 'buf>>(&self) -> Result<T, unmarshal::Error> {
         if self.sig != T::signature() {
-            return Err(UnmarshalError::WrongSignature);
+            return Err(unmarshal::Error::WrongSignature);
         }
         T::unmarshal(self.byteorder, self.buf, self.offset).map(|r| r.1)
     }
@@ -664,19 +664,19 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for Variant<'buf> {
         offset: usize,
     ) -> unmarshal::UnmarshalResult<Self> {
         // let padding = rustbus::wire::util::align_offset(Self::get_alignment());
-        let (mut used, desc) = rustbus::wire::util::unmarshal_signature(&buf[offset..])?;
-        let start_loc = offset + used;
+        let (mut used, desc) = util::unmarshal_signature(&buf[offset..])?;
         let mut sigs = match signature::Type::parse_description(desc) {
             Ok(sigs) => sigs,
-            Err(_) => return Err(UnmarshalError::WrongSignature),
+            Err(_) => return Err(unmarshal::Error::WrongSignature),
         };
         if sigs.len() != 1 {
-            return Err(UnmarshalError::WrongSignature);
+            return Err(unmarshal::Error::WrongSignature);
         }
         let sig = sigs.remove(0);
-        used +=
-            rustbus::wire::validate_raw::validate_marshalled(byteorder, offset + used, buf, &sig)
-                .map_err(|e| e.1)?;
+        used += util::align_offset(sig.get_alignment(), buf, offset + used)?;
+        let start_loc = offset + used;
+        used += crate::wire::validate_raw::validate_marshalled(byteorder, start_loc, buf, &sig)
+            .map_err(|e| e.1)?;
         Ok((
             used,
             Variant {
