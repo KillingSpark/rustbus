@@ -621,7 +621,7 @@ impl Marshal for ObjectPath<'_> {
         self.0.marshal(byteorder, buf)
     }
 }
-
+#[derive(Debug, PartialEq)]
 pub struct SignatureWrapper<'a>(&'a str);
 impl<'a> SignatureWrapper<'a> {
     pub fn new(sig: &'a str) -> Result<Self, crate::params::validation::Error> {
@@ -648,6 +648,7 @@ impl Marshal for SignatureWrapper<'_> {
         Ok(())
     }
 }
+#[derive(Debug, PartialEq)]
 pub struct UnixFd(pub u32);
 impl Signature for UnixFd {
     fn signature() -> crate::signature::Type {
