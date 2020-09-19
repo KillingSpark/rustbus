@@ -638,6 +638,7 @@ use crate::wire::unmarshal::traits::Unmarshal;
 /// that you can use to get the params one by one, calling `get::<T>` until you have obtained all the parameters.
 /// If you try to get more parameters than the signature has types, it will return None, if you try to get a parameter that doesn not
 /// fit the current one, it will return an Error::WrongSignature, but you can safely try other types, the iterator stays valid.
+#[derive(Debug)]
 pub struct MessageBodyParser<'body> {
     buf_idx: usize,
     sig_idx: usize,

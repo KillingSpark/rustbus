@@ -1,5 +1,6 @@
 //! Provides the Unmarshal trait and the implementations for the base types
 
+use crate::signature;
 use crate::wire::marshal::traits::Signature;
 use crate::wire::unmarshal;
 use crate::wire::util;
@@ -569,6 +570,69 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal::traits::ObjectP
     }
 }
 
+pub struct Variant<'buf> {
+    pub(crate) sig: signature::Type,
+    pub(crate) byteorder: ByteOrder,
+    pub(crate) offset: usize,
+    pub(crate) buf: &'buf [u8],
+}
+impl<'r, 'buf: 'r> Variant<'buf> {
+    /// Get the [`Type`] of the value contained by the variant.
+    ///
+    /// [`Type`]: /rustbus/signature/enum.Type.html
+    pub fn get_value_sig(&self) -> &signature::Type {
+        &self.sig
+    }
+
+    /// Unmarshal the variant's value. This method is used in the same way as [`MessageBodyParser::get()`].
+    ///
+    /// [`MessageBodyParser::get()`]: /rustbus/message_builder/struct.MessageBodyParser.html#method.get
+    pub fn get<T: Unmarshal<'r, 'buf>>(&self) -> Result<T, unmarshal::Error> {
+        if self.sig != T::signature() {
+            return Err(unmarshal::Error::WrongSignature);
+        }
+        T::unmarshal(self.byteorder, self.buf, self.offset).map(|r| r.1)
+    }
+}
+impl Signature for Variant<'_> {
+    fn signature() -> signature::Type {
+        signature::Type::Container(signature::Container::Variant)
+    }
+    fn alignment() -> usize {
+        Variant::signature().get_alignment()
+    }
+}
+impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for Variant<'buf> {
+    fn unmarshal(
+        byteorder: ByteOrder,
+        buf: &'buf [u8],
+        offset: usize,
+    ) -> unmarshal::UnmarshalResult<Self> {
+        // let padding = rustbus::wire::util::align_offset(Self::get_alignment());
+        let (mut used, desc) = util::unmarshal_signature(&buf[offset..])?;
+        let mut sigs = match signature::Type::parse_description(desc) {
+            Ok(sigs) => sigs,
+            Err(_) => return Err(unmarshal::Error::WrongSignature),
+        };
+        if sigs.len() != 1 {
+            return Err(unmarshal::Error::WrongSignature);
+        }
+        let sig = sigs.remove(0);
+        used += util::align_offset(sig.get_alignment(), buf, offset + used)?;
+        let start_loc = offset + used;
+        used += crate::wire::validate_raw::validate_marshalled(byteorder, start_loc, buf, &sig)
+            .map_err(|e| e.1)?;
+        Ok((
+            used,
+            Variant {
+                sig,
+                buf: &buf[..offset + used],
+                offset: start_loc,
+                byteorder,
+            },
+        ))
+    }
+}
 #[test]
 fn test_unmarshal_traits() {
     use crate::Marshal;
@@ -629,4 +693,144 @@ fn test_unmarshal_traits() {
     assert_eq!(p.as_ref(), "/a/b/c");
     assert_eq!(s.as_ref(), "ss(aiau)");
     assert_eq!(fd.0, 10);
+}
+
+#[test]
+fn test_variant() {
+    use crate::message_builder::MarshalledMessageBody;
+    use crate::params::{Array, Base, Container, Dict, Param, Variant as ParamVariant};
+    use crate::signature::Type;
+    use crate::wire::marshal::traits::{SignatureWrapper, UnixFd};
+    use std::collections::HashMap;
+
+    // inital test data
+    let params: [(Param, Type); 11] = [
+        (Base::Byte(0x41).into(), u8::signature()),
+        (Base::Int16(-1234).into(), i16::signature()),
+        (Base::Uint16(1234).into(), u16::signature()),
+        (Base::Int32(-1234567).into(), i32::signature()),
+        (Base::Uint32(1234567).into(), u32::signature()),
+        (Base::UnixFd(1).into(), UnixFd::signature()),
+        (Base::Int64(-1234568901234).into(), i64::signature()),
+        (Base::Uint64(1234568901234).into(), u64::signature()),
+        (
+            Base::String("Hello world!".to_string()).into(),
+            String::signature(),
+        ),
+        (
+            Base::Signature("sy".to_string()).into(),
+            SignatureWrapper::signature(),
+        ),
+        (Base::Boolean(true).into(), bool::signature()),
+    ];
+
+    // push initial data as individual variants
+    let mut body = MarshalledMessageBody::new();
+    for param in &params {
+        let cont = Container::Variant(Box::new(ParamVariant {
+            sig: param.1.clone(),
+            value: param.0.clone(),
+        }));
+        body.push_old_param(&Param::Container(cont)).unwrap();
+    }
+
+    // push initial data as Array of variants
+    let var_vec = params
+        .iter()
+        .map(|(param, typ)| {
+            Param::Container(Container::Variant(Box::new(ParamVariant {
+                sig: typ.clone(),
+                value: param.clone(),
+            })))
+        })
+        .collect();
+    let vec_param = Param::Container(Container::Array(Array {
+        element_sig: Variant::signature(),
+        values: var_vec,
+    }));
+    body.push_old_param(&vec_param).unwrap();
+
+    // push initial data as Dict of {String,variants}
+    let var_map = params
+        .iter()
+        .enumerate()
+        .map(|(i, (param, typ))| {
+            (
+                Base::String(format!("{}", i)),
+                Param::Container(Container::Variant(Box::new(ParamVariant {
+                    sig: typ.clone(),
+                    value: param.clone(),
+                }))),
+            )
+        })
+        .collect();
+    let map_param = Param::Container(Container::Dict(Dict {
+        key_sig: crate::signature::Base::String,
+        value_sig: Variant::signature(),
+        map: var_map,
+    }));
+    body.push_old_param(&map_param).unwrap();
+
+    // check the individual variants
+    let mut parser = body.parser();
+    assert_eq!(0x41_u8, parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(-1234_i16, parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(1234_u16, parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(
+        -1234567_i32,
+        parser.get::<Variant>().unwrap().get().unwrap()
+    );
+    assert_eq!(1234567_u32, parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(UnixFd(1), parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(
+        -1234568901234_i64,
+        parser.get::<Variant>().unwrap().get().unwrap()
+    );
+    assert_eq!(
+        1234568901234_u64,
+        parser.get::<Variant>().unwrap().get().unwrap()
+    );
+    assert_eq!(
+        "Hello world!",
+        parser.get::<Variant>().unwrap().get::<&str>().unwrap()
+    );
+    assert_eq!(
+        SignatureWrapper::new("sy").unwrap(),
+        parser.get::<Variant>().unwrap().get().unwrap()
+    );
+    assert_eq!(true, parser.get::<Variant>().unwrap().get().unwrap());
+
+    // check Array of variants
+    let var_vec: Vec<Variant> = parser.get().unwrap();
+    assert_eq!(0x41_u8, var_vec[0].get().unwrap());
+    assert_eq!(-1234_i16, var_vec[1].get().unwrap());
+    assert_eq!(1234_u16, var_vec[2].get().unwrap());
+    assert_eq!(-1234567_i32, var_vec[3].get().unwrap());
+    assert_eq!(1234567_u32, var_vec[4].get().unwrap());
+    assert_eq!(UnixFd(1), var_vec[5].get().unwrap());
+    assert_eq!(-1234568901234_i64, var_vec[6].get().unwrap());
+    assert_eq!(1234568901234_u64, var_vec[7].get().unwrap());
+    assert_eq!("Hello world!", var_vec[8].get::<&str>().unwrap());
+    assert_eq!(
+        SignatureWrapper::new("sy").unwrap(),
+        var_vec[9].get().unwrap()
+    );
+    assert_eq!(true, var_vec[10].get().unwrap());
+
+    // check Dict of {String, variants}
+    let var_map: HashMap<String, Variant> = parser.get().unwrap();
+    assert_eq!(0x41_u8, var_map["0"].get().unwrap());
+    assert_eq!(-1234_i16, var_map["1"].get().unwrap());
+    assert_eq!(1234_u16, var_map["2"].get().unwrap());
+    assert_eq!(-1234567_i32, var_map["3"].get().unwrap());
+    assert_eq!(1234567_u32, var_map["4"].get().unwrap());
+    assert_eq!(UnixFd(1), var_map["5"].get().unwrap());
+    assert_eq!(-1234568901234_i64, var_map["6"].get().unwrap());
+    assert_eq!(1234568901234_u64, var_map["7"].get().unwrap());
+    assert_eq!("Hello world!", var_map["8"].get::<&str>().unwrap());
+    assert_eq!(
+        SignatureWrapper::new("sy").unwrap(),
+        var_map["9"].get().unwrap()
+    );
+    assert_eq!(true, var_map["10"].get().unwrap());
 }
