@@ -570,6 +570,7 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for crate::wire::marshal::traits::ObjectP
     }
 }
 
+#[derive(Debug)]
 pub struct Variant<'buf> {
     pub(crate) sig: signature::Type,
     pub(crate) byteorder: ByteOrder,

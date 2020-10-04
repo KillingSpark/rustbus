@@ -17,7 +17,7 @@ enum Sub {
     Other(MyOtherSubType),
 }
 
-rustbus::dbus_variant!(MyVar, Int32 => i32; Int64 => i64);
+rustbus::dbus_variant_sig!(MyVar, Int32 => i32; Int64 => i64);
 
 use rustbus::message_builder::marshal_as_variant;
 impl Signature for &MyType {
