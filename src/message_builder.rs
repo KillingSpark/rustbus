@@ -663,6 +663,18 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         }
     }
 
+    /// Get the next params signature (if any are left)
+    pub fn get_next_sig(&self) -> Option<&crate::signature::Type> {
+        self.sigs.get(self.sig_idx)
+    }
+
+    /// Get the remaining params signature (if any are left)
+    pub fn get_left_sigs(&self) -> Option<&[crate::signature::Type]> {
+        self.sigs.get(self.sig_idx..)
+    }
+
+    /// Get the next param, use get::<TYPE> to specify what type you expect. For example `let s = parser.get::<String>()?;`
+    /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get<T: Unmarshal<'ret, 'body>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
         if self.sig_idx >= self.sigs.len() {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
@@ -703,6 +715,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
             }
         }
     }
+
+    /// Get the next two params, use get2::<TYPE, TYPE> to specify what type you expect. For example `let s = parser.get2::<String, i32>()?;`
+    /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
     where
         T1: Unmarshal<'ret, 'body>,
@@ -715,6 +730,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         };
         self.get_mult_helper(2, get_calls)
     }
+
+    /// Get the next three params, use get3::<TYPE, TYPE, TYPE> to specify what type you expect. For example `let s = parser.get3::<String, i32, u64>()?;`
+    /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
     where
         T1: Unmarshal<'ret, 'body>,
@@ -729,6 +747,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         };
         self.get_mult_helper(3, get_calls)
     }
+
+    /// Get the next four params, use get4::<TYPE, TYPE, TYPE, TYPE> to specify what type you expect. For example `let s = parser.get4::<String, i32, u64, u8>()?;`
+    /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get4<T1, T2, T3, T4>(
         &mut self,
     ) -> Result<(T1, T2, T3, T4), crate::wire::unmarshal::Error>
@@ -747,6 +768,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         };
         self.get_mult_helper(4, get_calls)
     }
+
+    /// Get the next five params, use get5::<TYPE, TYPE, TYPE, TYPE, TYPE> to specify what type you expect. For example `let s = parser.get4::<String, i32, u64, u8, bool>()?;`
+    /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get5<T1, T2, T3, T4, T5>(
         &mut self,
     ) -> Result<(T1, T2, T3, T4, T5), crate::wire::unmarshal::Error>
@@ -768,6 +792,8 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         self.get_mult_helper(5, get_calls)
     }
 
+    /// Get the next (old_style) param.
+    /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get_param(&mut self) -> Result<crate::params::Param, crate::wire::unmarshal::Error> {
         if self.sig_idx >= self.sigs.len() {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
