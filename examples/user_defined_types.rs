@@ -17,6 +17,8 @@ enum Sub {
     Other(MyOtherSubType),
 }
 
+rustbus::dbus_variant_sig!(MyVar, Int32 => i32; Int64 => i64);
+
 use rustbus::message_builder::marshal_as_variant;
 impl Signature for &MyType {
     fn signature() -> signature::Type {
@@ -151,6 +153,8 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     sig.body.push_param(&t)?;
     sig.body.push_param(&t2)?;
+    sig.body.push_param(MyVar::Int32(100))?;
+    sig.body.push_param(MyVar::Int64(-100))?;
 
     con.send_message(&mut sig, Timeout::Infinite)?;
 

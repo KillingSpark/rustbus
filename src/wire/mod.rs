@@ -4,6 +4,7 @@ pub mod marshal;
 pub mod unmarshal;
 pub mod util;
 pub mod validate_raw;
+pub mod variant_macros;
 
 /// The different header fields a message may or maynot have
 #[derive(Debug)]

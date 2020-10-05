@@ -116,7 +116,7 @@ pub fn validate_marshalled_base(
         }
         signature::Base::Signature => {
             // TODO validate
-            let (bytes, string) = crate::wire::util::unmarshal_signature(buf)
+            let (bytes, string) = crate::wire::util::unmarshal_signature(&buf[offset..])
                 .map_err(|err| (offset + padding, err))?;
             crate::params::validate_signature(string).map_err(|e| (offset, e.into()))?;
             Ok(bytes + padding)

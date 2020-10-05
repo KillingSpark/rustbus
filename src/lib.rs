@@ -71,7 +71,7 @@ pub use wire::unmarshal::traits::Unmarshal;
 mod tests;
 
 /// The supported byte orders
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ByteOrder {
     LittleEndian,
     BigEndian,
