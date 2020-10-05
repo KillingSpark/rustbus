@@ -108,32 +108,39 @@ pub fn unmarshal<'r, 'buf: 'r, T: Unmarshal<'r, 'buf>>(
 
 #[test]
 fn test_generic_unmarshal() {
+    use crate::wire::marshal::traits::MarshalContext;
     use crate::Marshal;
 
-    // annotate the receiver with a type &str to unmarshal a &str
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    "ABCD".marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    let _s: &str = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+    let mut ctx = MarshalContext {
+        buf: &mut buf,
+        fds: &mut fds,
+        byteorder: ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
+    // annotate the receiver with a type &str to unmarshal a &str
+    "ABCD".marshal(ctx).unwrap();
+    let _s: &str = unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0).unwrap().1;
 
     // annotate the receiver with a type bool to unmarshal a bool
-    buf.clear();
-    true.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    let _b: bool = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+    ctx.buf.clear();
+    true.marshal(ctx).unwrap();
+    let _b: bool = unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0).unwrap().1;
 
     // can also use turbofish syntax
-    buf.clear();
-    0i32.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    let _i = unmarshal::<i32>(ByteOrder::LittleEndian, &buf, 0)
+    ctx.buf.clear();
+    0i32.marshal(ctx).unwrap();
+    let _i = unmarshal::<i32>(ByteOrder::LittleEndian, &ctx.buf, 0)
         .unwrap()
         .1;
 
     // No type info on let arg = unmarshal(...) is needed if it can be derived by other means
-    buf.clear();
+    ctx.buf.clear();
     fn x(_arg: (i32, i32, &str)) {};
-    (0, 0, "ABCD")
-        .marshal(ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
-    let arg = unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+    (0, 0, "ABCD").marshal(ctx).unwrap();
+    let arg = unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0).unwrap().1;
     x(arg);
 }
 
@@ -417,18 +424,28 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for &'r [u8] {
 
 #[test]
 fn test_unmarshal_byte_array() {
+    use crate::wire::marshal::traits::MarshalContext;
     use crate::Marshal;
+
     let mut orig = vec![];
     for x in 0..1024 {
         orig.push((x % 255) as u8);
     }
 
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
-    assert_eq!(&buf[..4], &[0, 4, 0, 0]);
-    assert_eq!(buf.len(), 1028);
+    let mut ctx = MarshalContext {
+        buf: &mut buf,
+        fds: &mut fds,
+        byteorder: ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
+    orig.marshal(ctx).unwrap();
+    assert_eq!(&ctx.buf[..4], &[0, 4, 0, 0]);
+    assert_eq!(ctx.buf.len(), 1028);
     let (bytes, unorig) =
-        <&[u8] as Unmarshal>::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap();
+        <&[u8] as Unmarshal>::unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0).unwrap();
     assert_eq!(bytes, orig.len() + 4);
     assert_eq!(orig, unorig);
 
@@ -444,12 +461,12 @@ fn test_unmarshal_byte_array() {
 
     let orig = vec![orig1.as_slice(), orig2.as_slice()];
 
-    let mut buf = Vec::new();
-    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    ctx.buf.clear();
+    orig.marshal(ctx).unwrap();
 
     // unorig[x] points into the appropriate region in buf, and unorigs lifetime is bound to buf
     let (_bytes, unorig) =
-        <Vec<&[u8]> as Unmarshal>::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap();
+        <Vec<&[u8]> as Unmarshal>::unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0).unwrap();
     assert_eq!(orig, unorig);
 }
 
@@ -636,39 +653,50 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for Variant<'buf> {
 }
 #[test]
 fn test_unmarshal_traits() {
+    use crate::wire::marshal::traits::MarshalContext;
     use crate::Marshal;
 
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    let original = &["a", "b"];
-    original.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    let mut ctx = MarshalContext {
+        buf: &mut buf,
+        fds: &mut fds,
+        byteorder: ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
 
-    let (_, v) = Vec::<&str>::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap();
+    let original = &["a", "b"];
+    original.marshal(ctx).unwrap();
+
+    let (_, v) = Vec::<&str>::unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0).unwrap();
 
     assert_eq!(original, v.as_slice());
 
-    buf.clear();
+    ctx.buf.clear();
 
     let mut original = std::collections::HashMap::new();
     original.insert(0u64, "abc");
     original.insert(1u64, "dce");
     original.insert(2u64, "fgh");
 
-    original.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    original.marshal(ctx).unwrap();
 
     let (_, map) =
-        std::collections::HashMap::<u64, &str>::unmarshal(ByteOrder::LittleEndian, &buf, 0)
+        std::collections::HashMap::<u64, &str>::unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0)
             .unwrap();
     assert_eq!(original, map);
 
-    buf.clear();
+    ctx.buf.clear();
 
     let orig = (0u8, true, 100u8, -123i32);
-    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    orig.marshal(ctx).unwrap();
     type ST = (u8, bool, u8, i32);
-    let s = ST::unmarshal(ByteOrder::LittleEndian, &buf, 0).unwrap().1;
+    let s = ST::unmarshal(ByteOrder::LittleEndian, &ctx.buf, 0)
+        .unwrap()
+        .1;
     assert_eq!(orig, s);
 
-    buf.clear();
+    ctx.buf.clear();
 
     use crate::wire::marshal::traits::{ObjectPath, SignatureWrapper, UnixFd};
     let orig = (
@@ -676,9 +704,9 @@ fn test_unmarshal_traits() {
         SignatureWrapper::new("ss(aiau)").unwrap(),
         UnixFd(10),
     );
-    orig.marshal(ByteOrder::LittleEndian, &mut buf).unwrap();
+    orig.marshal(ctx).unwrap();
     assert_eq!(
-        &buf,
+        ctx.buf,
         &[
             6, 0, 0, 0, b'/', b'a', b'/', b'b', b'/', b'c', 0, 8, b's', b's', b'(', b'a', b'i',
             b'a', b'u', b')', 0, 0, 0, 0, 10, 0, 0, 0
@@ -686,7 +714,7 @@ fn test_unmarshal_traits() {
     );
     let (_, (p, s, fd)) = <(ObjectPath, SignatureWrapper, UnixFd) as Unmarshal>::unmarshal(
         ByteOrder::LittleEndian,
-        &buf,
+        &ctx.buf,
         0,
     )
     .unwrap();

@@ -37,7 +37,7 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         };
 
         println!("Got signal: {:?}", sig);
-        let mut file = unsafe { std::fs::File::from_raw_fd(sig.raw_fds[0]) };
+        let mut file = unsafe { std::fs::File::from_raw_fd(sig.body.raw_fds[0]) };
         file.write_all(b"This is a line\n")?;
     }
 
@@ -56,7 +56,7 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
         )
         .build();
 
-    sig.raw_fds.push(0);
+    sig.body.raw_fds.push(0);
     sig.dynheader.num_fds = Some(1);
     con.send_message(&mut sig, Timeout::Infinite)?;
 

@@ -62,7 +62,7 @@ macro_rules! dbus_variant_sig_type {
 macro_rules! dbus_variant_sig_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl rustbus::Marshal for $vname {
-            fn marshal(&self, byteorder: rustbus::ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
+            fn marshal(&self, ctx: &mut rustbus::wire::marshal::traits::MarshalContext) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
 
                 match self {
@@ -71,12 +71,12 @@ macro_rules! dbus_variant_sig_marshal {
                             let mut sig_str = String::new();
                             <$typ as Signature>::signature().to_str(&mut sig_str);
                             rustbus::wire::marshal::base::marshal_base_param(
-                                byteorder,
+                                ctx.byteorder,
                                 &rustbus::params::Base::Signature(sig_str),
-                                buf,
+                                ctx.buf,
                             )
                             .unwrap();
-                            v.marshal(byteorder, buf)?;
+                            v.marshal(ctx)?;
                         }
                     )+
                     Self::Catchall(_) => unimplemented!("Do not use Catchall for Marshal cases!"),
@@ -128,25 +128,38 @@ fn test_variant_sig_macro() {
     use crate::Marshal;
     use crate::Unmarshal;
 
+    use crate::wire::marshal::traits::MarshalContext;
+
+    let mut fds = Vec::new();
+    let mut ctxbuf = Vec::new();
+    let mut ctx = MarshalContext {
+        buf: &mut ctxbuf,
+        fds: &mut fds,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
     // so the macro is able to use rustbus, like it would have to when importet into other crates
     use crate as rustbus;
 
-    let mut buf = vec![];
     dbus_variant_sig!(MyVariant, String => std::string::String; V2 => i32; Integer => u32);
     let v1 = MyVariant::String("ABCD".to_owned());
     let v2 = MyVariant::V2(0);
     let v3 = MyVariant::Integer(100);
 
-    (&v1, &v2, &v3)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    (&v1, &v2, &v3).marshal(ctx).unwrap();
     // add a unknown variant here
-    crate::message_builder::marshal_as_variant(0xFFFFu64, crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    crate::message_builder::marshal_as_variant(
+        0xFFFFu64,
+        crate::ByteOrder::LittleEndian,
+        &mut ctx.buf,
+        &mut ctx.fds,
+    )
+    .unwrap();
 
     let (bytes, (uv1, uv2, uv3)) = <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
         crate::ByteOrder::LittleEndian,
-        &buf,
+        &ctx.buf,
         0,
     )
     .unwrap();
@@ -159,7 +172,8 @@ fn test_variant_sig_macro() {
 
     assert_eq!(uv3, v3);
 
-    let (_bytes, uv4) = MyVariant::unmarshal(crate::ByteOrder::LittleEndian, &buf, bytes).unwrap();
+    let (_bytes, uv4) =
+        MyVariant::unmarshal(crate::ByteOrder::LittleEndian, &ctx.buf, bytes).unwrap();
     assert_eq!(
         uv4,
         MyVariant::Catchall(crate::signature::Type::Base(crate::signature::Base::Uint64))
@@ -181,14 +195,12 @@ fn test_variant_sig_macro() {
     let v3 = MyVariant2::CaseStruct((30, 40, MyVariant::V2(10)));
     let v4 = MyVariant2::CaseStruct((30, 40, MyVariant::Integer(20)));
 
-    let mut buf = vec![];
-    (&v1, &v2, &v3, &v4)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    ctx.buf.clear();
+    (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
             crate::ByteOrder::LittleEndian,
-            &buf,
+            &ctx.buf,
             0,
         )
         .unwrap();
@@ -207,15 +219,16 @@ fn test_variant_sig_macro() {
     assert_eq!(uv4, v4);
 
     // Test that catchall gets the right signatures
-    let mut buf = vec![];
+    ctx.buf.clear();
     crate::message_builder::marshal_as_variant(
         ("", "", 100u8),
         crate::ByteOrder::LittleEndian,
-        &mut buf,
+        &mut ctx.buf,
+        &mut ctx.fds,
     )
     .unwrap();
     let (_bytes, uv) =
-        <MyVariant2 as Unmarshal>::unmarshal(crate::ByteOrder::LittleEndian, &buf, 0).unwrap();
+        <MyVariant2 as Unmarshal>::unmarshal(crate::ByteOrder::LittleEndian, &ctx.buf, 0).unwrap();
     assert_eq!(
         uv,
         MyVariant2::Catchall(crate::signature::Type::Container(
@@ -294,7 +307,7 @@ macro_rules! dbus_variant_var_type {
 macro_rules! dbus_variant_var_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl<'buf> rustbus::Marshal for $vname <'buf> {
-            fn marshal(&self, byteorder: rustbus::ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
+            fn marshal(&self, ctx: &mut rustbus::wire::marshal::traits::MarshalContext) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
 
                 match self {
@@ -303,12 +316,12 @@ macro_rules! dbus_variant_var_marshal {
                             let mut sig_str = String::new();
                             <$typ as Signature>::signature().to_str(&mut sig_str);
                             rustbus::wire::marshal::base::marshal_base_param(
-                                byteorder,
+                                ctx.byteorder,
                                 &rustbus::params::Base::Signature(sig_str),
-                                buf,
+                                ctx.buf,
                             )
                             .unwrap();
-                            v.marshal(byteorder, buf)?;
+                            v.marshal(ctx)?;
                         }
                     )+
                     Self::Catchall(_) => unimplemented!("Do not use Catchall for Marshal cases!"),
@@ -366,26 +379,39 @@ fn test_variant_var_macro() {
     use crate::Marshal;
     use crate::Unmarshal;
 
+    use crate::wire::marshal::traits::MarshalContext;
+
+    let mut fds = Vec::new();
+    let mut buf = Vec::new();
+    let mut ctx = MarshalContext {
+        buf: &mut buf,
+        fds: &mut fds,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
     // so the macro is able to use rustbus, like it would have to when importet into other crates
     use crate as rustbus;
 
-    let mut buf = vec![];
     type StrRef<'buf> = &'buf str;
     dbus_variant_var!(MyVariant, String => StrRef<'buf>; V2 => i32; Integer => u32);
     let v1 = MyVariant::String("ABCD");
     let v2 = MyVariant::V2(0);
     let v3 = MyVariant::Integer(100);
 
-    (&v1, &v2, &v3)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    (&v1, &v2, &v3).marshal(ctx).unwrap();
     // add a unknown variant here
-    crate::message_builder::marshal_as_variant(0xFFFFu64, crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    crate::message_builder::marshal_as_variant(
+        0xFFFFu64,
+        crate::ByteOrder::LittleEndian,
+        &mut ctx.buf,
+        &mut ctx.fds,
+    )
+    .unwrap();
 
     let (bytes, (uv1, uv2, uv3)) = <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
         crate::ByteOrder::LittleEndian,
-        &buf,
+        &ctx.buf,
         0,
     )
     .unwrap();
@@ -402,7 +428,8 @@ fn test_variant_var_macro() {
         _ => false,
     });
 
-    let (_bytes, uv4) = MyVariant::unmarshal(crate::ByteOrder::LittleEndian, &buf, bytes).unwrap();
+    let (_bytes, uv4) =
+        MyVariant::unmarshal(crate::ByteOrder::LittleEndian, &ctx.buf, bytes).unwrap();
     assert!(match uv4 {
         MyVariant::Catchall(var) => {
             var.get::<u64>().unwrap() == 0xFFFFu64
@@ -426,14 +453,12 @@ fn test_variant_var_macro() {
     let v3 = MyVariant2::CaseStruct((30, 40, MyVariant::V2(10)));
     let v4 = MyVariant2::CaseStruct((30, 40, MyVariant::Integer(20)));
 
-    let mut buf = vec![];
-    (&v1, &v2, &v3, &v4)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    ctx.buf.clear();
+    (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
             crate::ByteOrder::LittleEndian,
-            &buf,
+            &ctx.buf,
             0,
         )
         .unwrap();
@@ -511,15 +536,16 @@ fn test_variant_var_macro() {
     });
 
     // Test that catchall gets the right signatures
-    let mut buf = vec![];
+    ctx.buf.clear();
     crate::message_builder::marshal_as_variant(
         ("testtext", "moretesttext", 100u8),
         crate::ByteOrder::LittleEndian,
-        &mut buf,
+        &mut ctx.buf,
+        &mut ctx.fds,
     )
     .unwrap();
     let (_bytes, uv) =
-        <MyVariant2 as Unmarshal>::unmarshal(crate::ByteOrder::LittleEndian, &buf, 0).unwrap();
+        <MyVariant2 as Unmarshal>::unmarshal(crate::ByteOrder::LittleEndian, &ctx.buf, 0).unwrap();
     assert!(match uv {
         MyVariant2::Catchall(var) => {
             var.get::<(&str, &str, u8)>()

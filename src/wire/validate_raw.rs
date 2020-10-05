@@ -291,10 +291,20 @@ fn test_raw_validation() {
     let mut map = std::collections::HashMap::new();
     map.insert("A", (10u8, 100i64));
     map.insert("B", (80u8, 180i64));
-    let mut valid_buf = Vec::new();
+    use crate::wire::marshal::traits::MarshalContext;
     use crate::Marshal;
+
+    let mut fds = Vec::new();
+    let mut valid_buf = Vec::new();
+    let mut ctx = MarshalContext {
+        buf: &mut valid_buf,
+        fds: &mut fds,
+        byteorder: ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
     (vec![(255u8, 4u32, true, u64::MAX)].as_slice(), map)
-        .marshal(ByteOrder::LittleEndian, &mut valid_buf)
+        .marshal(ctx)
         .unwrap();
 
     validate_marshalled(

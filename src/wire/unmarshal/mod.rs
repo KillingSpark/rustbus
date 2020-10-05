@@ -151,9 +151,8 @@ pub fn unmarshal_next_message(
         let padding = align_offset(8, buf, offset)?;
         let msg = MarshalledMessage {
             dynheader,
-            body: MarshalledMessageBody::from_parts(vec![], sig, header.byteorder),
+            body: MarshalledMessageBody::from_parts(vec![], vec![], sig, header.byteorder),
             typ: header.typ,
-            raw_fds: Vec::new(),
             flags: header.flags,
         };
         Ok((padding, msg))
@@ -167,9 +166,13 @@ pub fn unmarshal_next_message(
 
         let msg = MarshalledMessage {
             dynheader,
-            body: MarshalledMessageBody::from_parts(buf[offset..].to_vec(), sig, header.byteorder),
+            body: MarshalledMessageBody::from_parts(
+                buf[offset..].to_vec(),
+                vec![],
+                sig,
+                header.byteorder,
+            ),
             typ: header.typ,
-            raw_fds: Vec::new(),
             flags: header.flags,
         };
         Ok((padding + header.body_len as usize, msg))

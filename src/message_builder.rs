@@ -88,7 +88,6 @@ impl DynamicHeader {
                 response_serial: self.serial,
                 error_name: Some(error_name),
             },
-            raw_fds: Vec::new(),
             flags: 0,
             body: crate::message_builder::MarshalledMessageBody::new(),
         };
@@ -113,7 +112,6 @@ impl DynamicHeader {
                 response_serial: self.serial,
                 error_name: None,
             },
-            raw_fds: Vec::new(),
             flags: 0,
             body: crate::message_builder::MarshalledMessageBody::new(),
         }
@@ -209,9 +207,6 @@ pub struct MarshalledMessage {
 
     pub dynheader: DynamicHeader,
 
-    // out of band data
-    pub raw_fds: Vec<RawFd>,
-
     pub typ: MessageType,
     pub flags: u8,
 }
@@ -236,7 +231,6 @@ impl MarshalledMessage {
             typ: MessageType::Invalid,
             dynheader: DynamicHeader::default(),
 
-            raw_fds: Vec::new(),
             flags: 0,
             body: MarshalledMessageBody::new(),
         }
@@ -248,7 +242,6 @@ impl MarshalledMessage {
             typ: MessageType::Invalid,
             dynheader: DynamicHeader::default(),
 
-            raw_fds: Vec::new(),
             flags: 0,
             body: MarshalledMessageBody::with_byteorder(b),
         }
@@ -273,7 +266,7 @@ impl MarshalledMessage {
             params,
             typ: self.typ,
             flags: self.flags,
-            raw_fds: self.raw_fds,
+            raw_fds: self.body.raw_fds,
         })
     }
 }
@@ -282,6 +275,10 @@ impl MarshalledMessage {
 #[derive(Debug)]
 pub struct MarshalledMessageBody {
     buf: Vec<u8>,
+
+    // out of band data
+    pub raw_fds: Vec<RawFd>,
+
     sig: String,
     byteorder: ByteOrder,
 }
@@ -298,16 +295,27 @@ pub fn marshal_as_variant<P: Marshal>(
     p: P,
     byteorder: ByteOrder,
     buf: &mut Vec<u8>,
+    fds: &mut Vec<RawFd>,
 ) -> Result<(), crate::Error> {
     let mut sig_str = String::new();
     P::signature().to_str(&mut sig_str);
     crate::wire::marshal::base::marshal_base_param(
-        ByteOrder::LittleEndian,
+        byteorder,
         &crate::params::Base::Signature(sig_str),
         buf,
     )
     .unwrap();
-    p.marshal(byteorder, buf)?;
+
+    use crate::wire::marshal::traits::MarshalContext;
+
+    let mut ctx = MarshalContext {
+        buf,
+        fds,
+        byteorder: ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
+    p.marshal(ctx)?;
     Ok(())
 }
 
@@ -316,6 +324,7 @@ impl MarshalledMessageBody {
     pub fn new() -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
+            raw_fds: Vec::new(),
             sig: String::new(),
             byteorder: ByteOrder::LittleEndian,
         }
@@ -325,14 +334,21 @@ impl MarshalledMessageBody {
     pub fn with_byteorder(b: ByteOrder) -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
+            raw_fds: Vec::new(),
             sig: String::new(),
             byteorder: b,
         }
     }
 
-    pub fn from_parts(buf: Vec<u8>, sig: String, byteorder: ByteOrder) -> Self {
+    pub fn from_parts(
+        buf: Vec<u8>,
+        raw_fds: Vec<RawFd>,
+        sig: String,
+        byteorder: ByteOrder,
+    ) -> Self {
         Self {
             buf,
+            raw_fds,
             sig,
             byteorder,
         }
@@ -364,7 +380,14 @@ impl MarshalledMessageBody {
 
     /// Append something that is Marshal to the message body
     pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
-        p.marshal(self.byteorder, &mut self.buf)?;
+        use crate::wire::marshal::traits::MarshalContext;
+
+        let mut ctx = MarshalContext {
+            buf: &mut self.buf,
+            fds: &mut self.raw_fds,
+            byteorder: ByteOrder::LittleEndian,
+        };
+        p.marshal(&mut ctx)?;
         P::signature().to_str(&mut self.sig);
         Ok(())
     }
@@ -436,7 +459,7 @@ impl MarshalledMessageBody {
     /// Append something that is Marshal to the body but use a dbus Variant in the signature. This is necessary for some APIs
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
         self.sig.push('v');
-        marshal_as_variant(p, self.byteorder, &mut self.buf)
+        marshal_as_variant(p, self.byteorder, &mut self.buf, &mut self.raw_fds)
     }
 
     /// Create a parser to retrieve parameters from the body.
@@ -482,6 +505,7 @@ fn test_marshal_trait() {
         y: String,
     }
 
+    use crate::wire::marshal::traits::MarshalContext;
     use crate::wire::marshal::traits::Signature;
     impl Signature for &MyStruct {
         fn signature() -> crate::signature::Type {
@@ -496,11 +520,11 @@ fn test_marshal_trait() {
         }
     }
     impl Marshal for &MyStruct {
-        fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), crate::Error> {
+        fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
             // always align to 8
-            crate::wire::util::pad_to_align(8, buf);
-            self.x.marshal(byteorder, buf)?;
-            self.y.marshal(byteorder, buf)?;
+            crate::wire::util::pad_to_align(8, ctx.buf);
+            self.x.marshal(ctx)?;
+            self.y.marshal(ctx)?;
             Ok(())
         }
     }

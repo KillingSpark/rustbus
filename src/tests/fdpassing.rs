@@ -75,7 +75,7 @@ fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), clien
         )
         .build();
 
-    sig.raw_fds.push(fd);
+    sig.body.raw_fds.push(fd);
     sig.dynheader.num_fds = Some(1);
 
     sig.body
