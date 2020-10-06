@@ -3,6 +3,7 @@
 use crate::params::message;
 use crate::wire::marshal::traits::Marshal;
 use crate::wire::marshal::MarshalContext;
+use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 use std::os::unix::io::RawFd;
 
@@ -669,7 +670,7 @@ pub struct MessageBodyParser<'body> {
     body: &'body MarshalledMessageBody,
 }
 
-impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
+impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
     pub fn new(body: &'body MarshalledMessageBody) -> Self {
         let sigs = match crate::signature::Type::parse_description(&body.sig) {
             Ok(sigs) => sigs,
@@ -698,7 +699,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
 
     /// Get the next param, use get::<TYPE> to specify what type you expect. For example `let s = parser.get::<String>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get<T: Unmarshal<'ret, 'body>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
+    pub fn get<T: Unmarshal<'ret, 'body, 'fds>>(
+        &mut self,
+    ) -> Result<T, crate::wire::unmarshal::Error> {
         if self.sig_idx >= self.sigs.len() {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
@@ -706,7 +709,13 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
             return Err(crate::wire::unmarshal::Error::WrongSignature);
         }
 
-        match T::unmarshal(self.body.byteorder, &self.body.buf, self.buf_idx) {
+        let mut ctx = UnmarshalContext {
+            byteorder: self.body.byteorder,
+            buf: &self.body.buf,
+            offset: self.buf_idx,
+            fds: &self.body.raw_fds,
+        };
+        match T::unmarshal(&mut ctx) {
             Ok((bytes, res)) => {
                 self.buf_idx += bytes;
                 self.sig_idx += 1;
@@ -743,8 +752,8 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -758,9 +767,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
-        T3: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
+        T3: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -777,10 +786,10 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         &mut self,
     ) -> Result<(T1, T2, T3, T4), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
-        T3: Unmarshal<'ret, 'body>,
-        T4: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
+        T3: Unmarshal<'ret, 'body, 'fds>,
+        T4: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -798,11 +807,11 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         &mut self,
     ) -> Result<(T1, T2, T3, T4, T5), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
-        T3: Unmarshal<'ret, 'body>,
-        T4: Unmarshal<'ret, 'body>,
-        T5: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
+        T3: Unmarshal<'ret, 'body, 'fds>,
+        T4: Unmarshal<'ret, 'body, 'fds>,
+        T5: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;

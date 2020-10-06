@@ -48,14 +48,24 @@ impl<'a> MessageIter<'a> {
         }
     }
 
-    pub fn unmarshal_next<'r, 'buf: 'r, T: crate::wire::unmarshal::traits::Unmarshal<'r, 'buf>>(
+    pub fn unmarshal_next<
+        'r,
+        'buf: 'r,
+        'fds,
+        T: crate::wire::unmarshal::traits::Unmarshal<'r, 'buf, 'fds>,
+    >(
         &'buf mut self,
     ) -> Option<Result<T, Error>> {
         if self.counter >= self.sig.len() {
             None
         } else {
-            let (bytes, val) = match T::unmarshal(self.byteorder, self.source, *self.current_offset)
-            {
+            let mut ctx = &mut crate::wire::unmarshal::UnmarshalContext {
+                buf: self.source,
+                fds: &[],
+                byteorder: self.byteorder,
+                offset: *self.current_offset,
+            };
+            let (bytes, val) = match T::unmarshal(&mut ctx) {
                 Err(e) => return Some(Err(e)),
                 Ok(t) => t,
             };

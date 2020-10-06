@@ -13,6 +13,7 @@ use crate::signature;
 use crate::wire::util::*;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
+use std::os::unix::io::RawFd;
 
 pub mod base;
 pub mod container;
@@ -48,6 +49,13 @@ pub enum Error {
     EndOfMessage,
     NoSerial,
     NoSignature,
+}
+
+pub struct UnmarshalContext<'fds, 'buf> {
+    pub fds: &'fds [RawFd],
+    pub buf: &'buf [u8],
+    pub byteorder: ByteOrder,
+    pub offset: usize,
 }
 
 impl From<crate::params::validation::Error> for Error {
