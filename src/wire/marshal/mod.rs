@@ -8,12 +8,19 @@ use crate::params;
 use crate::params::message;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
+use std::os::unix::io::RawFd;
 
 use crate::wire::util::*;
 
 pub mod base;
 pub mod container;
 pub mod traits;
+
+pub struct MarshalContext<'fds, 'buf> {
+    pub fds: &'fds mut Vec<RawFd>,
+    pub buf: &'buf mut Vec<u8>,
+    pub byteorder: ByteOrder,
+}
 
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,

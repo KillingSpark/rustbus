@@ -108,7 +108,7 @@ pub fn unmarshal<'r, 'buf: 'r, T: Unmarshal<'r, 'buf>>(
 
 #[test]
 fn test_generic_unmarshal() {
-    use crate::wire::marshal::traits::MarshalContext;
+    use crate::wire::marshal::MarshalContext;
     use crate::Marshal;
 
     let mut fds = Vec::new();
@@ -424,7 +424,7 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for &'r [u8] {
 
 #[test]
 fn test_unmarshal_byte_array() {
-    use crate::wire::marshal::traits::MarshalContext;
+    use crate::wire::marshal::MarshalContext;
     use crate::Marshal;
 
     let mut orig = vec![];
@@ -653,7 +653,7 @@ impl<'r, 'buf: 'r> Unmarshal<'r, 'buf> for Variant<'buf> {
 }
 #[test]
 fn test_unmarshal_traits() {
-    use crate::wire::marshal::traits::MarshalContext;
+    use crate::wire::marshal::MarshalContext;
     use crate::Marshal;
 
     let mut fds = Vec::new();

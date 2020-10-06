@@ -62,7 +62,7 @@ macro_rules! dbus_variant_sig_type {
 macro_rules! dbus_variant_sig_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl rustbus::Marshal for $vname {
-            fn marshal(&self, ctx: &mut rustbus::wire::marshal::traits::MarshalContext) -> Result<(), rustbus::Error> {
+            fn marshal(&self, ctx: &mut rustbus::wire::marshal::MarshalContext) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
 
                 match self {
@@ -71,9 +71,8 @@ macro_rules! dbus_variant_sig_marshal {
                             let mut sig_str = String::new();
                             <$typ as Signature>::signature().to_str(&mut sig_str);
                             rustbus::wire::marshal::base::marshal_base_param(
-                                ctx.byteorder,
                                 &rustbus::params::Base::Signature(sig_str),
-                                ctx.buf,
+                                ctx,
                             )
                             .unwrap();
                             v.marshal(ctx)?;
@@ -128,7 +127,7 @@ fn test_variant_sig_macro() {
     use crate::Marshal;
     use crate::Unmarshal;
 
-    use crate::wire::marshal::traits::MarshalContext;
+    use crate::wire::marshal::MarshalContext;
 
     let mut fds = Vec::new();
     let mut ctxbuf = Vec::new();
@@ -307,7 +306,7 @@ macro_rules! dbus_variant_var_type {
 macro_rules! dbus_variant_var_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl<'buf> rustbus::Marshal for $vname <'buf> {
-            fn marshal(&self, ctx: &mut rustbus::wire::marshal::traits::MarshalContext) -> Result<(), rustbus::Error> {
+            fn marshal(&self, ctx: &mut rustbus::wire::marshal::MarshalContext) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
 
                 match self {
@@ -316,9 +315,8 @@ macro_rules! dbus_variant_var_marshal {
                             let mut sig_str = String::new();
                             <$typ as Signature>::signature().to_str(&mut sig_str);
                             rustbus::wire::marshal::base::marshal_base_param(
-                                ctx.byteorder,
                                 &rustbus::params::Base::Signature(sig_str),
-                                ctx.buf,
+                                ctx,
                             )
                             .unwrap();
                             v.marshal(ctx)?;
@@ -379,7 +377,7 @@ fn test_variant_var_macro() {
     use crate::Marshal;
     use crate::Unmarshal;
 
-    use crate::wire::marshal::traits::MarshalContext;
+    use crate::wire::marshal::MarshalContext;
 
     let mut fds = Vec::new();
     let mut buf = Vec::new();

@@ -291,7 +291,7 @@ fn test_raw_validation() {
     let mut map = std::collections::HashMap::new();
     map.insert("A", (10u8, 100i64));
     map.insert("B", (80u8, 180i64));
-    use crate::wire::marshal::traits::MarshalContext;
+    use crate::wire::marshal::MarshalContext;
     use crate::Marshal;
 
     let mut fds = Vec::new();

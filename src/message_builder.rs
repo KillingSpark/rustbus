@@ -2,6 +2,7 @@
 
 use crate::params::message;
 use crate::wire::marshal::traits::Marshal;
+use crate::wire::marshal::MarshalContext;
 use crate::ByteOrder;
 use std::os::unix::io::RawFd;
 
@@ -297,23 +298,17 @@ pub fn marshal_as_variant<P: Marshal>(
     buf: &mut Vec<u8>,
     fds: &mut Vec<RawFd>,
 ) -> Result<(), crate::Error> {
-    let mut sig_str = String::new();
-    P::signature().to_str(&mut sig_str);
-    crate::wire::marshal::base::marshal_base_param(
-        byteorder,
-        &crate::params::Base::Signature(sig_str),
-        buf,
-    )
-    .unwrap();
-
-    use crate::wire::marshal::traits::MarshalContext;
-
     let mut ctx = MarshalContext {
         buf,
         fds,
-        byteorder: ByteOrder::LittleEndian,
+        byteorder,
     };
     let ctx = &mut ctx;
+
+    let mut sig_str = String::new();
+    P::signature().to_str(&mut sig_str);
+    crate::wire::marshal::base::marshal_base_param(&crate::params::Base::Signature(sig_str), ctx)
+        .unwrap();
 
     p.marshal(ctx)?;
     Ok(())
@@ -365,7 +360,13 @@ impl MarshalledMessageBody {
     /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
     /// the new trait/type based API does not work.
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), crate::Error> {
-        crate::wire::marshal::container::marshal_param(p, self.byteorder, &mut self.buf)?;
+        let mut ctx = MarshalContext {
+            buf: &mut self.buf,
+            fds: &mut self.raw_fds,
+            byteorder: self.byteorder,
+        };
+        let ctx = &mut ctx;
+        crate::wire::marshal::container::marshal_param(p, ctx)?;
         p.sig().to_str(&mut self.sig);
         Ok(())
     }
@@ -380,12 +381,10 @@ impl MarshalledMessageBody {
 
     /// Append something that is Marshal to the message body
     pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
-        use crate::wire::marshal::traits::MarshalContext;
-
         let mut ctx = MarshalContext {
             buf: &mut self.buf,
             fds: &mut self.raw_fds,
-            byteorder: ByteOrder::LittleEndian,
+            byteorder: self.byteorder,
         };
         p.marshal(&mut ctx)?;
         P::signature().to_str(&mut self.sig);
@@ -505,8 +504,8 @@ fn test_marshal_trait() {
         y: String,
     }
 
-    use crate::wire::marshal::traits::MarshalContext;
     use crate::wire::marshal::traits::Signature;
+    use crate::wire::marshal::MarshalContext;
     impl Signature for &MyStruct {
         fn signature() -> crate::signature::Type {
             crate::signature::Type::Container(crate::signature::Container::Struct(vec![

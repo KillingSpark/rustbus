@@ -2,8 +2,7 @@
 
 use crate::params;
 use crate::wire::marshal::base::marshal_base_param;
-use crate::ByteOrder;
-use std::os::unix::io::RawFd;
+use crate::wire::marshal::MarshalContext;
 
 /// The Marshal trait allows to push any type onto an message_builder::OutMessage as a parameter.
 /// There are some useful implementations here for slices and hashmaps which map to arrays and dicts in the dbus message.
@@ -59,12 +58,6 @@ use std::os::unix::io::RawFd;
 ///     the signature() function returns. If you are not sure, just use Self::signature().get_alignment().
 pub trait Marshal: Signature {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error>;
-}
-
-pub struct MarshalContext<'fds, 'buf> {
-    pub fds: &'fds mut Vec<RawFd>,
-    pub buf: &'buf mut Vec<u8>,
-    pub byteorder: ByteOrder,
 }
 
 pub trait Signature {
@@ -346,6 +339,7 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
 #[test]
 fn verify_optimized_arrays() {
     use crate::wire::marshal::container::marshal_container_param;
+    use crate::ByteOrder;
     let mut fds = Vec::new();
     let mut buf = Vec::new();
     let mut ctx = MarshalContext {
@@ -404,7 +398,8 @@ fn verify_optimized_arrays() {
     OptimizedMarshal(empty.as_slice()).marshal(ctx).unwrap();
 
     let mut buf_old = Vec::new();
-    marshal_container_param(&x, ByteOrder::LittleEndian, &mut buf_old).unwrap();
+    ctx.buf = &mut buf_old;
+    marshal_container_param(&x, ctx).unwrap();
     assert_eq!(buf_normal, buf_optimized);
     assert_eq!(buf_normal, buf_old);
     assert_eq!(vec![0, 0, 0, 0], buf_old);
@@ -474,7 +469,7 @@ impl Marshal for u64 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -490,7 +485,7 @@ impl Marshal for i64 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -506,7 +501,7 @@ impl Marshal for u32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -522,7 +517,7 @@ impl Marshal for i32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -538,7 +533,7 @@ impl Marshal for u16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -554,7 +549,7 @@ impl Marshal for i16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -570,7 +565,7 @@ impl Marshal for u8 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -586,7 +581,7 @@ impl Marshal for bool {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
         let b: params::Base = self.into();
-        marshal_base_param(ctx.byteorder, &b, ctx.buf)
+        marshal_base_param(&b, ctx)
     }
 }
 
@@ -731,8 +726,15 @@ fn test_empty_array_padding() {
     )
     .unwrap();
 
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    marshal_container_param(&empty, crate::ByteOrder::LittleEndian, &mut buf).unwrap();
+    let mut ctx = MarshalContext {
+        fds: &mut fds,
+        buf: &mut buf,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+
+    marshal_container_param(&empty, &mut ctx).unwrap();
 
     // 0 length and padded to 8 bytes even if there are no elements
     assert_eq!(msg.get_buf(), &[0, 0, 0, 0, 0, 0, 0, 0]);

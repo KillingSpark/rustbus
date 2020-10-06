@@ -398,13 +398,14 @@ fn test_array_iter() {
     use std::convert::TryFrom;
     let arr = params::Container::try_from(vec![0i32.into(), 1i32.into(), 2i32.into()]).unwrap();
 
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    crate::wire::marshal::container::marshal_container_param(
-        &arr,
-        ByteOrder::LittleEndian,
-        &mut buf,
-    )
-    .unwrap();
+    let mut ctx = crate::wire::marshal::MarshalContext {
+        fds: &mut fds,
+        buf: &mut buf,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    crate::wire::marshal::container::marshal_container_param(&arr, &mut ctx).unwrap();
     let mut offset = 0;
 
     let sig = arr.sig();
@@ -436,10 +437,14 @@ fn test_struct_iter() {
         ])
         .into(),
     ]);
-
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    crate::wire::marshal::container::marshal_container_param(&s, ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    let mut ctx = crate::wire::marshal::MarshalContext {
+        fds: &mut fds,
+        buf: &mut buf,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    crate::wire::marshal::container::marshal_container_param(&s, &mut ctx).unwrap();
     let mut offset = 0;
 
     let sig = s.sig();
