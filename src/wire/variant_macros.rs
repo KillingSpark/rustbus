@@ -338,23 +338,15 @@ macro_rules! dbus_variant_var_unmarshal {
                 } else {
                     return Err(rustbus::wire::unmarshal::Error::WrongSignature);
                 };
-                let offset = offset + bytes;
 
                 $(
                 if sig == <$typ as Signature>::signature() {
+                    let offset = offset + bytes;
                     let (vbytes, v) = <$typ as rustbus::Unmarshal>::unmarshal(byteorder, buf, offset)?;
                     return Ok((bytes + vbytes, Self::$name(v)));
                 }
                 )+
-                let vbytes = rustbus::wire::validate_raw::validate_marshalled(
-                    byteorder, offset, buf, &sig
-                ).map_err(|e| e.1)?;
-                let var = rustbus::wire::unmarshal::traits::Variant {
-                    byteorder,
-                    buf,
-                    offset,
-                    sig,
-                };
+                let (vbytes, var) = <rustbus::wire::unmarshal::traits::Variant as rustbus::Unmarshal>::unmarshal(byteorder, buf, offset)?;
                 Ok((bytes + vbytes, Self::Catchall(var)))
             }
         }
