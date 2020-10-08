@@ -525,8 +525,14 @@ impl<
 
 impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for crate::wire::marshal::traits::UnixFd {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, val) = u32::unmarshal(ctx)?;
-        Ok((bytes, crate::wire::marshal::traits::UnixFd(val)))
+        let (bytes, idx) = u32::unmarshal(ctx)?;
+
+        if ctx.fds.len() <= idx as usize {
+            Err(unmarshal::Error::BadFdIndex(idx as usize))
+        } else {
+            let val = ctx.fds[idx as usize] as u32;
+            Ok((bytes, crate::wire::marshal::traits::UnixFd(val)))
+        }
     }
 }
 impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds>
@@ -707,7 +713,7 @@ fn test_unmarshal_traits() {
         ctx.buf,
         &[
             6, 0, 0, 0, b'/', b'a', b'/', b'b', b'/', b'c', 0, 8, b's', b's', b'(', b'a', b'i',
-            b'a', b'u', b')', 0, 0, 0, 0, 10, 0, 0, 0
+            b'a', b'u', b')', 0, 0, 0, 0, 0, 0, 0, 0
         ]
     );
     let (_, (p, s, fd)) =

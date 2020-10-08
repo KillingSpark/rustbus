@@ -49,6 +49,7 @@ pub enum Error {
     EndOfMessage,
     NoSerial,
     NoSignature,
+    BadFdIndex(usize),
 }
 
 pub struct UnmarshalContext<'fds, 'buf> {

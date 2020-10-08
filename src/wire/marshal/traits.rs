@@ -3,6 +3,7 @@
 use crate::params;
 use crate::wire::marshal::base::marshal_base_param;
 use crate::wire::marshal::MarshalContext;
+use std::os::unix::io::RawFd;
 
 /// The Marshal trait allows to push any type onto an message_builder::OutMessage as a parameter.
 /// There are some useful implementations here for slices and hashmaps which map to arrays and dicts in the dbus message.
@@ -681,7 +682,11 @@ impl Signature for UnixFd {
 }
 impl Marshal for UnixFd {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        self.0.marshal(ctx)
+        ctx.fds.push(self.0 as RawFd);
+        let idx = ctx.fds.len() - 1;
+        crate::wire::util::pad_to_align(crate::signature::Base::UnixFd.get_alignment(), ctx.buf);
+        crate::wire::util::write_u32(idx as u32, ctx.byteorder, ctx.buf);
+        Ok(())
     }
 }
 #[test]

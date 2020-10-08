@@ -5,6 +5,7 @@ use crate::params::message;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::util::*;
 use crate::ByteOrder;
+use std::os::unix::io::RawFd;
 
 fn marshal_boolean(b: bool, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     if b {
@@ -89,13 +90,22 @@ pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> message
         params::Base::Uint64Ref(i) => marshal_u64(**i, ctx.byteorder, ctx.buf),
         params::Base::Double(i) => marshal_u64(*i, ctx.byteorder, ctx.buf),
         params::Base::DoubleRef(i) => marshal_u64(**i, ctx.byteorder, ctx.buf),
-        params::Base::UnixFd(i) => marshal_u32(*i, ctx.byteorder, ctx.buf),
-        params::Base::UnixFdRef(i) => marshal_u32(**i, ctx.byteorder, ctx.buf),
-        params::Base::String(s) => marshal_string(s, ctx.byteorder, ctx.buf),
         params::Base::StringRef(s) => marshal_string(s, ctx.byteorder, ctx.buf),
+        params::Base::String(s) => marshal_string(s, ctx.byteorder, ctx.buf),
         params::Base::Signature(s) => marshal_signature(s, ctx.buf),
         params::Base::SignatureRef(s) => marshal_signature(s, ctx.buf),
         params::Base::ObjectPath(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf),
         params::Base::ObjectPathRef(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf),
+
+        params::Base::UnixFd(i) => {
+            ctx.fds.push(*i as RawFd);
+            let idx = ctx.fds.len() - 1;
+            marshal_u32(idx as u32, ctx.byteorder, ctx.buf)
+        }
+        params::Base::UnixFdRef(i) => {
+            ctx.fds.push(**i as RawFd);
+            let idx = ctx.fds.len() - 1;
+            marshal_u32(idx as u32, ctx.byteorder, ctx.buf)
+        }
     }
 }

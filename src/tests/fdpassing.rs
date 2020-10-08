@@ -49,12 +49,11 @@ fn test_fd_passing() {
     // unmarshal content into params::Param
     let sig = sig.unmarshall_all().unwrap();
 
-    let fd_idx = match sig.params[0] {
-        crate::params::Param::Base(crate::params::Base::UnixFd(fd_idx)) => fd_idx,
+    let fd_from_signal = match sig.params[0] {
+        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => fd as RawFd,
         _ => panic!("Did not receive unixfd param"),
     };
 
-    let fd_from_signal = sig.raw_fds[fd_idx as usize];
     let mut writefile = unsafe { std::fs::File::from_raw_fd(fd_from_signal) };
     writefile.write_all(TEST_STRING.as_bytes()).unwrap();
 
@@ -75,11 +74,12 @@ fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), clien
         )
         .build();
 
-    sig.body.raw_fds.push(fd);
     sig.dynheader.num_fds = Some(1);
 
     sig.body
-        .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(0)))
+        .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(
+            fd as u32,
+        )))
         .unwrap();
 
     con.send_message(&mut sig, client_conn::Timeout::Infinite)?;
@@ -123,7 +123,7 @@ fn test_fd_marshalling() {
     // assert the correct representation, where fds have been put into the fd array and the index is marshalled in the message
     assert_eq!(sig.body.buf, &[0, 0, 0, 0, 1, 0, 0, 0]);
     assert_eq!(sig.body.raw_fds, &[TEST_FD1, TEST_FD2]);
-    
+
     // assert that unmarshalling yields the correct fds
     let mut parser = sig.body.parser();
     let fd1: crate::wire::marshal::traits::UnixFd = parser.get().unwrap();
@@ -132,7 +132,10 @@ fn test_fd_marshalling() {
     assert_eq!(crate::wire::marshal::traits::UnixFd(TEST_FD1 as u32), fd1);
 
     assert!(match fd2 {
-        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => fd == TEST_FD2 as u32,
+        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => {
+            assert_eq!(fd, TEST_FD2 as u32);
+            true
+        }
         _ => false,
     });
 }

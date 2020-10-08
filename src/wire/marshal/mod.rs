@@ -99,8 +99,12 @@ fn marshal_header(
     if let Some(obj) = &msg.dynheader.object {
         marshal_header_field(byteorder, &HeaderField::Path(obj.clone()), buf)?;
     }
-    if let Some(numfds) = &msg.dynheader.num_fds {
-        marshal_header_field(byteorder, &HeaderField::UnixFds(*numfds), buf)?;
+    if !msg.body.raw_fds.is_empty() {
+        marshal_header_field(
+            byteorder,
+            &HeaderField::UnixFds(msg.body.raw_fds.len() as u32),
+            buf,
+        )?;
     }
     if let Some(serial) = &msg.dynheader.response_serial {
         marshal_header_field(byteorder, &HeaderField::ReplySerial(*serial), buf)?;

@@ -280,7 +280,7 @@ pub struct MarshalledMessageBody {
     pub(crate) buf: Vec<u8>,
 
     // out of band data
-    pub raw_fds: Vec<RawFd>,
+    pub(crate) raw_fds: Vec<RawFd>,
 
     sig: String,
     byteorder: ByteOrder,

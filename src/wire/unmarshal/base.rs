@@ -38,8 +38,14 @@ pub fn unmarshal_base<'a>(
         }
         signature::Base::UnixFd => {
             let slice = &ctx.buf[ctx.offset..ctx.offset + 4];
-            let (bytes, val) = parse_u32(slice, ctx.byteorder)?;
-            Ok((bytes, params::Base::UnixFd(val)))
+            let (bytes, idx) = parse_u32(slice, ctx.byteorder)?;
+            if ctx.fds.len() <= idx as usize {
+                eprintln!("IDX: {}, LEN: {}", idx, ctx.fds.len());
+                Err(crate::wire::unmarshal::Error::BadFdIndex(idx as usize))
+            } else {
+                let val = ctx.fds[idx as usize] as u32;
+                Ok((bytes, params::Base::UnixFd(val)))
+            }
         }
         signature::Base::Int32 => {
             let slice = &ctx.buf[ctx.offset..ctx.offset + 4];
