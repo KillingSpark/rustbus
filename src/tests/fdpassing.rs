@@ -95,3 +95,44 @@ fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), clien
 
     Ok(())
 }
+
+#[test]
+fn test_fd_marshalling() {
+    // not real fds but whatever...
+    const TEST_FD1: RawFd = 0xEF;
+    const TEST_FD2: RawFd = 0xF0;
+
+    let mut sig = MessageBuilder::new()
+        .signal(
+            "io.killing.spark".into(),
+            "TestSignal".into(),
+            "/io/killing/spark".into(),
+        )
+        .build();
+
+    sig.body
+        .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(
+            TEST_FD1 as u32,
+        )))
+        .unwrap();
+
+    sig.body
+        .push_param(crate::wire::marshal::traits::UnixFd(TEST_FD2 as u32))
+        .unwrap();
+
+    // assert the correct representation, where fds have been put into the fd array and the index is marshalled in the message
+    assert_eq!(sig.body.buf, &[0, 0, 0, 0, 1, 0, 0, 0]);
+    assert_eq!(sig.body.raw_fds, &[TEST_FD1, TEST_FD2]);
+    
+    // assert that unmarshalling yields the correct fds
+    let mut parser = sig.body.parser();
+    let fd1: crate::wire::marshal::traits::UnixFd = parser.get().unwrap();
+    let fd2 = parser.get_param().unwrap();
+
+    assert_eq!(crate::wire::marshal::traits::UnixFd(TEST_FD1 as u32), fd1);
+
+    assert!(match fd2 {
+        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => fd == TEST_FD2 as u32,
+        _ => false,
+    });
+}

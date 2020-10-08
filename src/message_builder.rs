@@ -277,7 +277,7 @@ impl MarshalledMessage {
 /// And you can of course write an Marshal impl for your own datastrcutures
 #[derive(Debug)]
 pub struct MarshalledMessageBody {
-    buf: Vec<u8>,
+    pub(crate) buf: Vec<u8>,
 
     // out of band data
     pub raw_fds: Vec<RawFd>,
