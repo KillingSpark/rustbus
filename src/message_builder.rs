@@ -259,6 +259,7 @@ impl MarshalledMessage {
                 self.body.byteorder,
                 &sigs,
                 &self.body.buf,
+                &self.body.raw_fds,
                 0,
             )?;
             params
@@ -831,11 +832,16 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
 
+        let mut ctx = UnmarshalContext {
+            byteorder: self.body.byteorder,
+            buf: &self.body.buf,
+            offset: self.buf_idx,
+            fds: &self.body.raw_fds,
+        };
+
         match crate::wire::unmarshal::container::unmarshal_with_sig(
-            self.body.byteorder,
             &self.sigs[self.sig_idx],
-            &self.body.buf,
-            self.buf_idx,
+            &mut ctx,
         ) {
             Ok((bytes, res)) => {
                 self.buf_idx += bytes;

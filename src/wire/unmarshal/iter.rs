@@ -5,6 +5,7 @@ use crate::params;
 use crate::signature;
 use crate::wire::unmarshal::base::unmarshal_base;
 use crate::wire::unmarshal::Error;
+use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 
 pub struct MessageIter<'a> {
@@ -146,12 +147,15 @@ impl<'a, 'parent> DictEntryIter<'a> {
     fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
         let iter = if self.counter == 0 {
             // read the key value
-            match unmarshal_base(
-                self.byteorder,
-                self.source,
-                self.key_sig,
-                *self.current_offset,
-            ) {
+
+            let mut ctx = UnmarshalContext {
+                byteorder: self.byteorder,
+                buf: &self.source,
+                offset: *self.current_offset,
+                fds: &Vec::new(),
+            };
+
+            match unmarshal_base(self.key_sig, &mut ctx) {
                 Ok((bytes, param)) => {
                     *self.current_offset += bytes;
                     Some(Ok(ParamIter::Base(param)))
@@ -244,13 +248,21 @@ impl<'a, 'parent> ParamIter<'a> {
         *offset += padding;
 
         match new_sig {
-            signature::Type::Base(b) => match unmarshal_base(byteorder, source, *b, *offset) {
-                Ok((bytes, param)) => {
-                    *offset += bytes;
-                    Some(Ok(ParamIter::Base(param)))
+            signature::Type::Base(b) => {
+                let mut ctx = UnmarshalContext {
+                    byteorder: byteorder,
+                    buf: source,
+                    offset: *offset,
+                    fds: &Vec::new(),
+                };
+                match unmarshal_base(*b, &mut ctx) {
+                    Ok((bytes, param)) => {
+                        *offset += bytes;
+                        Some(Ok(ParamIter::Base(param)))
+                    }
+                    Err(e) => Some(Err(e)),
                 }
-                Err(e) => Some(Err(e)),
-            },
+            }
             signature::Type::Container(signature::Container::Array(el_sig)) => {
                 let item = match make_new_array_iter(offset, source, byteorder, el_sig) {
                     Ok(sub_iter) => Ok(ParamIter::Array(sub_iter)),

@@ -134,13 +134,20 @@ pub fn unmarshal_body<'a, 'e>(
     byteorder: ByteOrder,
     sigs: &[crate::signature::Type],
     buf: &[u8],
+    fds: &[RawFd],
     offset: usize,
 ) -> UnmarshalResult<Vec<params::Param<'a, 'e>>> {
     let mut params = Vec::new();
     let mut body_bytes_used = 0;
+    let mut ctx = UnmarshalContext {
+        byteorder,
+        buf,
+        offset,
+        fds,
+    };
     for param_sig in sigs {
-        let (bytes, new_param) =
-            unmarshal_with_sig(byteorder, &param_sig, buf, offset + body_bytes_used)?;
+        println!("{:?}", param_sig);
+        let (bytes, new_param) = unmarshal_with_sig(&param_sig, &mut ctx)?;
         params.push(new_param);
         body_bytes_used += bytes;
     }
