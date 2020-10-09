@@ -523,7 +523,7 @@ fn test_marshal_trait() {
     impl Marshal for &MyStruct {
         fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
             // always align to 8
-            crate::wire::util::pad_to_align(8, ctx.buf);
+            ctx.align_to(8);
             self.x.marshal(ctx)?;
             self.y.marshal(ctx)?;
             Ok(())

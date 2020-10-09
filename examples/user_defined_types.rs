@@ -42,7 +42,7 @@ impl Signature for &MyType {
 impl Marshal for &MyType {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
         // always align structs to 8!
-        util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
 
         // boring
         self.x.marshal(ctx)?;
@@ -89,7 +89,7 @@ impl Signature for &MySubType {
 impl Marshal for &MySubType {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
         // always align to 8
-        util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         self.x.marshal(ctx)?;
         self.y.marshal(ctx)?;
         Ok(())
@@ -111,7 +111,7 @@ impl Signature for &MyOtherSubType {
 impl Marshal for &MyOtherSubType {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
         // always align to 8
-        util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         self.x.marshal(ctx)?;
         self.y.marshal(ctx)?;
         Ok(())

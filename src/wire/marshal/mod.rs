@@ -22,6 +22,12 @@ pub struct MarshalContext<'fds, 'buf> {
     pub byteorder: ByteOrder,
 }
 
+impl MarshalContext<'_,'_> {
+    pub fn align_to(&mut self, alignment: usize) {
+        pad_to_align(alignment, self.buf);
+    }
+}
+
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
     byteorder: ByteOrder,

@@ -42,7 +42,7 @@ use std::os::unix::io::RawFd;
 ///         ctx: &mut MarshalContext,
 ///     ) -> Result<(), rustbus::Error> {
 ///         // always align to 8 at the start of a struct!
-///         util::pad_to_align(8, ctx.buf);
+///         ctx.align_to(8);
 ///         self.x.marshal(ctx)?;
 ///         self.y.marshal(ctx)?;
 ///         Ok(())
@@ -51,7 +51,7 @@ use std::os::unix::io::RawFd;
 /// ```
 /// # Implementing for your own structs
 /// There are some rules you need to follow, or the messages will be malformed:
-/// 1. Structs need to be aligned to 8 bytes. Use `wire::util::pad_to_align(8, buf)` to do that. If your type is marshalled as a primitive type
+/// 1. Structs need to be aligned to 8 bytes. Use `ctx.align_to(8);` to do that. If your type is marshalled as a primitive type
 ///     you still need to align to that types alignment.
 /// 1. If you write your own dict type, you need to align every key-value pair at 8 bytes like a struct
 /// 1. The signature needs to be correct, or the message will be malformed
@@ -94,7 +94,7 @@ impl Signature for () {
 impl Marshal for () {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 8
-        crate::wire::util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         Ok(())
     }
 }
@@ -111,7 +111,7 @@ impl<E: Signature> Signature for (E,) {
 impl<E: Marshal> Marshal for (E,) {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 8
-        crate::wire::util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         self.0.marshal(ctx)?;
         Ok(())
     }
@@ -132,7 +132,7 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 8
-        crate::wire::util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         self.0.marshal(ctx)?;
         self.1.marshal(ctx)?;
         Ok(())
@@ -155,7 +155,7 @@ impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
 impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 8
-        crate::wire::util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         self.0.marshal(ctx)?;
         self.1.marshal(ctx)?;
         self.2.marshal(ctx)?;
@@ -180,7 +180,7 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 8
-        crate::wire::util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         self.0.marshal(ctx)?;
         self.1.marshal(ctx)?;
         self.2.marshal(ctx)?;
@@ -211,7 +211,7 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 8
-        crate::wire::util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
         self.0.marshal(ctx)?;
         self.1.marshal(ctx)?;
         self.2.marshal(ctx)?;
@@ -250,7 +250,7 @@ impl<E: Signature> Signature for &[E] {
 impl<E: Marshal> Marshal for &[E] {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 4
-        crate::wire::util::pad_to_align(4, ctx.buf);
+        ctx.align_to(4);
 
         let size_pos = ctx.buf.len();
         ctx.buf.push(0);
@@ -258,7 +258,7 @@ impl<E: Marshal> Marshal for &[E] {
         ctx.buf.push(0);
         ctx.buf.push(0);
 
-        crate::wire::util::pad_to_align(E::alignment(), ctx.buf);
+        ctx.align_to(E::alignment());
 
         if self.is_empty() {
             return Ok(());
@@ -302,7 +302,7 @@ impl<'a, E: Copy + Marshal> Signature for OptimizedMarshal<'a, E> {
 impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 4
-        crate::wire::util::pad_to_align(4, ctx.buf);
+        ctx.align_to(4);
 
         let size_pos = ctx.buf.len();
         ctx.buf.push(0);
@@ -310,7 +310,7 @@ impl<'a, E: Copy + Marshal> Marshal for OptimizedMarshal<'a, E> {
         ctx.buf.push(0);
         ctx.buf.push(0);
 
-        crate::wire::util::pad_to_align(E::alignment(), ctx.buf);
+        ctx.align_to(E::alignment());
 
         if self.0.is_empty() {
             return Ok(());
@@ -425,7 +425,7 @@ impl<K: Signature, V: Signature> Signature for std::collections::HashMap<K, V> {
 impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 4
-        crate::wire::util::pad_to_align(4, ctx.buf);
+        ctx.align_to(4);
 
         let size_pos = ctx.buf.len();
         ctx.buf.push(0);
@@ -434,7 +434,7 @@ impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
         ctx.buf.push(0);
 
         // always align to 8
-        crate::wire::util::pad_to_align(8, ctx.buf);
+        ctx.align_to(8);
 
         if self.is_empty() {
             return Ok(());
@@ -443,7 +443,7 @@ impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
         let size_before = ctx.buf.len();
         for p in self.iter() {
             // always align to 8
-            crate::wire::util::pad_to_align(8, ctx.buf);
+            ctx.align_to(8);
             p.0.marshal(ctx)?;
             p.1.marshal(ctx)?;
         }
@@ -468,7 +468,7 @@ impl Signature for u64 {
 }
 impl Marshal for u64 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -484,7 +484,7 @@ impl Signature for i64 {
 }
 impl Marshal for i64 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -500,7 +500,7 @@ impl Signature for u32 {
 }
 impl Marshal for u32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -516,7 +516,7 @@ impl Signature for i32 {
 }
 impl Marshal for i32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -532,7 +532,7 @@ impl Signature for u16 {
 }
 impl Marshal for u16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -548,7 +548,7 @@ impl Signature for i16 {
 }
 impl Marshal for i16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -564,7 +564,7 @@ impl Signature for u8 {
 }
 impl Marshal for u8 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -580,7 +580,7 @@ impl Signature for bool {
 }
 impl Marshal for bool {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         let b: params::Base = self.into();
         marshal_base_param(&b, ctx)
     }
@@ -596,7 +596,7 @@ impl Signature for String {
 }
 impl Marshal for String {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         crate::wire::util::write_string(self.as_str(), ctx.byteorder, ctx.buf);
         Ok(())
     }
@@ -612,7 +612,7 @@ impl Signature for &str {
 }
 impl Marshal for &str {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        crate::wire::util::pad_to_align(Self::alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         crate::wire::util::write_string(self, ctx.byteorder, ctx.buf);
         Ok(())
     }
@@ -684,7 +684,7 @@ impl Marshal for UnixFd {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.fds.push(self.0 as RawFd);
         let idx = ctx.fds.len() - 1;
-        crate::wire::util::pad_to_align(crate::signature::Base::UnixFd.get_alignment(), ctx.buf);
+        ctx.align_to(Self::alignment());
         crate::wire::util::write_u32(idx as u32, ctx.byteorder, ctx.buf);
         Ok(())
     }

@@ -19,7 +19,7 @@ fn marshal_array(
     sig: &signature::Type,
     ctx: &mut MarshalContext,
 ) -> message::Result<()> {
-    pad_to_align(4, ctx.buf);
+    ctx.align_to(4);
     let len_pos = ctx.buf.len();
     ctx.buf.push(0);
     ctx.buf.push(0);
@@ -28,7 +28,7 @@ fn marshal_array(
 
     // we need to pad here because the padding between length and first element does not count
     // into the length
-    pad_to_align(sig.get_alignment(), ctx.buf);
+    ctx.align_to(sig.get_alignment());
     let content_pos = ctx.buf.len();
     for p in array {
         marshal_param(&p, ctx)?;
@@ -43,7 +43,7 @@ fn marshal_array(
 }
 
 fn marshal_struct(params: &[params::Param], ctx: &mut MarshalContext) -> message::Result<()> {
-    pad_to_align(8, ctx.buf);
+    ctx.align_to(8);
     for p in params {
         marshal_param(&p, ctx)?;
     }
@@ -59,17 +59,20 @@ fn marshal_variant(var: &params::Variant, ctx: &mut MarshalContext) -> message::
 }
 
 fn marshal_dict(dict: &params::DictMap, ctx: &mut MarshalContext) -> message::Result<()> {
-    pad_to_align(4, ctx.buf);
+    ctx.align_to(4);
     let len_pos = ctx.buf.len();
     ctx.buf.push(0);
     ctx.buf.push(0);
     ctx.buf.push(0);
     ctx.buf.push(0);
-    pad_to_align(8, ctx.buf);
 
+    // elements are aligned to 8
+    ctx.align_to(8);
+    
     let content_pos = ctx.buf.len();
     for (key, value) in dict {
-        pad_to_align(8, ctx.buf);
+        // elements are aligned to 8
+        ctx.align_to(8);
         marshal_base_param(&key, ctx)?;
         marshal_param(&value, ctx)?;
     }
