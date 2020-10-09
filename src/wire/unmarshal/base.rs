@@ -11,8 +11,7 @@ pub fn unmarshal_base<'a>(
     typ: signature::Base,
     ctx: &mut UnmarshalContext,
 ) -> UnmarshalResult<params::Base<'a>> {
-    let padding = align_offset(typ.get_alignment(), ctx.buf, ctx.offset)?;
-    ctx.offset += padding;
+    ctx.align_to(typ.get_alignment())?;
 
     let (bytes, param) = match typ {
         signature::Base::Byte => {

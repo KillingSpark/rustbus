@@ -68,7 +68,7 @@ fn marshal_dict(dict: &params::DictMap, ctx: &mut MarshalContext) -> message::Re
 
     // elements are aligned to 8
     ctx.align_to(8);
-    
+
     let content_pos = ctx.buf.len();
     for (key, value) in dict {
         // elements are aligned to 8

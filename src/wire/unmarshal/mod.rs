@@ -59,6 +59,14 @@ pub struct UnmarshalContext<'fds, 'buf> {
     pub offset: usize,
 }
 
+impl UnmarshalContext<'_, '_> {
+    pub fn align_to(&mut self, alignment: usize) -> Result<usize, crate::wire::unmarshal::Error> {
+        let padding = crate::wire::util::align_offset(alignment, self.buf, self.offset)?;
+        self.offset += padding;
+        Ok(padding)
+    }
+}
+
 impl From<crate::params::validation::Error> for Error {
     fn from(e: crate::params::validation::Error) -> Self {
         Error::Validation(e)

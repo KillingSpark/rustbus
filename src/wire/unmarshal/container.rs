@@ -51,14 +51,13 @@ pub fn unmarshal_container<'a, 'e>(
 ) -> UnmarshalResult<params::Container<'a, 'e>> {
     let param = match typ {
         signature::Container::Array(elem_sig) => {
-            let padding = align_offset(4, ctx.buf, ctx.offset)?;
-            ctx.offset += padding;
+            let start_offset = ctx.offset;
+            ctx.align_to(4)?;
 
             let (_, bytes_in_array) = parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)?;
             ctx.offset += 4;
 
-            let first_elem_padding = align_offset(elem_sig.get_alignment(), ctx.buf, ctx.offset)?;
-            ctx.offset += first_elem_padding;
+            ctx.align_to(elem_sig.get_alignment())?;
 
             let mut elements = Vec::new();
             let mut bytes_used_counter = 0;
@@ -67,8 +66,8 @@ pub fn unmarshal_container<'a, 'e>(
                 elements.push(element);
                 bytes_used_counter += bytes_used;
             }
-            let total_bytes_used = padding + 4 + first_elem_padding + bytes_used_counter;
 
+            let total_bytes_used = ctx.offset - start_offset;
             (
                 total_bytes_used,
                 params::Container::Array(params::Array {
@@ -78,13 +77,13 @@ pub fn unmarshal_container<'a, 'e>(
             )
         }
         signature::Container::Dict(key_sig, val_sig) => {
-            let padding = align_offset(4, ctx.buf, ctx.offset)?;
-            ctx.offset += padding;
+            let start_offset = ctx.offset;
+
+            ctx.align_to(4)?;
             let (_, bytes_in_dict) = parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)?;
             ctx.offset += 4;
 
-            let before_elements_padding = align_offset(8, ctx.buf, ctx.offset)?;
-            ctx.offset += before_elements_padding;
+            ctx.align_to(8)?;
 
             let mut elements = std::collections::HashMap::new();
             let mut bytes_used_counter = 0;
@@ -101,8 +100,10 @@ pub fn unmarshal_container<'a, 'e>(
 
                 elements.insert(key, val);
             }
+
+            let total_bytes_used = ctx.offset - start_offset;
             (
-                padding + before_elements_padding + 4 + bytes_used_counter,
+                total_bytes_used,
                 params::Container::Dict(params::Dict {
                     key_sig: *key_sig,
                     value_sig: val_sig.as_ref().clone(),
@@ -111,20 +112,17 @@ pub fn unmarshal_container<'a, 'e>(
             )
         }
         signature::Container::Struct(sigs) => {
-            let padding = align_offset(8, ctx.buf, ctx.offset)?;
-            ctx.offset += padding;
+            let start_offset = ctx.offset;
+
+            ctx.align_to(8)?;
             let mut fields = Vec::new();
 
-            let mut bytes_used_counter = 0;
             for field_sig in sigs {
-                let (bytes_used, field) = unmarshal_with_sig(field_sig, ctx)?;
+                let (_, field) = unmarshal_with_sig(field_sig, ctx)?;
                 fields.push(field);
-                bytes_used_counter += bytes_used;
             }
-            (
-                padding + bytes_used_counter,
-                params::Container::Struct(fields),
-            )
+            let total_bytes_used = ctx.offset - start_offset;
+            (total_bytes_used, params::Container::Struct(fields))
         }
         signature::Container::Variant => {
             let (bytes_used, variant) = unmarshal_variant(ctx)?;
