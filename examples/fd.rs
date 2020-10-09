@@ -65,9 +65,10 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
         )
         .build();
 
-    const STDIN_FD: u32 = 0;
+    use std::os::unix::io::AsRawFd;
+    let stdin_fd = std::io::stdin().as_raw_fd();
     sig.body
-        .push_param(rustbus::wire::marshal::traits::UnixFd(STDIN_FD))
+        .push_param(rustbus::wire::marshal::traits::UnixFd(stdin_fd))
         .unwrap();
     sig.dynheader.num_fds = Some(1);
     con.send_message(&mut sig, Timeout::Infinite)?;

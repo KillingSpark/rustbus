@@ -77,9 +77,7 @@ fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), clien
     sig.dynheader.num_fds = Some(1);
 
     sig.body
-        .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(
-            fd as u32,
-        )))
+        .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(fd)))
         .unwrap();
 
     con.send_message(&mut sig, client_conn::Timeout::Infinite)?;
@@ -112,12 +110,12 @@ fn test_fd_marshalling() {
 
     sig.body
         .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(
-            TEST_FD1 as u32,
+            TEST_FD1,
         )))
         .unwrap();
 
     sig.body
-        .push_param(crate::wire::marshal::traits::UnixFd(TEST_FD2 as u32))
+        .push_param(crate::wire::marshal::traits::UnixFd(TEST_FD2))
         .unwrap();
 
     // assert the correct representation, where fds have been put into the fd array and the index is marshalled in the message
@@ -129,11 +127,11 @@ fn test_fd_marshalling() {
     let fd1: crate::wire::marshal::traits::UnixFd = parser.get().unwrap();
     let fd2 = parser.get_param().unwrap();
 
-    assert_eq!(crate::wire::marshal::traits::UnixFd(TEST_FD1 as u32), fd1);
+    assert_eq!(crate::wire::marshal::traits::UnixFd(TEST_FD1), fd1);
 
     assert!(match fd2 {
         crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => {
-            assert_eq!(fd, TEST_FD2 as u32);
+            assert_eq!(fd, TEST_FD2);
             true
         }
         _ => false,

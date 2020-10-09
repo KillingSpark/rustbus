@@ -530,7 +530,7 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for crate::wire::marshal::tra
         if ctx.fds.len() <= idx as usize {
             Err(unmarshal::Error::BadFdIndex(idx as usize))
         } else {
-            let val = ctx.fds[idx as usize] as u32;
+            let val = ctx.fds[idx as usize];
             Ok((bytes, crate::wire::marshal::traits::UnixFd(val)))
         }
     }

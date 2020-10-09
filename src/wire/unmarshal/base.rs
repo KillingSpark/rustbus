@@ -43,7 +43,7 @@ pub fn unmarshal_base<'a>(
                 eprintln!("IDX: {}, LEN: {}", idx, ctx.fds.len());
                 Err(crate::wire::unmarshal::Error::BadFdIndex(idx as usize))
             } else {
-                let val = ctx.fds[idx as usize] as u32;
+                let val = ctx.fds[idx as usize];
                 Ok((bytes, params::Base::UnixFd(val)))
             }
         }

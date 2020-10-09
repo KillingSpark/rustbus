@@ -671,7 +671,7 @@ impl Marshal for SignatureWrapper<'_> {
     }
 }
 #[derive(Debug, PartialEq)]
-pub struct UnixFd(pub u32);
+pub struct UnixFd(pub RawFd);
 impl Signature for UnixFd {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::UnixFd)
