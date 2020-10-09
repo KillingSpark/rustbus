@@ -22,6 +22,7 @@ use std::os::unix::io::RawFd;
 /// use rustbus::signature;
 /// use rustbus::wire::util;
 /// use rustbus::Marshal;
+/// use rustbus::wire::marshal::MarshalContext;
 /// use rustbus::Signature;
 /// impl Signature for &MyStruct {
 ///     fn signature() -> signature::Type {
@@ -38,13 +39,12 @@ use std::os::unix::io::RawFd;
 /// impl Marshal for &MyStruct {
 ///     fn marshal(
 ///         &self,
-///         byteorder: ByteOrder,
-///         buf: &mut Vec<u8>,
+///         ctx: &mut MarshalContext,
 ///     ) -> Result<(), rustbus::Error> {
-///         // always align to 8
-///         util::pad_to_align(8, buf);
-///         self.x.marshal(byteorder, buf)?;
-///         self.y.marshal(byteorder, buf)?;
+///         // always align to 8 at the start of a struct!
+///         util::pad_to_align(8, ctx.buf);
+///         self.x.marshal(ctx)?;
+///         self.y.marshal(ctx)?;
 ///         Ok(())
 ///     }
 /// }

@@ -23,6 +23,8 @@ use std::os::unix::io::RawFd;
 /// ```rust
 /// struct MyStruct{ mycoolint: u64}
 /// use rustbus::wire::marshal::traits::Signature;
+/// use rustbus::wire::unmarshal::UnmarshalContext;
+/// use rustbus::wire::unmarshal;
 /// use rustbus::signature;
 /// impl Signature for MyStruct {
 ///     fn signature() -> signature::Type {
@@ -40,24 +42,22 @@ use std::os::unix::io::RawFd;
 /// use rustbus::wire::util;
 /// use rustbus::ByteOrder;
 /// impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for MyStruct {
-///     fn unmarshal(
-///         byteorder: ByteOrder,
-///         buf: &'buf [u8],
-///         offset: usize,
-///     ) -> UnmarshalResult<Self> {
-///         // check that we are aligned properly
+///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+///         let start_offset = ctx.offset;
+///         // check that we are aligned properly, and realign the ctx!
+///         // This is necessary at the start of each struct! They need to be aligned to 8 bytes!
 ///         let padding = util::align_offset(Self::alignment(), ctx.buf, ctx.offset)?;
-///         ctx.offset = ctx.offset + padding;
+///         ctx.offset += padding;
 ///
 ///         // decode some stuff and adjust offset
-///         let (bytes, mycoolint) = u64::unmarshal(byteorder, buf, offset)?;
-///         let offset = offset + bytes;
+///         let (bytes, mycoolint) = u64::unmarshal(ctx)?;
 ///         
 ///         // some more decoding if the struct had more fields
-///         // let padding2 = util::align_offset(u64::alignment(), buf, offset)?;
-///         // let offset = offset + padding2;
-///         // ect, etc
-///         Ok((padding + bytes /* + padding2  + more_bytes + ...*/, MyStruct{mycoolint}))
+///         // ....
+///         
+///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
+///         let total_bytes = ctx.offset - start_offset;
+///         Ok((total_bytes, MyStruct{mycoolint}))
 ///     }
 /// }
 /// ```
@@ -68,26 +68,27 @@ use std::os::unix::io::RawFd;
 /// ```
 ///
 /// ## Cool things you can do
-/// If the message contains some form of secondary marshalling, of another format, you can do this here too, insteadof copying the bytes
-/// array around before doing the secondary unmarshalling. Just keep in mind that you have to report the accurat number of bytes used, and not to
+/// If the message contains some form of secondary marshalling, of another format, you can do this here too, instead of copying the bytes
+/// array around before doing the secondary unmarshalling. Just keep in mind that you have to report the accurate number of bytes used, and not to
 /// use any bytes in the message, not belonging to that byte array
+/// 
+/// As an example, lets assume your message contains a byte-array that is actually json data. Then you can use serde_json to unmarshal that array
+/// directly here without having to do a separate step for that.
 /// ```rust,ignore
 /// impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for MyStruct {
-///     fn unmarshal(
-///         byteorder: ByteOrder,
-///         buf: &'buf [u8],
-///         offset: usize,
-///     ) -> UnmarshalResult<Self> {
+///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+///         let start_offset = ctx.offset;
 ///         // check that we are aligned properly
 ///         let padding = util::align_offset(Self::alignment(), ctx.buf, ctx.offset)?;
-///         ctx.offset = ctx.offset + padding;
+///         ctx.offset += padding;
 ///
-///         // decode array length stuff and adjust offset
-///         let (bytes, arraylen) = u32::unmarshal(byteorder, buf, offset)?;
-///         let offset = offset + bytes;
-///         let marshalled_stuff = &buf[offset..arraylen as usize];
-///         let unmarshalled_stuff = external_crate::unmarshal_stuff(&buf);
-///         Ok((padding + bytes + arraylen as usize, MyStruct{unmarshalled_stuff}))
+///         // get the slice that contains marshalled data, and unmarshal it directly here! 
+///         let (bytes, raw_data) = <&[u8] as Unmarshal>::unmarshal(ctx)?;
+///         let unmarshalled_stuff = external_crate::unmarshal_stuff(&raw_data);
+///
+///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
+///         let total_bytes = ctx.offset - start_offset;
+///         Ok((total_bytes, MyStruct{unmarshalled_stuff}))
 ///     }
 /// }
 /// ```
