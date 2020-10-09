@@ -634,6 +634,8 @@ impl<'msga, 'msge> Conn {
 }
 
 impl AsRawFd for Conn {
+    /// Reading or writing to the `RawFd` may result in undefined behavior
+    /// and break the `Conn`.
     fn as_raw_fd(&self) -> RawFd {
         self.stream.as_raw_fd()
     }
