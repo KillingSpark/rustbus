@@ -8,12 +8,25 @@ use crate::params;
 use crate::params::message;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
+use std::os::unix::io::RawFd;
 
 use crate::wire::util::*;
 
 pub mod base;
 pub mod container;
 pub mod traits;
+
+pub struct MarshalContext<'fds, 'buf> {
+    pub fds: &'fds mut Vec<RawFd>,
+    pub buf: &'buf mut Vec<u8>,
+    pub byteorder: ByteOrder,
+}
+
+impl MarshalContext<'_, '_> {
+    pub fn align_to(&mut self, alignment: usize) {
+        pad_to_align(alignment, self.buf);
+    }
+}
 
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
@@ -92,8 +105,12 @@ fn marshal_header(
     if let Some(obj) = &msg.dynheader.object {
         marshal_header_field(byteorder, &HeaderField::Path(obj.clone()), buf)?;
     }
-    if let Some(numfds) = &msg.dynheader.num_fds {
-        marshal_header_field(byteorder, &HeaderField::UnixFds(*numfds), buf)?;
+    if !msg.body.raw_fds.is_empty() {
+        marshal_header_field(
+            byteorder,
+            &HeaderField::UnixFds(msg.body.raw_fds.len() as u32),
+            buf,
+        )?;
     }
     if let Some(serial) = &msg.dynheader.response_serial {
         marshal_header_field(byteorder, &HeaderField::ReplySerial(*serial), buf)?;

@@ -5,6 +5,7 @@ use crate::params;
 use crate::signature;
 use crate::wire::unmarshal::base::unmarshal_base;
 use crate::wire::unmarshal::Error;
+use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 
 pub struct MessageIter<'a> {
@@ -48,14 +49,24 @@ impl<'a> MessageIter<'a> {
         }
     }
 
-    pub fn unmarshal_next<'r, 'buf: 'r, T: crate::wire::unmarshal::traits::Unmarshal<'r, 'buf>>(
+    pub fn unmarshal_next<
+        'r,
+        'buf: 'r,
+        'fds,
+        T: crate::wire::unmarshal::traits::Unmarshal<'r, 'buf, 'fds>,
+    >(
         &'buf mut self,
     ) -> Option<Result<T, Error>> {
         if self.counter >= self.sig.len() {
             None
         } else {
-            let (bytes, val) = match T::unmarshal(self.byteorder, self.source, *self.current_offset)
-            {
+            let mut ctx = &mut crate::wire::unmarshal::UnmarshalContext {
+                buf: self.source,
+                fds: &[],
+                byteorder: self.byteorder,
+                offset: *self.current_offset,
+            };
+            let (bytes, val) = match T::unmarshal(&mut ctx) {
                 Err(e) => return Some(Err(e)),
                 Ok(t) => t,
             };
@@ -136,12 +147,15 @@ impl<'a, 'parent> DictEntryIter<'a> {
     fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
         let iter = if self.counter == 0 {
             // read the key value
-            match unmarshal_base(
-                self.byteorder,
-                self.source,
-                self.key_sig,
-                *self.current_offset,
-            ) {
+
+            let mut ctx = UnmarshalContext {
+                byteorder: self.byteorder,
+                buf: &self.source,
+                offset: *self.current_offset,
+                fds: &Vec::new(),
+            };
+
+            match unmarshal_base(self.key_sig, &mut ctx) {
                 Ok((bytes, param)) => {
                     *self.current_offset += bytes;
                     Some(Ok(ParamIter::Base(param)))
@@ -234,13 +248,21 @@ impl<'a, 'parent> ParamIter<'a> {
         *offset += padding;
 
         match new_sig {
-            signature::Type::Base(b) => match unmarshal_base(byteorder, source, *b, *offset) {
-                Ok((bytes, param)) => {
-                    *offset += bytes;
-                    Some(Ok(ParamIter::Base(param)))
+            signature::Type::Base(b) => {
+                let mut ctx = UnmarshalContext {
+                    byteorder,
+                    buf: source,
+                    offset: *offset,
+                    fds: &Vec::new(),
+                };
+                match unmarshal_base(*b, &mut ctx) {
+                    Ok((bytes, param)) => {
+                        *offset += bytes;
+                        Some(Ok(ParamIter::Base(param)))
+                    }
+                    Err(e) => Some(Err(e)),
                 }
-                Err(e) => Some(Err(e)),
-            },
+            }
             signature::Type::Container(signature::Container::Array(el_sig)) => {
                 let item = match make_new_array_iter(offset, source, byteorder, el_sig) {
                     Ok(sub_iter) => Ok(ParamIter::Array(sub_iter)),
@@ -398,13 +420,14 @@ fn test_array_iter() {
     use std::convert::TryFrom;
     let arr = params::Container::try_from(vec![0i32.into(), 1i32.into(), 2i32.into()]).unwrap();
 
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    crate::wire::marshal::container::marshal_container_param(
-        &arr,
-        ByteOrder::LittleEndian,
-        &mut buf,
-    )
-    .unwrap();
+    let mut ctx = crate::wire::marshal::MarshalContext {
+        fds: &mut fds,
+        buf: &mut buf,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    crate::wire::marshal::container::marshal_container_param(&arr, &mut ctx).unwrap();
     let mut offset = 0;
 
     let sig = arr.sig();
@@ -436,10 +459,14 @@ fn test_struct_iter() {
         ])
         .into(),
     ]);
-
+    let mut fds = Vec::new();
     let mut buf = Vec::new();
-    crate::wire::marshal::container::marshal_container_param(&s, ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    let mut ctx = crate::wire::marshal::MarshalContext {
+        fds: &mut fds,
+        buf: &mut buf,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    crate::wire::marshal::container::marshal_container_param(&s, &mut ctx).unwrap();
     let mut offset = 0;
 
     let sig = s.sig();

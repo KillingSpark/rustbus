@@ -21,16 +21,18 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
 
     // we can push up to 5 different types at once
     sig.body
-        .push_param3(
+        .push_param4(
+            100u8,
             vec!["ABCDE"].as_slice(),
-            (162254319i32, "AABB", true, false, "MyOwnedString"),
-            (162254319i32, 162254319i32),
+            (162254319i32, "AABB", 20u8, false, "MyOwnedString"),
+            (162254319i32, 30u8, 162254319i32),
         )
         .unwrap();
 
     sig.body
         .push_variant((162254319i32, "AABB", true, false, "MyOwnedString"))
         .unwrap();
+    sig.body.push_param(100u8).unwrap();
 
     // Or we can add parameters later if we want to
     sig.body.push_param(&dict1).unwrap();

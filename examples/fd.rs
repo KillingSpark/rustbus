@@ -4,6 +4,7 @@ use rustbus::{
 
 use std::io::Write;
 use std::os::unix::io::FromRawFd;
+use std::os::unix::io::RawFd;
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
     if std::env::args()
@@ -37,8 +38,16 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         };
 
         println!("Got signal: {:?}", sig);
-        let mut file = unsafe { std::fs::File::from_raw_fd(sig.raw_fds[0]) };
-        file.write_all(b"This is a line\n")?;
+        let fd: rustbus::wire::marshal::traits::UnixFd = sig.body.parser().get().unwrap();
+
+        let mut file = unsafe { std::fs::File::from_raw_fd(fd.0 as RawFd) };
+        file.write_all(
+            format!(
+                "This is a line from process with pid: {}\n",
+                std::process::id()
+            )
+            .as_bytes(),
+        )?;
     }
 
     Ok(())
@@ -56,7 +65,11 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
         )
         .build();
 
-    sig.raw_fds.push(0);
+    use std::os::unix::io::AsRawFd;
+    let stdin_fd = std::io::stdin().as_raw_fd();
+    sig.body
+        .push_param(rustbus::wire::marshal::traits::UnixFd(stdin_fd))
+        .unwrap();
     sig.dynheader.num_fds = Some(1);
     con.send_message(&mut sig, Timeout::Infinite)?;
 
@@ -69,7 +82,7 @@ fn send_fd() -> Result<(), rustbus::client_conn::Error> {
         .build();
     con.send_message(&mut sig, Timeout::Infinite)?;
 
-    println!("Printing stuff fromn stdin");
+    println!("Printing stuff from stdin. The following is input from the other process!");
     let mut line = String::new();
     loop {
         line.clear();

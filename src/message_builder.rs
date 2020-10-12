@@ -2,6 +2,8 @@
 
 use crate::params::message;
 use crate::wire::marshal::traits::Marshal;
+use crate::wire::marshal::MarshalContext;
+use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 use std::os::unix::io::RawFd;
 
@@ -88,7 +90,6 @@ impl DynamicHeader {
                 response_serial: self.serial,
                 error_name: Some(error_name),
             },
-            raw_fds: Vec::new(),
             flags: 0,
             body: crate::message_builder::MarshalledMessageBody::new(),
         };
@@ -113,7 +114,6 @@ impl DynamicHeader {
                 response_serial: self.serial,
                 error_name: None,
             },
-            raw_fds: Vec::new(),
             flags: 0,
             body: crate::message_builder::MarshalledMessageBody::new(),
         }
@@ -209,9 +209,6 @@ pub struct MarshalledMessage {
 
     pub dynheader: DynamicHeader,
 
-    // out of band data
-    pub raw_fds: Vec<RawFd>,
-
     pub typ: MessageType,
     pub flags: u8,
 }
@@ -236,7 +233,6 @@ impl MarshalledMessage {
             typ: MessageType::Invalid,
             dynheader: DynamicHeader::default(),
 
-            raw_fds: Vec::new(),
             flags: 0,
             body: MarshalledMessageBody::new(),
         }
@@ -248,7 +244,6 @@ impl MarshalledMessage {
             typ: MessageType::Invalid,
             dynheader: DynamicHeader::default(),
 
-            raw_fds: Vec::new(),
             flags: 0,
             body: MarshalledMessageBody::with_byteorder(b),
         }
@@ -264,6 +259,7 @@ impl MarshalledMessage {
                 self.body.byteorder,
                 &sigs,
                 &self.body.buf,
+                &self.body.raw_fds,
                 0,
             )?;
             params
@@ -273,7 +269,7 @@ impl MarshalledMessage {
             params,
             typ: self.typ,
             flags: self.flags,
-            raw_fds: self.raw_fds,
+            raw_fds: self.body.raw_fds,
         })
     }
 }
@@ -281,7 +277,11 @@ impl MarshalledMessage {
 /// And you can of course write an Marshal impl for your own datastrcutures
 #[derive(Debug)]
 pub struct MarshalledMessageBody {
-    buf: Vec<u8>,
+    pub(crate) buf: Vec<u8>,
+
+    // out of band data
+    pub(crate) raw_fds: Vec<RawFd>,
+
     sig: String,
     byteorder: ByteOrder,
 }
@@ -298,16 +298,21 @@ pub fn marshal_as_variant<P: Marshal>(
     p: P,
     byteorder: ByteOrder,
     buf: &mut Vec<u8>,
+    fds: &mut Vec<RawFd>,
 ) -> Result<(), crate::Error> {
+    let mut ctx = MarshalContext {
+        buf,
+        fds,
+        byteorder,
+    };
+    let ctx = &mut ctx;
+
     let mut sig_str = String::new();
     P::signature().to_str(&mut sig_str);
-    crate::wire::marshal::base::marshal_base_param(
-        ByteOrder::LittleEndian,
-        &crate::params::Base::Signature(sig_str),
-        buf,
-    )
-    .unwrap();
-    p.marshal(byteorder, buf)?;
+    crate::wire::marshal::base::marshal_base_param(&crate::params::Base::Signature(sig_str), ctx)
+        .unwrap();
+
+    p.marshal(ctx)?;
     Ok(())
 }
 
@@ -316,6 +321,7 @@ impl MarshalledMessageBody {
     pub fn new() -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
+            raw_fds: Vec::new(),
             sig: String::new(),
             byteorder: ByteOrder::LittleEndian,
         }
@@ -325,14 +331,21 @@ impl MarshalledMessageBody {
     pub fn with_byteorder(b: ByteOrder) -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
+            raw_fds: Vec::new(),
             sig: String::new(),
             byteorder: b,
         }
     }
 
-    pub fn from_parts(buf: Vec<u8>, sig: String, byteorder: ByteOrder) -> Self {
+    pub fn from_parts(
+        buf: Vec<u8>,
+        raw_fds: Vec<RawFd>,
+        sig: String,
+        byteorder: ByteOrder,
+    ) -> Self {
         Self {
             buf,
+            raw_fds,
             sig,
             byteorder,
         }
@@ -349,7 +362,13 @@ impl MarshalledMessageBody {
     /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
     /// the new trait/type based API does not work.
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), crate::Error> {
-        crate::wire::marshal::container::marshal_param(p, self.byteorder, &mut self.buf)?;
+        let mut ctx = MarshalContext {
+            buf: &mut self.buf,
+            fds: &mut self.raw_fds,
+            byteorder: self.byteorder,
+        };
+        let ctx = &mut ctx;
+        crate::wire::marshal::container::marshal_param(p, ctx)?;
         p.sig().to_str(&mut self.sig);
         Ok(())
     }
@@ -364,7 +383,12 @@ impl MarshalledMessageBody {
 
     /// Append something that is Marshal to the message body
     pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
-        p.marshal(self.byteorder, &mut self.buf)?;
+        let mut ctx = MarshalContext {
+            buf: &mut self.buf,
+            fds: &mut self.raw_fds,
+            byteorder: self.byteorder,
+        };
+        p.marshal(&mut ctx)?;
         P::signature().to_str(&mut self.sig);
         Ok(())
     }
@@ -436,7 +460,7 @@ impl MarshalledMessageBody {
     /// Append something that is Marshal to the body but use a dbus Variant in the signature. This is necessary for some APIs
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
         self.sig.push('v');
-        marshal_as_variant(p, self.byteorder, &mut self.buf)
+        marshal_as_variant(p, self.byteorder, &mut self.buf, &mut self.raw_fds)
     }
 
     /// Create a parser to retrieve parameters from the body.
@@ -483,6 +507,7 @@ fn test_marshal_trait() {
     }
 
     use crate::wire::marshal::traits::Signature;
+    use crate::wire::marshal::MarshalContext;
     impl Signature for &MyStruct {
         fn signature() -> crate::signature::Type {
             crate::signature::Type::Container(crate::signature::Container::Struct(vec![
@@ -496,11 +521,11 @@ fn test_marshal_trait() {
         }
     }
     impl Marshal for &MyStruct {
-        fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), crate::Error> {
+        fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
             // always align to 8
-            crate::wire::util::pad_to_align(8, buf);
-            self.x.marshal(byteorder, buf)?;
-            self.y.marshal(byteorder, buf)?;
+            ctx.align_to(8);
+            self.x.marshal(ctx)?;
+            self.y.marshal(ctx)?;
             Ok(())
         }
     }
@@ -646,7 +671,7 @@ pub struct MessageBodyParser<'body> {
     body: &'body MarshalledMessageBody,
 }
 
-impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
+impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
     pub fn new(body: &'body MarshalledMessageBody) -> Self {
         let sigs = match crate::signature::Type::parse_description(&body.sig) {
             Ok(sigs) => sigs,
@@ -675,7 +700,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
 
     /// Get the next param, use get::<TYPE> to specify what type you expect. For example `let s = parser.get::<String>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get<T: Unmarshal<'ret, 'body>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
+    pub fn get<T: Unmarshal<'ret, 'body, 'fds>>(
+        &mut self,
+    ) -> Result<T, crate::wire::unmarshal::Error> {
         if self.sig_idx >= self.sigs.len() {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
@@ -683,7 +710,13 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
             return Err(crate::wire::unmarshal::Error::WrongSignature);
         }
 
-        match T::unmarshal(self.body.byteorder, &self.body.buf, self.buf_idx) {
+        let mut ctx = UnmarshalContext {
+            byteorder: self.body.byteorder,
+            buf: &self.body.buf,
+            offset: self.buf_idx,
+            fds: &self.body.raw_fds,
+        };
+        match T::unmarshal(&mut ctx) {
             Ok((bytes, res)) => {
                 self.buf_idx += bytes;
                 self.sig_idx += 1;
@@ -720,8 +753,8 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -735,9 +768,9 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
-        T3: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
+        T3: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -754,10 +787,10 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         &mut self,
     ) -> Result<(T1, T2, T3, T4), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
-        T3: Unmarshal<'ret, 'body>,
-        T4: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
+        T3: Unmarshal<'ret, 'body, 'fds>,
+        T4: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -775,11 +808,11 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
         &mut self,
     ) -> Result<(T1, T2, T3, T4, T5), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body>,
-        T2: Unmarshal<'ret, 'body>,
-        T3: Unmarshal<'ret, 'body>,
-        T4: Unmarshal<'ret, 'body>,
-        T5: Unmarshal<'ret, 'body>,
+        T1: Unmarshal<'ret, 'body, 'fds>,
+        T2: Unmarshal<'ret, 'body, 'fds>,
+        T3: Unmarshal<'ret, 'body, 'fds>,
+        T4: Unmarshal<'ret, 'body, 'fds>,
+        T5: Unmarshal<'ret, 'body, 'fds>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -799,11 +832,16 @@ impl<'ret, 'body: 'ret> MessageBodyParser<'body> {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
 
+        let mut ctx = UnmarshalContext {
+            byteorder: self.body.byteorder,
+            buf: &self.body.buf,
+            offset: self.buf_idx,
+            fds: &self.body.raw_fds,
+        };
+
         match crate::wire::unmarshal::container::unmarshal_with_sig(
-            self.body.byteorder,
             &self.sigs[self.sig_idx],
-            &self.body.buf,
-            self.buf_idx,
+            &mut ctx,
         ) {
             Ok((bytes, res)) => {
                 self.buf_idx += bytes;

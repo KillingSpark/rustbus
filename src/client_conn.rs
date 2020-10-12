@@ -557,7 +557,7 @@ impl<'msga, 'msge> Conn {
         for cmsg in &self.cmsgs_in {
             match cmsg {
                 ControlMessageOwned::ScmRights(fds) => {
-                    msg.raw_fds.extend(fds);
+                    msg.body.raw_fds.extend(fds);
                 }
                 _ => {
                     // TODO what to do?
@@ -613,7 +613,7 @@ impl<'msga, 'msge> Conn {
         let l = sendmsg(
             self.stream.as_raw_fd(),
             &iov,
-            &[ControlMessage::ScmRights(&msg.raw_fds)],
+            &[ControlMessage::ScmRights(&msg.body.raw_fds)],
             flags,
             None,
         );

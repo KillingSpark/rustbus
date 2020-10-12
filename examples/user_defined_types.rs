@@ -1,12 +1,11 @@
 use rustbus::signature;
-use rustbus::wire::util;
-use rustbus::ByteOrder;
+use rustbus::wire::marshal::MarshalContext;
 use rustbus::Marshal;
 use rustbus::Signature;
 
 // A Type with some trivial member and some enum
 // The enum will be packed into a Variant. The decoding can look at the signature of the Variant and figure out
-// which kind it was. To bve even more explicit, we will put a string in the message that tells us which kind it was.
+// which kind it was. To be even more explicit, we will put a string in the message that tells us which kind it was.
 struct MyType {
     x: u64,
     sub: Sub,
@@ -41,24 +40,24 @@ impl Signature for &MyType {
 }
 
 impl Marshal for &MyType {
-    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
         // always align structs to 8!
-        util::pad_to_align(8, buf);
+        ctx.align_to(8);
 
         // boring
-        self.x.marshal(byteorder, buf)?;
+        self.x.marshal(ctx)?;
 
         // match on which kind this contains
         match &self.sub {
             Sub::Main(t) => {
                 // marshal the type-name and the MySubType as a Variant
-                "Main".marshal(byteorder, buf)?;
-                marshal_as_variant(t, byteorder, buf)?;
+                "Main".marshal(ctx)?;
+                marshal_as_variant(t, ctx.byteorder, ctx.buf, ctx.fds)?;
             }
             Sub::Other(t) => {
                 // marshal the type-name and the MyOtherSubType as a Variant
-                "Other".marshal(byteorder, buf)?;
-                marshal_as_variant(t, byteorder, buf)?
+                "Other".marshal(ctx)?;
+                marshal_as_variant(t, ctx.byteorder, ctx.buf, ctx.fds)?
             }
         };
         Ok(())
@@ -88,11 +87,11 @@ impl Signature for &MySubType {
     }
 }
 impl Marshal for &MySubType {
-    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
         // always align to 8
-        util::pad_to_align(8, buf);
-        self.x.marshal(byteorder, buf)?;
-        self.y.marshal(byteorder, buf)?;
+        ctx.align_to(8);
+        self.x.marshal(ctx)?;
+        self.y.marshal(ctx)?;
         Ok(())
     }
 }
@@ -110,11 +109,11 @@ impl Signature for &MyOtherSubType {
     }
 }
 impl Marshal for &MyOtherSubType {
-    fn marshal(&self, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
         // always align to 8
-        util::pad_to_align(8, buf);
-        self.x.marshal(byteorder, buf)?;
-        self.y.marshal(byteorder, buf)?;
+        ctx.align_to(8);
+        self.x.marshal(ctx)?;
+        self.y.marshal(ctx)?;
         Ok(())
     }
 }

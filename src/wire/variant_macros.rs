@@ -62,7 +62,7 @@ macro_rules! dbus_variant_sig_type {
 macro_rules! dbus_variant_sig_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl rustbus::Marshal for $vname {
-            fn marshal(&self, byteorder: rustbus::ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
+            fn marshal(&self, ctx: &mut rustbus::wire::marshal::MarshalContext) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
 
                 match self {
@@ -71,12 +71,11 @@ macro_rules! dbus_variant_sig_marshal {
                             let mut sig_str = String::new();
                             <$typ as Signature>::signature().to_str(&mut sig_str);
                             rustbus::wire::marshal::base::marshal_base_param(
-                                byteorder,
                                 &rustbus::params::Base::Signature(sig_str),
-                                buf,
+                                ctx,
                             )
                             .unwrap();
-                            v.marshal(byteorder, buf)?;
+                            v.marshal(ctx)?;
                         }
                     )+
                     Self::Catchall(_) => unimplemented!("Do not use Catchall for Marshal cases!"),
@@ -91,33 +90,33 @@ macro_rules! dbus_variant_sig_marshal {
 #[macro_export]
 macro_rules! dbus_variant_sig_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'ret, 'buf: 'ret> rustbus::Unmarshal<'ret, 'buf> for $vname {
+        impl<'ret, 'buf: 'ret, 'fds> rustbus::Unmarshal<'ret, 'buf, 'fds> for $vname {
             fn unmarshal(
-                byteorder: rustbus::ByteOrder,
-                buf: &'buf [u8],
-                offset: usize,
+                ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'fds, 'buf>,
             ) -> rustbus::wire::unmarshal::UnmarshalResult<Self> {
                 use rustbus::Signature;
 
-                let (bytes, sig_str) = rustbus::wire::util::unmarshal_signature(&buf[offset..])?;
+                let (sig_bytes, sig_str) = rustbus::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
                 let mut sig = rustbus::signature::Type::parse_description(&sig_str)?;
                 let sig = if sig.len() == 1 {
                     sig.remove(0)
                 } else {
                     return Err(rustbus::wire::unmarshal::Error::WrongSignature);
                 };
-                let offset = offset + bytes;
+                ctx.offset += sig_bytes;
 
                 $(
                 if sig == <$typ as Signature>::signature() {
-                    let (vbytes, v) = <$typ as rustbus::Unmarshal>::unmarshal(byteorder, buf, offset)?;
-                    return Ok((bytes + vbytes, Self::$name(v)));
+                    let (vbytes, v) = <$typ as rustbus::Unmarshal>::unmarshal(ctx)?;
+                    return Ok((sig_bytes + vbytes, Self::$name(v)));
                 }
                 )+
                 let vbytes = rustbus::wire::validate_raw::validate_marshalled(
-                    byteorder, offset, buf, &sig
+                    ctx.byteorder, ctx.offset, ctx.buf, &sig
                 ).map_err(|e| e.1)?;
-                Ok((bytes + vbytes, Self::Catchall(sig)))
+                ctx.offset += vbytes;
+
+                Ok((sig_bytes + vbytes, Self::Catchall(sig)))
             }
         }
     };
@@ -128,28 +127,44 @@ fn test_variant_sig_macro() {
     use crate::Marshal;
     use crate::Unmarshal;
 
+    use crate::wire::marshal::MarshalContext;
+    use crate::wire::unmarshal::UnmarshalContext;
+
+    let mut fds = Vec::new();
+    let mut ctxbuf = Vec::new();
+    let mut ctx = MarshalContext {
+        buf: &mut ctxbuf,
+        fds: &mut fds,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
     // so the macro is able to use rustbus, like it would have to when importet into other crates
     use crate as rustbus;
 
-    let mut buf = vec![];
     dbus_variant_sig!(MyVariant, String => std::string::String; V2 => i32; Integer => u32);
     let v1 = MyVariant::String("ABCD".to_owned());
     let v2 = MyVariant::V2(0);
     let v3 = MyVariant::Integer(100);
 
-    (&v1, &v2, &v3)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    (&v1, &v2, &v3).marshal(ctx).unwrap();
     // add a unknown variant here
-    crate::message_builder::marshal_as_variant(0xFFFFu64, crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
-
-    let (bytes, (uv1, uv2, uv3)) = <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
+    crate::message_builder::marshal_as_variant(
+        0xFFFFu64,
         crate::ByteOrder::LittleEndian,
-        &buf,
-        0,
+        &mut ctx.buf,
+        &mut ctx.fds,
     )
     .unwrap();
+
+    let (bytes, (uv1, uv2, uv3)) =
+        <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(&mut UnmarshalContext {
+            buf: ctx.buf,
+            fds: ctx.fds,
+            byteorder: ctx.byteorder,
+            offset: 0,
+        })
+        .unwrap();
     assert_eq!(uv1, v1);
     assert_ne!(uv1, v2);
     assert_ne!(uv1, v3);
@@ -159,7 +174,13 @@ fn test_variant_sig_macro() {
 
     assert_eq!(uv3, v3);
 
-    let (_bytes, uv4) = MyVariant::unmarshal(crate::ByteOrder::LittleEndian, &buf, bytes).unwrap();
+    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext {
+        buf: ctx.buf,
+        fds: ctx.fds,
+        byteorder: ctx.byteorder,
+        offset: bytes,
+    })
+    .unwrap();
     assert_eq!(
         uv4,
         MyVariant::Catchall(crate::signature::Type::Base(crate::signature::Base::Uint64))
@@ -181,15 +202,16 @@ fn test_variant_sig_macro() {
     let v3 = MyVariant2::CaseStruct((30, 40, MyVariant::V2(10)));
     let v4 = MyVariant2::CaseStruct((30, 40, MyVariant::Integer(20)));
 
-    let mut buf = vec![];
-    (&v1, &v2, &v3, &v4)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    ctx.buf.clear();
+    (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
-            crate::ByteOrder::LittleEndian,
-            &buf,
-            0,
+            &mut UnmarshalContext {
+                buf: ctx.buf,
+                fds: ctx.fds,
+                byteorder: ctx.byteorder,
+                offset: 0,
+            },
         )
         .unwrap();
     assert_eq!(uv1, v1);
@@ -207,15 +229,21 @@ fn test_variant_sig_macro() {
     assert_eq!(uv4, v4);
 
     // Test that catchall gets the right signatures
-    let mut buf = vec![];
+    ctx.buf.clear();
     crate::message_builder::marshal_as_variant(
         ("", "", 100u8),
         crate::ByteOrder::LittleEndian,
-        &mut buf,
+        &mut ctx.buf,
+        &mut ctx.fds,
     )
     .unwrap();
-    let (_bytes, uv) =
-        <MyVariant2 as Unmarshal>::unmarshal(crate::ByteOrder::LittleEndian, &buf, 0).unwrap();
+    let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext {
+        buf: ctx.buf,
+        fds: ctx.fds,
+        byteorder: ctx.byteorder,
+        offset: 0,
+    })
+    .unwrap();
     assert_eq!(
         uv,
         MyVariant2::Catchall(crate::signature::Type::Container(
@@ -257,7 +285,7 @@ macro_rules! dbus_variant_var {
             $name => $typ
         )+);
 
-        impl<'buf> rustbus::Signature for $vname <'buf> {
+        impl<'fds, 'buf> rustbus::Signature for $vname <'fds, 'buf> {
             fn signature() -> rustbus::signature::Type {
                 rustbus::signature::Type::Container(rustbus::signature::Container::Variant)
             }
@@ -280,11 +308,11 @@ macro_rules! dbus_variant_var {
 macro_rules! dbus_variant_var_type {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         #[derive(Debug)]
-        pub enum $vname <'buf> {
+        pub enum $vname <'fds, 'buf> {
             $(
                 $name($typ),
             )+
-            Catchall(rustbus::wire::unmarshal::traits::Variant<'buf>)
+            Catchall(rustbus::wire::unmarshal::traits::Variant<'fds, 'buf>)
         }
     };
 }
@@ -293,8 +321,8 @@ macro_rules! dbus_variant_var_type {
 #[macro_export]
 macro_rules! dbus_variant_var_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'buf> rustbus::Marshal for $vname <'buf> {
-            fn marshal(&self, byteorder: rustbus::ByteOrder, buf: &mut Vec<u8>) -> Result<(), rustbus::Error> {
+        impl<'fds, 'buf> rustbus::Marshal for $vname <'fds, 'buf> {
+            fn marshal(&self, ctx: &mut rustbus::wire::marshal::MarshalContext) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
 
                 match self {
@@ -303,12 +331,11 @@ macro_rules! dbus_variant_var_marshal {
                             let mut sig_str = String::new();
                             <$typ as Signature>::signature().to_str(&mut sig_str);
                             rustbus::wire::marshal::base::marshal_base_param(
-                                byteorder,
                                 &rustbus::params::Base::Signature(sig_str),
-                                buf,
+                                ctx,
                             )
                             .unwrap();
-                            v.marshal(byteorder, buf)?;
+                            v.marshal(ctx)?;
                         }
                     )+
                     Self::Catchall(_) => unimplemented!("Do not use Catchall for Marshal cases!"),
@@ -323,15 +350,14 @@ macro_rules! dbus_variant_var_marshal {
 #[macro_export]
 macro_rules! dbus_variant_var_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'ret, 'buf: 'ret> rustbus::Unmarshal<'ret, 'buf> for $vname <'ret> {
+        impl<'ret, 'buf: 'ret, 'fds> rustbus::Unmarshal<'ret, 'buf,'fds> for $vname <'fds, 'ret> {
             fn unmarshal(
-                byteorder: rustbus::ByteOrder,
-                buf: &'buf [u8],
-                offset: usize,
+                ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'fds, 'buf>
             ) -> rustbus::wire::unmarshal::UnmarshalResult<Self> {
                 use rustbus::Signature;
+                use rustbus::Unmarshal;
 
-                let (bytes, sig_str) = rustbus::wire::util::unmarshal_signature(&buf[offset..])?;
+                let (sig_bytes, sig_str) = rustbus::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
                 let mut sig = rustbus::signature::Type::parse_description(&sig_str)?;
                 let sig = if sig.len() == 1 {
                     sig.remove(0)
@@ -341,13 +367,13 @@ macro_rules! dbus_variant_var_unmarshal {
 
                 $(
                 if sig == <$typ as Signature>::signature() {
-                    let offset = offset + bytes;
-                    let (vbytes, v) = <$typ as rustbus::Unmarshal>::unmarshal(byteorder, buf, offset)?;
-                    return Ok((bytes + vbytes, Self::$name(v)));
+                    ctx.offset += sig_bytes;
+                    let (vbytes, v) = <$typ as rustbus::Unmarshal>::unmarshal(ctx)?;
+                    return Ok((sig_bytes + vbytes, Self::$name(v)));
                 }
                 )+
-                let (vbytes, var) = <rustbus::wire::unmarshal::traits::Variant as rustbus::Unmarshal>::unmarshal(byteorder, buf, offset)?;
-                Ok((bytes + vbytes, Self::Catchall(var)))
+                let (vbytes,var) = <rustbus::wire::unmarshal::traits::Variant as Unmarshal>::unmarshal(ctx)?;
+                Ok((sig_bytes + vbytes, Self::Catchall(var)))
             }
         }
     };
@@ -358,29 +384,45 @@ fn test_variant_var_macro() {
     use crate::Marshal;
     use crate::Unmarshal;
 
+    use crate::wire::marshal::MarshalContext;
+    use crate::wire::unmarshal::UnmarshalContext;
+
+    let mut fds = Vec::new();
+    let mut buf = Vec::new();
+    let mut ctx = MarshalContext {
+        buf: &mut buf,
+        fds: &mut fds,
+        byteorder: crate::ByteOrder::LittleEndian,
+    };
+    let ctx = &mut ctx;
+
     // so the macro is able to use rustbus, like it would have to when importet into other crates
     use crate as rustbus;
 
-    let mut buf = vec![];
     type StrRef<'buf> = &'buf str;
     dbus_variant_var!(MyVariant, String => StrRef<'buf>; V2 => i32; Integer => u32);
     let v1 = MyVariant::String("ABCD");
     let v2 = MyVariant::V2(0);
     let v3 = MyVariant::Integer(100);
 
-    (&v1, &v2, &v3)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    (&v1, &v2, &v3).marshal(ctx).unwrap();
     // add a unknown variant here
-    crate::message_builder::marshal_as_variant(0xFFFFu64, crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
-
-    let (bytes, (uv1, uv2, uv3)) = <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
+    crate::message_builder::marshal_as_variant(
+        0xFFFFu64,
         crate::ByteOrder::LittleEndian,
-        &buf,
-        0,
+        &mut ctx.buf,
+        &mut ctx.fds,
     )
     .unwrap();
+
+    let (bytes, (uv1, uv2, uv3)) =
+        <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(&mut UnmarshalContext {
+            buf: ctx.buf,
+            fds: ctx.fds,
+            byteorder: ctx.byteorder,
+            offset: 0,
+        })
+        .unwrap();
     assert!(match uv1 {
         MyVariant::String(s) => s.eq("ABCD"),
         _ => false,
@@ -394,7 +436,14 @@ fn test_variant_var_macro() {
         _ => false,
     });
 
-    let (_bytes, uv4) = MyVariant::unmarshal(crate::ByteOrder::LittleEndian, &buf, bytes).unwrap();
+    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext {
+        buf: ctx.buf,
+        fds: ctx.fds,
+        byteorder: ctx.byteorder,
+        offset: bytes,
+    })
+    .unwrap();
+
     assert!(match uv4 {
         MyVariant::Catchall(var) => {
             var.get::<u64>().unwrap() == 0xFFFFu64
@@ -402,9 +451,10 @@ fn test_variant_var_macro() {
         _ => false,
     });
 
-    type Map<'buf> = std::collections::HashMap<String, (i32, u8, (u64, MyVariant<'buf>))>;
-    type Struct<'buf> = (u32, u32, MyVariant<'buf>);
-    dbus_variant_var!(MyVariant2, CaseMap => Map<'buf>; CaseStruct => Struct<'buf>);
+    type Map<'fds, 'buf> =
+        std::collections::HashMap<String, (i32, u8, (u64, MyVariant<'fds, 'buf>))>;
+    type Struct<'fds, 'buf> = (u32, u32, MyVariant<'fds, 'buf>);
+    dbus_variant_var!(MyVariant2, CaseMap => Map<'fds, 'buf>; CaseStruct => Struct<'fds, 'buf>);
 
     let mut map = Map::new();
     map.insert(
@@ -418,15 +468,16 @@ fn test_variant_var_macro() {
     let v3 = MyVariant2::CaseStruct((30, 40, MyVariant::V2(10)));
     let v4 = MyVariant2::CaseStruct((30, 40, MyVariant::Integer(20)));
 
-    let mut buf = vec![];
-    (&v1, &v2, &v3, &v4)
-        .marshal(crate::ByteOrder::LittleEndian, &mut buf)
-        .unwrap();
+    ctx.buf.clear();
+    (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
-            crate::ByteOrder::LittleEndian,
-            &buf,
-            0,
+            &mut UnmarshalContext {
+                buf: ctx.buf,
+                fds: ctx.fds,
+                byteorder: ctx.byteorder,
+                offset: 0,
+            },
         )
         .unwrap();
     assert!(match uv1 {
@@ -503,15 +554,21 @@ fn test_variant_var_macro() {
     });
 
     // Test that catchall gets the right signatures
-    let mut buf = vec![];
+    ctx.buf.clear();
     crate::message_builder::marshal_as_variant(
         ("testtext", "moretesttext", 100u8),
         crate::ByteOrder::LittleEndian,
-        &mut buf,
+        &mut ctx.buf,
+        &mut ctx.fds,
     )
     .unwrap();
-    let (_bytes, uv) =
-        <MyVariant2 as Unmarshal>::unmarshal(crate::ByteOrder::LittleEndian, &buf, 0).unwrap();
+    let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext {
+        buf: ctx.buf,
+        fds: ctx.fds,
+        byteorder: ctx.byteorder,
+        offset: 0,
+    })
+    .unwrap();
     assert!(match uv {
         MyVariant2::Catchall(var) => {
             var.get::<(&str, &str, u8)>()

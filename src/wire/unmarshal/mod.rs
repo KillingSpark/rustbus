@@ -13,6 +13,7 @@ use crate::signature;
 use crate::wire::util::*;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
+use std::os::unix::io::RawFd;
 
 pub mod base;
 pub mod container;
@@ -48,6 +49,22 @@ pub enum Error {
     EndOfMessage,
     NoSerial,
     NoSignature,
+    BadFdIndex(usize),
+}
+
+pub struct UnmarshalContext<'fds, 'buf> {
+    pub fds: &'fds [RawFd],
+    pub buf: &'buf [u8],
+    pub byteorder: ByteOrder,
+    pub offset: usize,
+}
+
+impl UnmarshalContext<'_, '_> {
+    pub fn align_to(&mut self, alignment: usize) -> Result<usize, crate::wire::unmarshal::Error> {
+        let padding = crate::wire::util::align_offset(alignment, self.buf, self.offset)?;
+        self.offset += padding;
+        Ok(padding)
+    }
 }
 
 impl From<crate::params::validation::Error> for Error {
@@ -126,13 +143,20 @@ pub fn unmarshal_body<'a, 'e>(
     byteorder: ByteOrder,
     sigs: &[crate::signature::Type],
     buf: &[u8],
+    fds: &[RawFd],
     offset: usize,
 ) -> UnmarshalResult<Vec<params::Param<'a, 'e>>> {
     let mut params = Vec::new();
     let mut body_bytes_used = 0;
+    let mut ctx = UnmarshalContext {
+        byteorder,
+        buf,
+        offset,
+        fds,
+    };
     for param_sig in sigs {
-        let (bytes, new_param) =
-            unmarshal_with_sig(byteorder, &param_sig, buf, offset + body_bytes_used)?;
+        println!("{:?}", param_sig);
+        let (bytes, new_param) = unmarshal_with_sig(&param_sig, &mut ctx)?;
         params.push(new_param);
         body_bytes_used += bytes;
     }
@@ -151,9 +175,8 @@ pub fn unmarshal_next_message(
         let padding = align_offset(8, buf, offset)?;
         let msg = MarshalledMessage {
             dynheader,
-            body: MarshalledMessageBody::from_parts(vec![], sig, header.byteorder),
+            body: MarshalledMessageBody::from_parts(vec![], vec![], sig, header.byteorder),
             typ: header.typ,
-            raw_fds: Vec::new(),
             flags: header.flags,
         };
         Ok((padding, msg))
@@ -167,9 +190,13 @@ pub fn unmarshal_next_message(
 
         let msg = MarshalledMessage {
             dynheader,
-            body: MarshalledMessageBody::from_parts(buf[offset..].to_vec(), sig, header.byteorder),
+            body: MarshalledMessageBody::from_parts(
+                buf[offset..].to_vec(),
+                vec![],
+                sig,
+                header.byteorder,
+            ),
             typ: header.typ,
-            raw_fds: Vec::new(),
             flags: header.flags,
         };
         Ok((padding + header.body_len as usize, msg))
