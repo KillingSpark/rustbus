@@ -1,6 +1,5 @@
 use rustbus::signature;
 use rustbus::wire::marshal::MarshalContext;
-use rustbus::wire::util;
 use rustbus::Marshal;
 use rustbus::Signature;
 
