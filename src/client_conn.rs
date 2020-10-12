@@ -86,7 +86,9 @@ impl RpcConn {
             filter: Box::new(|_| true),
         }
     }
-
+    pub fn conn(&self) -> &Conn {
+        &self.conn
+    }
     pub fn conn_mut(&mut self) -> &mut Conn {
         &mut self.conn
     }
@@ -628,6 +630,14 @@ impl<'msga, 'msge> Conn {
         }
 
         Ok(serial)
+    }
+}
+
+impl AsRawFd for Conn {
+    /// Reading or writing to the `RawFd` may result in undefined behavior
+    /// and break the `Conn`.
+    fn as_raw_fd(&self) -> RawFd {
+        self.stream.as_raw_fd()
     }
 }
 
