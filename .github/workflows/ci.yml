@@ -62,11 +62,12 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+      # hits an ICE with clippy 0.0.212. There is a fix in their repo already so if version 0.0.213 comes out this should be reenabled
+      #- name: Run cargo clippy
+      #  uses: actions-rs/cargo@v1
+      #  with:
+      #    command: clippy
+      #    args: -- -D warnings
 
   # fails CI because criterion needs two versions of autocfg
   #cargo-deny:
