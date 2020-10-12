@@ -118,22 +118,32 @@ fn test_fd_marshalling() {
         .push_param(crate::wire::marshal::traits::UnixFd(TEST_FD2))
         .unwrap();
 
+    use std::os::unix::io::AsRawFd;
+    let stdin_fd = std::io::stdin();
+    sig.body.push_param((&stdin_fd) as &dyn AsRawFd).unwrap();
+
     // assert the correct representation, where fds have been put into the fd array and the index is marshalled in the message
-    assert_eq!(sig.body.buf, &[0, 0, 0, 0, 1, 0, 0, 0]);
-    assert_eq!(sig.body.raw_fds, &[TEST_FD1, TEST_FD2]);
+    assert_eq!(sig.body.buf, &[0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
+    assert_eq!(
+        sig.body.raw_fds,
+        &[TEST_FD1, TEST_FD2, stdin_fd.as_raw_fd()]
+    );
 
     // assert that unmarshalling yields the correct fds
     let mut parser = sig.body.parser();
     let fd1: crate::wire::marshal::traits::UnixFd = parser.get().unwrap();
-    let fd2 = parser.get_param().unwrap();
-
-    assert_eq!(crate::wire::marshal::traits::UnixFd(TEST_FD1), fd1);
-
-    assert!(match fd2 {
+    assert!(match parser.get_param().unwrap() {
         crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => {
             assert_eq!(fd, TEST_FD2);
             true
         }
         _ => false,
     });
+    let fd3: crate::wire::marshal::traits::UnixFd = parser.get().unwrap();
+
+    assert_eq!(crate::wire::marshal::traits::UnixFd(TEST_FD1), fd1);
+    assert_eq!(
+        crate::wire::marshal::traits::UnixFd(stdin_fd.as_raw_fd()),
+        fd3
+    );
 }

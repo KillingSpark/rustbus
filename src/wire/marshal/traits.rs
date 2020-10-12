@@ -689,6 +689,19 @@ impl Marshal for UnixFd {
         Ok(())
     }
 }
+impl Signature for &dyn std::os::unix::io::AsRawFd {
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::UnixFd)
+    }
+    fn alignment() -> usize {
+        Self::signature().get_alignment()
+    }
+}
+impl Marshal for &dyn std::os::unix::io::AsRawFd {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+        UnixFd(self.as_raw_fd()).marshal(ctx)
+    }
+}
 #[test]
 fn test_trait_signature_creation() {
     let mut msg = crate::message_builder::MarshalledMessage::new();
