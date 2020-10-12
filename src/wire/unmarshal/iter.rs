@@ -250,7 +250,7 @@ impl<'a, 'parent> ParamIter<'a> {
         match new_sig {
             signature::Type::Base(b) => {
                 let mut ctx = UnmarshalContext {
-                    byteorder: byteorder,
+                    byteorder,
                     buf: source,
                     offset: *offset,
                     fds: &Vec::new(),
