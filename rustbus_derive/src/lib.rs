@@ -84,7 +84,7 @@ fn make_struct_unmarshal_impl(
     new_generics
         .lifetimes()
         .for_each(|lt| rdef.bounds.push(lt.lifetime.clone()));
-        
+
     let typ_generics = new_generics.clone();
     let (_, typ_gen, _) = typ_generics.split_for_impl();
 
