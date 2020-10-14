@@ -11,7 +11,10 @@ use std::os::unix::io::RawFd;
 /// The way dbus structs are represented is with rust tuples. This lib provides Marshal impls for tuples with up to 5 elements.
 /// If you need more you can just copy the impl and extend it to how many different entries you need.
 ///
-/// Also you can implement Marshal for your own structs:
+/// There is a crate (rustbus_derive) for deriving Marshal impls with #[derive(rustbus_derive::Marshal)]. This should work for most of your needs.
+/// You can of course derive Signature as well.
+///
+/// If there are special needs, you can implement Marshal for your own structs:
 /// ```rust
 /// struct MyStruct {
 ///     x: u64,

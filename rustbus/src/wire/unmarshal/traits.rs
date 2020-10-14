@@ -13,13 +13,18 @@ use std::os::unix::io::RawFd;
 /// if the contained types are Unmarshal.
 /// If you deal with basic messages, this should cover all your needs and you dont need to implement this type for
 /// your own types.
+/// 
+/// There is a crate (rustbus_derive) for deriving Unmarshal impls with #[derive(rustbus_derive::Marshal)]. This should work for most of your needs.
+/// You can of course derive Signature as well.
+///
+/// If there are special needs, you can implement Unmarshal for your own structs:
 ///
 /// # Implementing for your own structs
-/// You can of course add your own implementations for you your own types.
+/// You can of course add your own implementations for types.
 /// For this to work properly the signature must be correct and you need to report all bytes you consumed
 /// in the T::unmarshal(...) call. THIS INCLUDES PADDING.
 ///
-/// Typically your code should look like this, keeping track of all padding and adjusting the local offset appropriatly
+/// Typically your code should look like this:
 /// ```rust
 /// struct MyStruct{ mycoolint: u64}
 /// use rustbus::wire::marshal::traits::Signature;
