@@ -16,5 +16,5 @@ proc-macro = true
 "rustbus" = {path = "../rustbus", version = "0.8.0"}
 syn = "1.0.44"
 quote = "1.0.7"
-proc-macro2 = "*"
+proc-macro2 = "1.0.24"
 
