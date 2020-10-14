@@ -3,6 +3,9 @@ name = "rustbus_derive"
 version = "0.1.0"
 authors = ["Moritz Borcherding <moritz.borcherding@web.de>"]
 edition = "2018"
+license = "MIT"
+description = "derive proc-macros for the rustbus crate"
+homepage = "https://github.com/KillingSpark/rustbus" 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
