@@ -13,7 +13,6 @@ use crate::signature;
 use crate::wire::util::*;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
-use std::os::unix::io::RawFd;
 
 pub mod base;
 pub mod container;
@@ -53,7 +52,7 @@ pub enum Error {
 }
 
 pub struct UnmarshalContext<'fds, 'buf> {
-    pub fds: &'fds [RawFd],
+    pub fds: &'fds [crate::wire::UnixFd],
     pub buf: &'buf [u8],
     pub byteorder: ByteOrder,
     pub offset: usize,
@@ -143,7 +142,7 @@ pub fn unmarshal_body<'a, 'e>(
     byteorder: ByteOrder,
     sigs: &[crate::signature::Type],
     buf: &[u8],
-    fds: &[RawFd],
+    fds: &[crate::wire::UnixFd],
     offset: usize,
 ) -> UnmarshalResult<Vec<params::Param<'a, 'e>>> {
     let mut params = Vec::new();

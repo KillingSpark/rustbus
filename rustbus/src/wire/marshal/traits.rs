@@ -3,7 +3,6 @@
 use crate::params;
 use crate::wire::marshal::base::marshal_base_param;
 use crate::wire::marshal::MarshalContext;
-use std::os::unix::io::RawFd;
 
 /// The Marshal trait allows to push any type onto an message_builder::OutMessage as a parameter.
 /// There are some useful implementations here for slices and hashmaps which map to arrays and dicts in the dbus message.
@@ -673,38 +672,7 @@ impl Marshal for SignatureWrapper<'_> {
         Ok(())
     }
 }
-#[derive(Debug, PartialEq)]
-pub struct UnixFd(pub RawFd);
-impl Signature for UnixFd {
-    fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::UnixFd)
-    }
-    fn alignment() -> usize {
-        Self::signature().get_alignment()
-    }
-}
-impl Marshal for UnixFd {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        ctx.fds.push(self.0 as RawFd);
-        let idx = ctx.fds.len() - 1;
-        ctx.align_to(Self::alignment());
-        crate::wire::util::write_u32(idx as u32, ctx.byteorder, ctx.buf);
-        Ok(())
-    }
-}
-impl Signature for &dyn std::os::unix::io::AsRawFd {
-    fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::UnixFd)
-    }
-    fn alignment() -> usize {
-        Self::signature().get_alignment()
-    }
-}
-impl Marshal for &dyn std::os::unix::io::AsRawFd {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        UnixFd(self.as_raw_fd()).marshal(ctx)
-    }
-}
+
 #[test]
 fn test_trait_signature_creation() {
     let mut msg = crate::message_builder::MarshalledMessage::new();
@@ -714,7 +682,8 @@ fn test_trait_signature_creation() {
     body.push_param(ObjectPath::new("/a/b").unwrap()).unwrap();
     body.push_param(SignatureWrapper::new("(a{su})").unwrap())
         .unwrap();
-    body.push_param(UnixFd(10)).unwrap();
+    let fd = crate::wire::UnixFd::new(0);
+    body.push_param(&fd).unwrap();
     body.push_param(true).unwrap();
     body.push_param(0u8).unwrap();
     body.push_param(0u16).unwrap();
@@ -730,6 +699,7 @@ fn test_trait_signature_creation() {
     body.push_param(&map).unwrap();
 
     assert_eq!("soghbyqutnixaya{s(tuqy)}", msg.get_sig());
+    fd.take_raw_fd(); //prevent accidental closing of real fd
 }
 
 #[test]

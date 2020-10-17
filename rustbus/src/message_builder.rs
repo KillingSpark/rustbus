@@ -5,7 +5,6 @@ use crate::wire::marshal::traits::Marshal;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
-use std::os::unix::io::RawFd;
 
 /// Types a message might have
 #[derive(Copy, Clone, Debug)]
@@ -280,7 +279,7 @@ pub struct MarshalledMessageBody {
     pub(crate) buf: Vec<u8>,
 
     // out of band data
-    pub(crate) raw_fds: Vec<RawFd>,
+    pub(crate) raw_fds: Vec<crate::wire::UnixFd>,
 
     sig: String,
     byteorder: ByteOrder,
@@ -298,7 +297,7 @@ pub fn marshal_as_variant<P: Marshal>(
     p: P,
     byteorder: ByteOrder,
     buf: &mut Vec<u8>,
-    fds: &mut Vec<RawFd>,
+    fds: &mut Vec<crate::wire::UnixFd>,
 ) -> Result<(), crate::Error> {
     let mut ctx = MarshalContext {
         buf,
@@ -339,7 +338,7 @@ impl MarshalledMessageBody {
 
     pub fn from_parts(
         buf: Vec<u8>,
-        raw_fds: Vec<RawFd>,
+        raw_fds: Vec<crate::wire::UnixFd>,
         sig: String,
         byteorder: ByteOrder,
     ) -> Self {

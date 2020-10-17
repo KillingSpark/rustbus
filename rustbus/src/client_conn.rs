@@ -557,7 +557,9 @@ impl<'msga, 'msge> Conn {
         for cmsg in &self.cmsgs_in {
             match cmsg {
                 ControlMessageOwned::ScmRights(fds) => {
-                    msg.body.raw_fds.extend(fds);
+                    msg.body
+                        .raw_fds
+                        .extend(fds.iter().map(|fd| crate::wire::UnixFd::new(*fd)));
                 }
                 _ => {
                     // TODO what to do?
@@ -610,10 +612,17 @@ impl<'msga, 'msge> Conn {
                 self.stream.set_nonblocking(true)?;
             }
         }
+        let raw_fds = msg
+            .body
+            .raw_fds
+            .iter()
+            .map(|fd| fd.get_raw_fd())
+            .flatten()
+            .collect::<Vec<RawFd>>();
         let l = sendmsg(
             self.stream.as_raw_fd(),
             &iov,
-            &[ControlMessage::ScmRights(&msg.body.raw_fds)],
+            &[ControlMessage::ScmRights(&raw_fds)],
             flags,
             None,
         );

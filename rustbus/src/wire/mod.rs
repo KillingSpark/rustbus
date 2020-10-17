@@ -1,10 +1,13 @@
 //! Everything that deals with converting from/to raw bytes. You probably do not need this.
 
 pub mod marshal;
+pub mod unixfd;
 pub mod unmarshal;
 pub mod util;
 pub mod validate_raw;
 pub mod variant_macros;
+
+pub use unixfd::UnixFd;
 
 /// The different header fields a message may or maynot have
 #[derive(Debug)]

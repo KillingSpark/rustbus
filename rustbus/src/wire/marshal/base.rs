@@ -5,7 +5,6 @@ use crate::params::message;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::util::*;
 use crate::ByteOrder;
-use std::os::unix::io::RawFd;
 
 fn marshal_boolean(b: bool, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
     if b {
@@ -98,12 +97,20 @@ pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> message
         params::Base::ObjectPathRef(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf),
 
         params::Base::UnixFd(i) => {
-            ctx.fds.push(*i as RawFd);
+            let fd = *i;
+            let new_fd = nix::unistd::dup(fd)
+                .map_err(|e| crate::Error::Marshal(crate::wire::marshal::Error::DupUnixFd(e)))?;
+            ctx.fds.push(crate::wire::UnixFd::new(new_fd));
+
             let idx = ctx.fds.len() - 1;
             marshal_u32(idx as u32, ctx.byteorder, ctx.buf)
         }
         params::Base::UnixFdRef(i) => {
-            ctx.fds.push(**i as RawFd);
+            let fd = **i;
+            let new_fd = nix::unistd::dup(fd)
+                .map_err(|e| crate::Error::Marshal(crate::wire::marshal::Error::DupUnixFd(e)))?;
+            ctx.fds.push(crate::wire::UnixFd::new(new_fd));
+
             let idx = ctx.fds.len() - 1;
             marshal_u32(idx as u32, ctx.byteorder, ctx.buf)
         }

@@ -84,6 +84,7 @@ pub enum Error {
     EmptyArray,
     EmptyDict,
     StringContainsNullByte,
+    Marshal(crate::wire::marshal::Error),
     Unmarshal(crate::wire::unmarshal::Error),
     Validation(crate::params::validation::Error),
 }

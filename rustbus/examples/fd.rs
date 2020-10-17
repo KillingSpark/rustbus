@@ -4,7 +4,6 @@ use rustbus::{
 
 use std::io::Write;
 use std::os::unix::io::FromRawFd;
-use std::os::unix::io::RawFd;
 
 fn main() -> Result<(), rustbus::client_conn::Error> {
     if std::env::args()
@@ -38,9 +37,9 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
         };
 
         println!("Got signal: {:?}", sig);
-        let fd: rustbus::wire::marshal::traits::UnixFd = sig.body.parser().get().unwrap();
+        let fd: rustbus::wire::UnixFd = sig.body.parser().get().unwrap();
 
-        let mut file = unsafe { std::fs::File::from_raw_fd(fd.0 as RawFd) };
+        let mut file = unsafe { std::fs::File::from_raw_fd(fd.take_raw_fd().unwrap()) };
         file.write_all(
             format!(
                 "This is a line from process with pid: {}\n",

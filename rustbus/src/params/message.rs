@@ -3,7 +3,6 @@
 use crate::message_builder::{DynamicHeader, HeaderFlags, MessageType};
 use crate::params::*;
 use crate::signature;
-use std::os::unix::io::RawFd;
 
 /// A message with all the different fields it may or may not have
 /// and only Params as the body
@@ -19,7 +18,7 @@ pub struct Message<'a, 'e> {
     pub params: Vec<Param<'a, 'e>>,
 
     // out of band data
-    pub raw_fds: Vec<RawFd>,
+    pub raw_fds: Vec<crate::wire::UnixFd>,
 }
 
 impl<'a, 'e> Default for Message<'a, 'e> {

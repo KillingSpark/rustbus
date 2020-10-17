@@ -96,9 +96,10 @@ fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), clien
 
 #[test]
 fn test_fd_marshalling() {
-    // not real fds but whatever...
-    const TEST_FD1: RawFd = 0xEF;
-    const TEST_FD2: RawFd = 0xF0;
+    use crate::wire::UnixFd;
+    let test_fd1: UnixFd = UnixFd::new(nix::unistd::dup(0).unwrap());
+    let test_fd2: UnixFd = UnixFd::new(nix::unistd::dup(1).unwrap());
+    let test_fd3: UnixFd = UnixFd::new(nix::unistd::dup(1).unwrap());
 
     let mut sig = MessageBuilder::new()
         .signal(
@@ -110,40 +111,33 @@ fn test_fd_marshalling() {
 
     sig.body
         .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(
-            TEST_FD1,
+            test_fd1.get_raw_fd().unwrap(),
         )))
         .unwrap();
 
-    sig.body
-        .push_param(crate::wire::marshal::traits::UnixFd(TEST_FD2))
-        .unwrap();
-
-    use std::os::unix::io::AsRawFd;
-    let stdin_fd = std::io::stdin();
-    sig.body.push_param((&stdin_fd) as &dyn AsRawFd).unwrap();
+    sig.body.push_param(&test_fd2).unwrap();
+    sig.body.push_param(&test_fd3).unwrap();
 
     // assert the correct representation, where fds have been put into the fd array and the index is marshalled in the message
     assert_eq!(sig.body.buf, &[0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
-    assert_eq!(
-        sig.body.raw_fds,
-        &[TEST_FD1, TEST_FD2, stdin_fd.as_raw_fd()]
-    );
+    assert_ne!(&sig.body.raw_fds[0], &test_fd1);
+    assert_ne!(&sig.body.raw_fds[1], &test_fd2);
+    assert_ne!(&sig.body.raw_fds[2], &test_fd3);
 
     // assert that unmarshalling yields the correct fds
     let mut parser = sig.body.parser();
-    let fd1: crate::wire::marshal::traits::UnixFd = parser.get().unwrap();
+    let _fd1: crate::wire::UnixFd = parser.get().unwrap();
+    // get _fd2
     assert!(match parser.get_param().unwrap() {
-        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => {
-            assert_eq!(fd, TEST_FD2);
+        crate::params::Param::Base(crate::params::Base::UnixFd(_fd)) => {
             true
         }
         _ => false,
     });
-    let fd3: crate::wire::marshal::traits::UnixFd = parser.get().unwrap();
+    let _fd3: crate::wire::UnixFd = parser.get().unwrap();
 
-    assert_eq!(crate::wire::marshal::traits::UnixFd(TEST_FD1), fd1);
-    assert_eq!(
-        crate::wire::marshal::traits::UnixFd(stdin_fd.as_raw_fd()),
-        fd3
-    );
+    // Take all fds back to prevent accidental closing of actual FDs
+    test_fd1.take_raw_fd().unwrap();
+    test_fd2.take_raw_fd().unwrap();
+    test_fd3.take_raw_fd().unwrap();
 }

@@ -6,7 +6,6 @@ use crate::wire::unmarshal;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::util;
 use crate::ByteOrder;
-use std::os::unix::io::RawFd;
 
 /// This trait has to be supported to get parameters ergonomically out of a MarshalledMessage.
 /// There are implementations for the base types, Vecs, Hashmaps, and tuples of up to 5 elements
@@ -503,18 +502,6 @@ impl<
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for crate::wire::marshal::traits::UnixFd {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, idx) = u32::unmarshal(ctx)?;
-
-        if ctx.fds.len() <= idx as usize {
-            Err(unmarshal::Error::BadFdIndex(idx as usize))
-        } else {
-            let val = ctx.fds[idx as usize];
-            Ok((bytes, crate::wire::marshal::traits::UnixFd(val)))
-        }
-    }
-}
 impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds>
     for crate::wire::marshal::traits::SignatureWrapper<'r>
 {
@@ -542,7 +529,7 @@ pub struct Variant<'fds, 'buf> {
     pub(crate) byteorder: ByteOrder,
     pub(crate) offset: usize,
     pub(crate) buf: &'buf [u8],
-    pub(crate) fds: &'fds [RawFd],
+    pub(crate) fds: &'fds [crate::wire::UnixFd],
 }
 impl<'r, 'buf: 'r, 'fds> Variant<'fds, 'buf> {
     /// Get the [`Type`] of the value contained by the variant.
@@ -679,11 +666,13 @@ fn test_unmarshal_traits() {
 
     ctx.buf.clear();
 
-    use crate::wire::marshal::traits::{ObjectPath, SignatureWrapper, UnixFd};
+    use crate::wire::marshal::traits::{ObjectPath, SignatureWrapper};
+    use crate::wire::UnixFd;
+    let orig_fd = UnixFd::new(0);
     let orig = (
         ObjectPath::new("/a/b/c").unwrap(),
         SignatureWrapper::new("ss(aiau)").unwrap(),
-        UnixFd(10),
+        &orig_fd,
     );
     orig.marshal(ctx).unwrap();
     assert_eq!(
@@ -693,7 +682,7 @@ fn test_unmarshal_traits() {
             b'a', b'u', b')', 0, 0, 0, 0, 0, 0, 0, 0
         ]
     );
-    let (_, (p, s, fd)) =
+    let (_, (p, s, _fd)) =
         <(ObjectPath, SignatureWrapper, UnixFd) as Unmarshal>::unmarshal(&mut UnmarshalContext {
             buf: ctx.buf,
             fds: ctx.fds,
@@ -704,7 +693,7 @@ fn test_unmarshal_traits() {
 
     assert_eq!(p.as_ref(), "/a/b/c");
     assert_eq!(s.as_ref(), "ss(aiau)");
-    assert_eq!(fd.0, 10);
+    orig_fd.take_raw_fd(); // prevent accidental closing of real fd
 }
 
 #[test]
@@ -712,17 +701,16 @@ fn test_variant() {
     use crate::message_builder::MarshalledMessageBody;
     use crate::params::{Array, Base, Container, Dict, Param, Variant as ParamVariant};
     use crate::signature::Type;
-    use crate::wire::marshal::traits::{SignatureWrapper, UnixFd};
+    use crate::wire::marshal::traits::SignatureWrapper;
     use std::collections::HashMap;
 
     // inital test data
-    let params: [(Param, Type); 11] = [
+    let params: [(Param, Type); 10] = [
         (Base::Byte(0x41).into(), u8::signature()),
         (Base::Int16(-1234).into(), i16::signature()),
         (Base::Uint16(1234).into(), u16::signature()),
         (Base::Int32(-1234567).into(), i32::signature()),
         (Base::Uint32(1234567).into(), u32::signature()),
-        (Base::UnixFd(1).into(), UnixFd::signature()),
         (Base::Int64(-1234568901234).into(), i64::signature()),
         (Base::Uint64(1234568901234).into(), u64::signature()),
         (
@@ -785,22 +773,33 @@ fn test_variant() {
 
     // check the individual variants
     let mut parser = body.parser();
-    assert_eq!(0x41_u8, parser.get::<Variant>().unwrap().get().unwrap());
-    assert_eq!(-1234_i16, parser.get::<Variant>().unwrap().get().unwrap());
-    assert_eq!(1234_u16, parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(
+        0x41_u8,
+        parser.get::<Variant>().unwrap().get::<u8>().unwrap()
+    );
+    assert_eq!(
+        -1234_i16,
+        parser.get::<Variant>().unwrap().get::<i16>().unwrap()
+    );
+    assert_eq!(
+        1234_u16,
+        parser.get::<Variant>().unwrap().get::<u16>().unwrap()
+    );
     assert_eq!(
         -1234567_i32,
-        parser.get::<Variant>().unwrap().get().unwrap()
+        parser.get::<Variant>().unwrap().get::<i32>().unwrap()
     );
-    assert_eq!(1234567_u32, parser.get::<Variant>().unwrap().get().unwrap());
-    assert_eq!(UnixFd(1), parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(
+        1234567_u32,
+        parser.get::<Variant>().unwrap().get::<u32>().unwrap()
+    );
     assert_eq!(
         -1234568901234_i64,
-        parser.get::<Variant>().unwrap().get().unwrap()
+        parser.get::<Variant>().unwrap().get::<i64>().unwrap()
     );
     assert_eq!(
         1234568901234_u64,
-        parser.get::<Variant>().unwrap().get().unwrap()
+        parser.get::<Variant>().unwrap().get::<u64>().unwrap()
     );
     assert_eq!(
         "Hello world!",
@@ -810,39 +809,40 @@ fn test_variant() {
         SignatureWrapper::new("sy").unwrap(),
         parser.get::<Variant>().unwrap().get().unwrap()
     );
-    assert_eq!(true, parser.get::<Variant>().unwrap().get().unwrap());
+    assert_eq!(
+        true,
+        parser.get::<Variant>().unwrap().get::<bool>().unwrap()
+    );
 
     // check Array of variants
     let var_vec: Vec<Variant> = parser.get().unwrap();
-    assert_eq!(0x41_u8, var_vec[0].get().unwrap());
-    assert_eq!(-1234_i16, var_vec[1].get().unwrap());
-    assert_eq!(1234_u16, var_vec[2].get().unwrap());
-    assert_eq!(-1234567_i32, var_vec[3].get().unwrap());
-    assert_eq!(1234567_u32, var_vec[4].get().unwrap());
-    assert_eq!(UnixFd(1), var_vec[5].get().unwrap());
-    assert_eq!(-1234568901234_i64, var_vec[6].get().unwrap());
-    assert_eq!(1234568901234_u64, var_vec[7].get().unwrap());
-    assert_eq!("Hello world!", var_vec[8].get::<&str>().unwrap());
+    assert_eq!(0x41_u8, var_vec[0].get::<u8>().unwrap());
+    assert_eq!(-1234_i16, var_vec[1].get::<i16>().unwrap());
+    assert_eq!(1234_u16, var_vec[2].get::<u16>().unwrap());
+    assert_eq!(-1234567_i32, var_vec[3].get::<i32>().unwrap());
+    assert_eq!(1234567_u32, var_vec[4].get::<u32>().unwrap());
+    assert_eq!(-1234568901234_i64, var_vec[5].get::<i64>().unwrap());
+    assert_eq!(1234568901234_u64, var_vec[6].get::<u64>().unwrap());
+    assert_eq!("Hello world!", var_vec[7].get::<&str>().unwrap());
     assert_eq!(
         SignatureWrapper::new("sy").unwrap(),
-        var_vec[9].get().unwrap()
+        var_vec[8].get().unwrap()
     );
-    assert_eq!(true, var_vec[10].get().unwrap());
+    assert_eq!(true, var_vec[9].get::<bool>().unwrap());
 
     // check Dict of {String, variants}
     let var_map: HashMap<String, Variant> = parser.get().unwrap();
-    assert_eq!(0x41_u8, var_map["0"].get().unwrap());
-    assert_eq!(-1234_i16, var_map["1"].get().unwrap());
-    assert_eq!(1234_u16, var_map["2"].get().unwrap());
-    assert_eq!(-1234567_i32, var_map["3"].get().unwrap());
-    assert_eq!(1234567_u32, var_map["4"].get().unwrap());
-    assert_eq!(UnixFd(1), var_map["5"].get().unwrap());
-    assert_eq!(-1234568901234_i64, var_map["6"].get().unwrap());
-    assert_eq!(1234568901234_u64, var_map["7"].get().unwrap());
-    assert_eq!("Hello world!", var_map["8"].get::<&str>().unwrap());
+    assert_eq!(0x41_u8, var_map["0"].get::<u8>().unwrap());
+    assert_eq!(-1234_i16, var_map["1"].get::<i16>().unwrap());
+    assert_eq!(1234_u16, var_map["2"].get::<u16>().unwrap());
+    assert_eq!(-1234567_i32, var_map["3"].get::<i32>().unwrap());
+    assert_eq!(1234567_u32, var_map["4"].get::<u32>().unwrap());
+    assert_eq!(-1234568901234_i64, var_map["5"].get::<i64>().unwrap());
+    assert_eq!(1234568901234_u64, var_map["6"].get::<u64>().unwrap());
+    assert_eq!("Hello world!", var_map["7"].get::<&str>().unwrap());
     assert_eq!(
         SignatureWrapper::new("sy").unwrap(),
-        var_map["9"].get().unwrap()
+        var_map["8"].get().unwrap()
     );
-    assert_eq!(true, var_map["10"].get().unwrap());
+    assert_eq!(true, var_map["9"].get::<bool>().unwrap());
 }
