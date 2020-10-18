@@ -17,6 +17,17 @@ impl Drop for UnixFdInner {
     }
 }
 
+/// UnixFd is a wrapper around RawFd, to ensure that opened FDs are closed again, while still having the possibility of having multiple references to it.
+/// 
+/// "Ownership" as in responsibility of closing the FD works as follows:
+/// 1. You can call take_raw_fd(). At this point UnixFd releases ownership. You are now responsible of closing the FD.
+/// 1. You can call get_raw_fd(). This will not release ownership, UnixFd will still close it if no more references to it exist.
+///
+/// ## UnixFds and messages
+/// 1. When a UnixFd is **marshalled** rustbus will dup() the FD so that the message and the original UnixFd do not depend on each others lifetime. You are free to use
+/// or close the original one. 
+/// 1. When a UnixFd is **unmarshalled** rustbus will **NOT** dup() the FD. This means if you call take_raw_fd(), it is gone from the message too! If you do not want this,
+/// you have to call get_raw_fd() and call dup() yourself. 
 #[derive(Clone, Debug)]
 pub struct UnixFd(Rc<UnixFdInner>);
 impl UnixFd {
