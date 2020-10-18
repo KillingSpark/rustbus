@@ -258,7 +258,7 @@ fn unmarshal_header_field(
         1 => match sig {
             signature::Type::Base(signature::Base::ObjectPath) => {
                 let (b, objpath) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                // TODO validate
+                crate::params::validate_object_path(&objpath)?;
                 (b, Ok(HeaderField::Path(objpath)))
             }
             _ => (0, Err(Error::WrongSignature)),
@@ -308,6 +308,7 @@ fn unmarshal_header_field(
         8 => match sig {
             signature::Type::Base(signature::Base::Signature) => {
                 let (b, sig) = unmarshal_signature(&buf[offset..])?;
+                crate::params::validate_signature(&sig)?;
                 (b, Ok(HeaderField::Signature(sig.to_owned())))
             }
             _ => (0, Err(Error::WrongSignature)),

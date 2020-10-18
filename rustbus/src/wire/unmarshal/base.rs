@@ -43,9 +43,7 @@ pub fn unmarshal_base<'a>(
                 Err(crate::wire::unmarshal::Error::BadFdIndex(idx as usize))
             } else {
                 let val = &ctx.fds[idx as usize];
-
-                // TODO make params::Base::UnixFd use crate::wire::UnixFd
-                Ok((bytes, params::Base::UnixFd(val.get_raw_fd().unwrap())))
+                Ok((bytes, params::Base::UnixFd(val.clone())))
             }
         }
         signature::Base::Int32 => {
@@ -82,14 +80,13 @@ pub fn unmarshal_base<'a>(
             Ok((bytes, params::Base::String(string)))
         }
         signature::Base::ObjectPath => {
-            // TODO validate
-
             let (bytes, string) = unmarshal_string(ctx.byteorder, &ctx.buf[ctx.offset..])?;
+            crate::params::validate_object_path(&string)?;
             Ok((bytes, params::Base::ObjectPath(string)))
         }
         signature::Base::Signature => {
-            // TODO validate
             let (bytes, string) = unmarshal_signature(&ctx.buf[ctx.offset..])?;
+            crate::params::validate_signature(&string)?;
             Ok((bytes, params::Base::Signature(string.to_owned())))
         }
     }?;

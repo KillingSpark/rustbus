@@ -1,5 +1,4 @@
 use crate::signature;
-use std::os::unix::io::RawFd;
 
 /// The Types a message can have as parameters
 /// There are From<T> impls for most of the Base ones
@@ -22,7 +21,7 @@ pub enum Base<'a> {
     Uint16(u16),
     Int32(i32),
     Uint32(u32),
-    UnixFd(RawFd),
+    UnixFd(crate::wire::UnixFd),
     Int64(i64),
     Uint64(u64),
     String(String),
@@ -37,7 +36,7 @@ pub enum Base<'a> {
     Uint16Ref(&'a u16),
     Int32Ref(&'a i32),
     Uint32Ref(&'a u32),
-    UnixFdRef(&'a RawFd),
+    UnixFdRef(&'a crate::wire::UnixFd),
     Int64Ref(&'a i64),
     Uint64Ref(&'a u64),
     StringRef(&'a str),

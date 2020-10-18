@@ -47,6 +47,16 @@ impl PartialEq<UnixFd> for UnixFd {
     }
 }
 
+// These two impls are just there so that params::Base can derive Eq and Hash so they can be used as Keys
+// in dicts. This does not really make sense for unixfds (why would you use them as keys...) but the 
+// contracts for Eq and Hash should be fulfilled by these impls.
+impl Eq for UnixFd {}
+impl std::hash::Hash for UnixFd {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_i32(self.get_raw_fd().unwrap_or(0));
+    }
+}
+
 impl Signature for UnixFd {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::UnixFd)
@@ -57,22 +67,7 @@ impl Signature for UnixFd {
 }
 impl Marshal for UnixFd {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        // TODO Maybe a dup() is the correct thing to do here. currently this allows to take the fd
-        // out of the UnixFd somewhere else before the message has been sent, which is bad
-        if let Some(fd) = self.get_raw_fd() {
-            let new_fd = nix::unistd::dup(fd)
-                .map_err(|e| crate::Error::Marshal(crate::wire::marshal::Error::DupUnixFd(e)))?;
-            ctx.fds.push(UnixFd::new(new_fd));
-
-            let idx = ctx.fds.len() - 1;
-            ctx.align_to(Self::alignment());
-            crate::wire::util::write_u32(idx as u32, ctx.byteorder, ctx.buf);
-            Ok(())
-        } else {
-            Err(crate::Error::Marshal(
-                crate::wire::marshal::Error::EmptyUnixFd,
-            ))
-        }
+        crate::wire::util::marshal_unixfd(self, ctx)
     }
 }
 impl Signature for &dyn std::os::unix::io::AsRawFd {

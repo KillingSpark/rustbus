@@ -563,7 +563,7 @@ impl<'msga, 'msge> Conn {
                 }
                 _ => {
                     // TODO what to do?
-                    println!("Cmsg other than ScmRights: {:?}", cmsg);
+                    eprintln!("Cmsg other than ScmRights: {:?}", cmsg);
                 }
             }
         }

@@ -95,24 +95,7 @@ pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> message
         params::Base::SignatureRef(s) => marshal_signature(s, ctx.buf),
         params::Base::ObjectPath(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf),
         params::Base::ObjectPathRef(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf),
-
-        params::Base::UnixFd(i) => {
-            let fd = *i;
-            let new_fd = nix::unistd::dup(fd)
-                .map_err(|e| crate::Error::Marshal(crate::wire::marshal::Error::DupUnixFd(e)))?;
-            ctx.fds.push(crate::wire::UnixFd::new(new_fd));
-
-            let idx = ctx.fds.len() - 1;
-            marshal_u32(idx as u32, ctx.byteorder, ctx.buf)
-        }
-        params::Base::UnixFdRef(i) => {
-            let fd = **i;
-            let new_fd = nix::unistd::dup(fd)
-                .map_err(|e| crate::Error::Marshal(crate::wire::marshal::Error::DupUnixFd(e)))?;
-            ctx.fds.push(crate::wire::UnixFd::new(new_fd));
-
-            let idx = ctx.fds.len() - 1;
-            marshal_u32(idx as u32, ctx.byteorder, ctx.buf)
-        }
+        params::Base::UnixFd(i) => marshal_unixfd(i, ctx),
+        params::Base::UnixFdRef(i) => marshal_unixfd(i, ctx),
     }
 }

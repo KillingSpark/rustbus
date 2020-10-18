@@ -31,6 +31,26 @@ pub fn write_u64(val: u64, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     }
 }
 
+pub fn marshal_unixfd(
+    i: &crate::wire::UnixFd,
+    ctx: &mut crate::wire::marshal::MarshalContext,
+) -> crate::params::message::Result<()> {
+    if let Some(fd) = i.get_raw_fd() {
+        let new_fd = nix::unistd::dup(fd)
+            .map_err(|e| crate::Error::Marshal(crate::wire::marshal::Error::DupUnixFd(e)))?;
+        ctx.fds.push(crate::wire::UnixFd::new(new_fd));
+
+        let idx = ctx.fds.len() - 1;
+        ctx.align_to(<crate::wire::UnixFd as crate::Signature>::alignment());
+        crate::wire::util::write_u32(idx as u32, ctx.byteorder, ctx.buf);
+        Ok(())
+    } else {
+        Err(crate::Error::Marshal(
+            crate::wire::marshal::Error::EmptyUnixFd,
+        ))
+    }
+}
+
 pub fn insert_u16(byteorder: ByteOrder, val: u16, buf: &mut [u8]) {
     match byteorder {
         ByteOrder::LittleEndian => {

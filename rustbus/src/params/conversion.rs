@@ -3,7 +3,6 @@
 use super::*;
 use crate::signature;
 use crate::Error;
-use std::os::unix::io::RawFd;
 
 impl<'a, 'e> Param<'a, 'e> {
     pub fn into_container(self) -> Result<Container<'a, 'e>, Param<'a, 'e>> {
@@ -101,7 +100,7 @@ impl<'a, 'e> Param<'a, 'e> {
             _ => None,
         }
     }
-    pub fn as_unix_fd_idx(&'a self) -> Option<&'a RawFd> {
+    pub fn as_unix_fd(&'a self) -> Option<&'a crate::wire::UnixFd> {
         match self {
             Param::Base(Base::UnixFd(b)) => Some(b),
             Param::Base(Base::UnixFdRef(b)) => Some(b),
@@ -255,7 +254,7 @@ impl<'a> Base<'a> {
             _ => None,
         }
     }
-    pub fn as_unix_fd_idx(&'a self) -> Option<&'a RawFd> {
+    pub fn as_unix_fd(&'a self) -> Option<&'a crate::wire::UnixFd> {
         match self {
             Base::UnixFd(b) => Some(b),
             Base::UnixFdRef(b) => Some(b),

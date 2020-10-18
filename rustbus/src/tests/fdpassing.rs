@@ -3,7 +3,6 @@ use crate::message_builder::MessageBuilder;
 use std::io::Read;
 use std::io::Write;
 use std::os::unix::io::FromRawFd;
-use std::os::unix::io::RawFd;
 
 const TEST_STRING: &str = "This will be sent over the fd\n";
 
@@ -31,7 +30,7 @@ fn test_fd_passing() {
 
     let rw = nix::unistd::pipe().unwrap();
     let mut readfile = unsafe { std::fs::File::from_raw_fd(rw.0) };
-    send_fd(&mut con1, rw.1).unwrap();
+    send_fd(&mut con1, crate::wire::UnixFd::new(rw.1)).unwrap();
 
     let sig = loop {
         let signal = con2.wait_signal(client_conn::Timeout::Infinite).unwrap();
@@ -49,8 +48,8 @@ fn test_fd_passing() {
     // unmarshal content into params::Param
     let sig = sig.unmarshall_all().unwrap();
 
-    let fd_from_signal = match sig.params[0] {
-        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => fd as RawFd,
+    let fd_from_signal = match &sig.params[0] {
+        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => fd.get_raw_fd().unwrap(),
         _ => panic!("Did not receive unixfd param"),
     };
 
@@ -65,7 +64,10 @@ fn test_fd_passing() {
     );
 }
 
-fn send_fd(con: &mut crate::client_conn::RpcConn, fd: RawFd) -> Result<(), client_conn::Error> {
+fn send_fd(
+    con: &mut crate::client_conn::RpcConn,
+    fd: crate::wire::UnixFd,
+) -> Result<(), client_conn::Error> {
     let mut sig = MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
@@ -111,7 +113,7 @@ fn test_fd_marshalling() {
 
     sig.body
         .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(
-            test_fd1.get_raw_fd().unwrap(),
+            test_fd1.clone(),
         )))
         .unwrap();
 

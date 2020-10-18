@@ -107,7 +107,6 @@ pub fn validate_marshalled_base(
             Ok(bytes + padding)
         }
         signature::Base::ObjectPath => {
-            // TODO validate
             let offset = offset + padding;
             let (bytes, string) = crate::wire::util::unmarshal_str(byteorder, &buf[offset..])
                 .map_err(|err| (offset, err))?;
@@ -115,7 +114,6 @@ pub fn validate_marshalled_base(
             Ok(bytes + padding)
         }
         signature::Base::Signature => {
-            // TODO validate
             let (bytes, string) = crate::wire::util::unmarshal_signature(&buf[offset..])
                 .map_err(|err| (offset + padding, err))?;
             crate::params::validate_signature(string).map_err(|e| (offset, e.into()))?;
