@@ -154,7 +154,6 @@ pub fn unmarshal_body<'a, 'e>(
         fds,
     };
     for param_sig in sigs {
-        println!("{:?}", param_sig);
         let (bytes, new_param) = unmarshal_with_sig(&param_sig, &mut ctx)?;
         params.push(new_param);
         body_bytes_used += bytes;
