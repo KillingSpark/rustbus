@@ -1,5 +1,6 @@
 pub mod ll_conn;
 pub mod rpc_conn;
+pub mod dispatch_conn;
 
 use crate::wire::unmarshal;
 use std::path::PathBuf;
