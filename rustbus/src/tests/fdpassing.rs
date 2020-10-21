@@ -1,4 +1,4 @@
-use crate::client_conn;
+use crate::connection;
 use crate::message_builder::MessageBuilder;
 use std::io::Read;
 use std::io::Write;
@@ -8,21 +8,23 @@ const TEST_STRING: &str = "This will be sent over the fd\n";
 
 #[test]
 fn test_fd_passing() {
-    let mut con1 = client_conn::RpcConn::system_conn(client_conn::Timeout::Infinite).unwrap();
-    let mut con2 = client_conn::RpcConn::system_conn(client_conn::Timeout::Infinite).unwrap();
+    let mut con1 =
+        connection::rpc_conn::RpcConn::system_conn(connection::Timeout::Infinite).unwrap();
+    let mut con2 =
+        connection::rpc_conn::RpcConn::system_conn(connection::Timeout::Infinite).unwrap();
     con1.send_message(
         &mut crate::standard_messages::hello(),
-        client_conn::Timeout::Infinite,
+        connection::Timeout::Infinite,
     )
     .unwrap();
     con2.send_message(
         &mut crate::standard_messages::hello(),
-        client_conn::Timeout::Infinite,
+        connection::Timeout::Infinite,
     )
     .unwrap();
     con2.send_message(
         &mut crate::standard_messages::add_match("type='signal'".into()),
-        client_conn::Timeout::Infinite,
+        connection::Timeout::Infinite,
     )
     .unwrap();
 
@@ -33,7 +35,7 @@ fn test_fd_passing() {
     send_fd(&mut con1, crate::wire::UnixFd::new(rw.1)).unwrap();
 
     let sig = loop {
-        let signal = con2.wait_signal(client_conn::Timeout::Infinite).unwrap();
+        let signal = con2.wait_signal(connection::Timeout::Infinite).unwrap();
         if signal
             .dynheader
             .interface
@@ -65,9 +67,9 @@ fn test_fd_passing() {
 }
 
 fn send_fd(
-    con: &mut crate::client_conn::RpcConn,
+    con: &mut crate::connection::rpc_conn::RpcConn,
     fd: crate::wire::UnixFd,
-) -> Result<(), client_conn::Error> {
+) -> Result<(), connection::Error> {
     let mut sig = MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
@@ -82,7 +84,7 @@ fn send_fd(
         .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(fd)))
         .unwrap();
 
-    con.send_message(&mut sig, client_conn::Timeout::Infinite)?;
+    con.send_message(&mut sig, connection::Timeout::Infinite)?;
 
     let mut sig = MessageBuilder::new()
         .signal(
@@ -91,7 +93,7 @@ fn send_fd(
             "/io/killing/spark".into(),
         )
         .build();
-    con.send_message(&mut sig, client_conn::Timeout::Infinite)?;
+    con.send_message(&mut sig, connection::Timeout::Infinite)?;
 
     Ok(())
 }

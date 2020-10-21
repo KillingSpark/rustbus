@@ -1,5 +1,5 @@
 use rustbus::{
-    client_conn::Timeout, params::message::Message, standard_messages, MessageType, RpcConn,
+    connection::Timeout, params::message::Message, standard_messages, MessageType, RpcConn,
 };
 
 pub enum Commands {
@@ -27,7 +27,7 @@ impl<'a, 'e> Commands {
     }
 }
 
-fn main() -> Result<(), rustbus::client_conn::Error> {
+fn main() -> Result<(), rustbus::connection::Error> {
     // sends the obligatory hello message
     let mut rpc_con = RpcConn::session_conn(Timeout::Infinite)?;
 

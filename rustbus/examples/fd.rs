@@ -1,11 +1,11 @@
 use rustbus::{
-    client_conn::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder, RpcConn,
+    connection::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder, RpcConn,
 };
 
 use std::io::Write;
 use std::os::unix::io::FromRawFd;
 
-fn main() -> Result<(), rustbus::client_conn::Error> {
+fn main() -> Result<(), rustbus::connection::Error> {
     if std::env::args()
         .collect::<Vec<_>>()
         .contains(&"send".to_owned())
@@ -52,9 +52,9 @@ fn main() -> Result<(), rustbus::client_conn::Error> {
     Ok(())
 }
 
-fn send_fd() -> Result<(), rustbus::client_conn::Error> {
-    let session_path = rustbus::client_conn::get_session_bus_path()?;
-    let mut con = rustbus::client_conn::Conn::connect_to_bus(session_path, true)?;
+fn send_fd() -> Result<(), rustbus::connection::Error> {
+    let session_path = rustbus::connection::get_session_bus_path()?;
+    let mut con = rustbus::Conn::connect_to_bus(session_path, true)?;
     con.send_message(&mut rustbus::standard_messages::hello(), Timeout::Infinite)?;
     let mut sig = MessageBuilder::new()
         .signal(

@@ -45,7 +45,7 @@
 //! actually setup. It is also slower than the Marshal trait. So for most applications I would recommend the
 //! newer, faster, and more ergonomic trait based approach.
 pub mod auth;
-pub mod client_conn;
+pub mod connection;
 pub mod message_builder;
 pub mod params;
 pub mod peer;
@@ -59,7 +59,9 @@ pub mod wire;
 pub use message_builder::MessageType;
 
 // needed to create a connection
-pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
+pub use connection::ll_conn::Conn;
+pub use connection::rpc_conn::RpcConn;
+pub use connection::{get_session_bus_path, get_system_bus_path};
 
 // needed to make new messages
 pub use message_builder::{CallBuilder, MessageBuilder, SignalBuilder};

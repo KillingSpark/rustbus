@@ -1,8 +1,8 @@
 use rustbus::{
-    client_conn::Timeout, get_session_bus_path, standard_messages, Conn, MessageType, RpcConn,
+    connection::Timeout, get_session_bus_path, standard_messages, Conn, MessageType, RpcConn,
 };
 
-fn main() -> Result<(), rustbus::client_conn::Error> {
+fn main() -> Result<(), rustbus::connection::Error> {
     let session_path = get_session_bus_path()?;
     let con = Conn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);

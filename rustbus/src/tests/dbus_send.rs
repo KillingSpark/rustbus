@@ -1,12 +1,12 @@
-use crate::client_conn::RpcConn;
-use crate::client_conn::Timeout;
+use crate::connection::rpc_conn::RpcConn;
+use crate::connection::Timeout;
 use crate::standard_messages;
 
 // This tests that messages sent by dbus-send are understood
 
 #[test]
 #[ignore]
-fn test_dbus_send_comp() -> Result<(), crate::client_conn::Error> {
+fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
     let mut rpc_con = RpcConn::session_conn(Timeout::Infinite).unwrap();
 
     rpc_con.set_filter(Box::new(|msg| match msg.typ {

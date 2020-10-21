@@ -1,6 +1,7 @@
+use crate::connection;
+use crate::connection::ll_conn::Conn;
 use crate::message_builder::DynamicHeader;
 use crate::params::message::Message;
-use crate::*;
 
 static MACHINE_ID_FILE_PATH: &str = "/tmp/dbus_machine_uuid";
 
@@ -69,8 +70,8 @@ fn get_machine_id() -> Result<String, std::io::Error> {
 pub fn handle_peer_message(
     msg: &Message,
     con: &mut Conn,
-    timeout: client_conn::Timeout,
-) -> Result<bool, crate::client_conn::Error> {
+    timeout: connection::Timeout,
+) -> Result<bool, crate::connection::Error> {
     if let Some(interface) = &msg.dynheader.interface {
         if interface.eq("org.freedesktop.DBus.Peer") {
             if let Some(member) = &msg.dynheader.member {
