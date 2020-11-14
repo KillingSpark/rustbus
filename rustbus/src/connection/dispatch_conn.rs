@@ -42,40 +42,45 @@ impl ObjectPathPattern {
     }
 
     pub fn matches(&self, query: &str) -> Option<Matches> {
-        let parts = query.split('/');
-        parts
-            .enumerate()
-            .fold(Some(Matches::default()), |matches, (idx, part)| {
-                if idx >= self.0.len() {
-                    // The path is too long. If the last member of the patter is a wildcard
-                    // this is acceptable.
-                    if self.0.last().unwrap().is_accept_all() {
-                        matches
+        let parts = query.split('/').collect::<Vec<_>>();
+        if parts.len() < self.0.len() {
+            None
+        } else {
+            parts
+                .into_iter()
+                .enumerate()
+                .fold(Some(Matches::default()), |matches, (idx, part)| {
+                    if idx >= self.0.len() {
+                        // The path is too long. If the last member of the patter is a wildcard
+                        // this is acceptable.
+                        if self.0.last().unwrap().is_accept_all() {
+                            matches
+                        } else {
+                            None
+                        }
+                    } else if let Some(mut matches) = matches {
+                        match &self.0[idx] {
+                            PathPart::AcceptAll => {
+                                // Nothing to do :)
+                                Some(matches)
+                            }
+                            PathPart::MatchExact(exact) => {
+                                if exact.eq(part) {
+                                    Some(matches)
+                                } else {
+                                    None
+                                }
+                            }
+                            PathPart::MatchAs(name) => {
+                                matches.matches.insert(name.clone(), part.to_owned());
+                                Some(matches)
+                            }
+                        }
                     } else {
                         None
                     }
-                } else if let Some(mut matches) = matches {
-                    match &self.0[idx] {
-                        PathPart::AcceptAll => {
-                            // Nothing to do :)
-                            Some(matches)
-                        }
-                        PathPart::MatchExact(exact) => {
-                            if exact.eq(part) {
-                                Some(matches)
-                            } else {
-                                None
-                            }
-                        }
-                        PathPart::MatchAs(name) => {
-                            matches.matches.insert(name.clone(), part.to_owned());
-                            Some(matches)
-                        }
-                    }
-                } else {
-                    None
-                }
-            })
+                })
+        }
     }
 }
 
@@ -94,7 +99,7 @@ impl<'a, UserData, UserError: std::fmt::Debug> PathMatcher<'a, UserData, UserErr
     /// used while matching object paths to handlers.
     ///
     /// E.g. `/io.killingspark/API/v1/ManagedObjects/:id/SetName`
-    /// will match all of the following (and provide the handler with "id" in the matches):
+    /// will match all of the following (and provide the handler with ":id" in the matches):
     ///
     /// 1. /io.killingspark/API/v1/ManagedObjects/1234/SetName
     /// 1. /io.killingspark/API/v1/ManagedObjects/CoolID/SetName
@@ -218,4 +223,36 @@ impl<'a, UserData, UserError: std::fmt::Debug> DispatchConn<'a, UserData, UserEr
             }
         }
     }
+}
+
+#[test]
+fn test_path_matcher() {
+    let pattern = ObjectPathPattern::new("/ABCD/:1/:2/:3/DEF");
+
+    // happy path, just to be sure...
+    let matches = pattern.matches("/ABCD/A/B/C/DEF").unwrap();
+    assert_eq!(matches.matches.get(":1").unwrap(), "A");
+    assert_eq!(matches.matches.get(":2").unwrap(), "B");
+    assert_eq!(matches.matches.get(":3").unwrap(), "C");
+
+    // These are too short
+    assert!(pattern.matches("ABCD/A").is_none());
+    assert!(pattern.matches("ABCD/A/B").is_none());
+    assert!(pattern.matches("ABCD/A/B/C").is_none());
+
+    // This is too long
+    assert!(pattern.matches("ABCD/A/B/C/DEF/GHI").is_none());
+    
+    // Test some wildcard stuff
+    let pattern = ObjectPathPattern::new("/ABCD/:1/:2/:3/DEF/*");
+    // One at the end is fine
+    assert!(pattern.matches("/ABCD/A/B/C/DEF/GHI").is_some());
+    // Multiple at the end are fine
+    assert!(pattern.matches("/ABCD/A/B/C/DEF/GHI/JKLMN").is_some());
+    
+    let pattern = ObjectPathPattern::new("/ABCD/*/:1/:2/:3/DEF");
+    // One in the middle is fine
+    assert!(pattern.matches("/ABCD/WILD/A/B/C/DEF").is_some());
+    // Multiple in the middle are not fine
+    assert!(pattern.matches("/ABCD/TOO/WILD/A/B/C/DEF").is_none());
 }
