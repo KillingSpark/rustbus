@@ -12,18 +12,20 @@ fn default_handler(
     c: &mut &mut Counter,
     _matches: Matches,
     _msg: &MarshalledMessage,
+    _conn: &mut Conn,
 ) -> HandleResult<()> {
     c.count += 1;
     println!(
         "Woohoo the default handler got called (the {}'ths time)",
         c.count
     );
-    Ok(())
+    Ok(None)
 }
 fn name_handler(
     c: &mut &mut Counter,
     matches: Matches,
     _msg: &MarshalledMessage,
+    _conn: &mut Conn,
 ) -> HandleResult<()> {
     c.count += 1;
     println!(
@@ -31,7 +33,7 @@ fn name_handler(
         c.count,
         matches.matches.get(":name").unwrap()
     );
-    Ok(())
+    Ok(None)
 }
 
 fn main() {
@@ -57,16 +59,19 @@ fn main() {
         let dh: &mut HandleFn<&mut Counter, ()> = &mut default_handler;
         let nh: &mut HandleFn<&mut Counter, ()> = &mut name_handler;
         let ch: &mut HandleFn<&mut Counter, ()> =
-            &mut |c: &mut &mut Counter, _matches: Matches, _msg: &MarshalledMessage| {
+            &mut |c: &mut &mut Counter,
+                  _matches: Matches,
+                  _msg: &MarshalledMessage,
+                  _conn: &mut Conn| {
                 c.count += 1;
                 println!("Woohoo the closure got called (the {}'ths time)", c.count,);
-                Ok(())
+                Ok(None)
             };
         let mut dpcon = DispatchConn::new(con, &mut counter, dh);
         dpcon.add_handler("/A/B/:name", nh);
         dpcon.add_handler("/A/C/D", ch);
 
-        dpcon.run();
+        dpcon.run().unwrap();
     } else {
         println!("Sending stuff!");
         let mut msg1 = rustbus::message_builder::MessageBuilder::new()
