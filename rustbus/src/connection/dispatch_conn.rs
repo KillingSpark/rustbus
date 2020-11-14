@@ -242,14 +242,14 @@ fn test_path_matcher() {
 
     // This is too long
     assert!(pattern.matches("ABCD/A/B/C/DEF/GHI").is_none());
-    
+
     // Test some wildcard stuff
     let pattern = ObjectPathPattern::new("/ABCD/:1/:2/:3/DEF/*");
     // One at the end is fine
     assert!(pattern.matches("/ABCD/A/B/C/DEF/GHI").is_some());
     // Multiple at the end are fine
     assert!(pattern.matches("/ABCD/A/B/C/DEF/GHI/JKLMN").is_some());
-    
+
     let pattern = ObjectPathPattern::new("/ABCD/*/:1/:2/:3/DEF");
     // One in the middle is fine
     assert!(pattern.matches("/ABCD/WILD/A/B/C/DEF").is_some());
