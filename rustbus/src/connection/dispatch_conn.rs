@@ -170,11 +170,14 @@ impl<'a, UserData, UserError: std::fmt::Debug> DispatchConn<'a, UserData, UserEr
 
     /// Endless loop that takes messages and dispatches them to the setup
     /// handlers. If any errors occur they will be returned. Depending on the error you may
-    /// choose to just call this function again.
+    /// choose to just call this function again. Note that you are expected to send a meaningful
+    /// error message. The offending message will be returned alongside the error.
     ///
     /// This also sends reponses back to the callers, returned by the handlers. If the handlers did
     /// return None, it sends a default response with no content.
-    pub fn run(&mut self) -> HandleResult<UserError> {
+    pub fn run(
+        &mut self,
+    ) -> std::result::Result<(), (Option<MarshalledMessage>, HandleError<UserError>)> {
         loop {
             match self.conn.get_next_message(Timeout::Infinite) {
                 Ok(msg) => {
@@ -203,15 +206,15 @@ impl<'a, UserData, UserError: std::fmt::Debug> DispatchConn<'a, UserData, UserEr
                         Ok(Some(mut response)) => self
                             .conn
                             .send_message(&mut response, Timeout::Infinite)
-                            .map_err(|e| e.into())?,
+                            .map_err(|e| (Some(msg), e.into()))?,
                         Ok(None) => self
                             .conn
                             .send_message(&mut msg.dynheader.make_response(), Timeout::Infinite)
-                            .map_err(|e| e.into())?,
-                        Err(error) => return Err(error),
+                            .map_err(|e| (Some(msg), e.into()))?,
+                        Err(error) => return Err((Some(msg), error)),
                     };
                 }
-                Err(error) => return Err(HandleError::Connection(error)),
+                Err(error) => return Err((None, HandleError::Connection(error))),
             }
         }
     }
