@@ -24,7 +24,7 @@ pub struct RpcConn {
 /// ```rust,no_run
 /// use rustbus::{get_session_bus_path, standard_messages, Conn, params::Container, params::DictMap, MessageBuilder, MessageType, RpcConn};
 ///
-/// fn main() -> Result<(), rustbus::client_conn::Error> {
+/// fn main() -> Result<(), rustbus::connection::Error> {
 ///     let session_path = get_session_bus_path()?;
 ///     let con = Conn::connect_to_bus(session_path, true)?;
 ///     let mut rpc_con = RpcConn::new(con);
