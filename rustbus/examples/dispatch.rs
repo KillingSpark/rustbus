@@ -1,9 +1,12 @@
 use rustbus::connection::dispatch_conn::DispatchConn;
-use rustbus::connection::dispatch_conn::HandleFn;
+use rustbus::connection::dispatch_conn::HandleEnvironment;
 use rustbus::connection::dispatch_conn::HandleResult;
 use rustbus::connection::dispatch_conn::Matches;
 use rustbus::connection::ll_conn::Conn;
 use rustbus::message_builder::MarshalledMessage;
+
+// just to make the function definitions a bit shorter
+type MyHandleEnv<'a, 'b> = HandleEnvironment<'a, &'b mut Counter, ()>;
 
 struct Counter {
     count: u64,
@@ -11,13 +14,13 @@ struct Counter {
 fn default_handler(
     c: &mut &mut Counter,
     _matches: Matches,
-    _msg: &MarshalledMessage,
-    _conn: &mut Conn,
+    msg: &MarshalledMessage,
+    _env: &mut MyHandleEnv,
 ) -> HandleResult<()> {
     c.count += 1;
     println!(
-        "Woohoo the default handler got called (the {}'ths time)",
-        c.count
+        "Woohoo the default handler got called for \"{:?}\" (the {}'ths time)",
+        msg.dynheader.object, c.count
     );
     Ok(None)
 }
@@ -25,7 +28,7 @@ fn name_handler(
     c: &mut &mut Counter,
     matches: Matches,
     _msg: &MarshalledMessage,
-    _conn: &mut Conn,
+    env: &mut MyHandleEnv,
 ) -> HandleResult<()> {
     c.count += 1;
     println!(
@@ -33,6 +36,30 @@ fn name_handler(
         c.count,
         matches.matches.get(":name").unwrap()
     );
+
+    let mut name_counter = Counter { count: 0 };
+    let name = matches.matches.get(":name").unwrap().to_owned();
+    let ch = Box::new(
+        move |c: &mut &mut Counter,
+              _matches: Matches,
+              _msg: &MarshalledMessage,
+              _env: &mut MyHandleEnv| {
+            name_counter.count += 1;
+            c.count += 1;
+
+            println!(
+                "Woohoo the closure for {} got called (the {}'ths time)",
+                name, name_counter.count
+            );
+            Ok(None)
+        },
+    );
+
+    let new_path = format!("/{}", matches.matches.get(":name").unwrap());
+    println!("Add new path: \"{}\"", new_path);
+
+    env.new_dispatches.insert(&new_path, ch);
+
     Ok(None)
 }
 
@@ -56,17 +83,18 @@ fn main() {
         .unwrap();
 
         let mut counter = Counter { count: 0 };
-        let dh: &mut HandleFn<&mut Counter, ()> = &mut default_handler;
-        let nh: &mut HandleFn<&mut Counter, ()> = &mut name_handler;
-        let ch: &mut HandleFn<&mut Counter, ()> =
-            &mut |c: &mut &mut Counter,
-                  _matches: Matches,
-                  _msg: &MarshalledMessage,
-                  _conn: &mut Conn| {
+        let dh = Box::new(default_handler);
+        let nh = Box::new(name_handler);
+        let ch = Box::new(
+            |c: &mut &mut Counter,
+             _matches: Matches,
+             _msg: &MarshalledMessage,
+             _env: &mut MyHandleEnv| {
                 c.count += 1;
                 println!("Woohoo the closure got called (the {}'ths time)", c.count,);
                 Ok(None)
-            };
+            },
+        );
         let mut dpcon = DispatchConn::new(con, &mut counter, dh);
         dpcon.add_handler("/A/B/:name", nh);
         dpcon.add_handler("/A/C/D", ch);
@@ -74,6 +102,8 @@ fn main() {
         dpcon.run().unwrap();
     } else {
         println!("Sending stuff!");
+
+        // default handler
         let mut msg1 = rustbus::message_builder::MessageBuilder::new()
             .call("ABCD".into())
             .at("killing.spark.io".into())
@@ -82,6 +112,7 @@ fn main() {
         con.send_message(&mut msg1, rustbus::connection::Timeout::Infinite)
             .unwrap();
 
+        // pick up the name
         let mut msg2 = rustbus::message_builder::MessageBuilder::new()
             .call("ABCD".into())
             .at("killing.spark.io".into())
@@ -89,12 +120,18 @@ fn main() {
             .build();
         con.send_message(&mut msg2, rustbus::connection::Timeout::Infinite)
             .unwrap();
-        let mut msg2 = rustbus::message_builder::MessageBuilder::new()
+
+        // call new handler for that name
+        let mut msg3 = rustbus::message_builder::MessageBuilder::new()
             .call("ABCD".into())
             .at("killing.spark.io".into())
-            .on("/A/C/D".into())
+            .on("/moritz".into())
             .build();
-        con.send_message(&mut msg2, rustbus::connection::Timeout::Infinite)
+        con.send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+            .unwrap();
+        con.send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+            .unwrap();
+        con.send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
             .unwrap();
     }
 }

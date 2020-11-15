@@ -84,11 +84,11 @@ impl ObjectPathPattern {
     }
 }
 
-struct PathMatcher<'a, UserData, UserError: std::fmt::Debug> {
-    pathes: HashMap<ObjectPathPattern, &'a mut HandleFn<UserData, UserError>>,
+pub struct PathMatcher<UserData, UserError: std::fmt::Debug> {
+    pathes: HashMap<ObjectPathPattern, Box<HandleFn<UserData, UserError>>>,
 }
 
-impl<'a, UserData, UserError: std::fmt::Debug> PathMatcher<'a, UserData, UserError> {
+impl<UserData, UserError: std::fmt::Debug> PathMatcher<UserData, UserError> {
     pub fn new() -> Self {
         Self {
             pathes: HashMap::new(),
@@ -104,7 +104,7 @@ impl<'a, UserData, UserError: std::fmt::Debug> PathMatcher<'a, UserData, UserErr
     /// 1. /io.killingspark/API/v1/ManagedObjects/1234/SetName
     /// 1. /io.killingspark/API/v1/ManagedObjects/CoolID/SetName
     /// 1. /io.killingspark/API/v1/ManagedObjects/1D5_4R3_FUN/SetName
-    pub fn insert(&mut self, path_pattern: &str, handler: &'a mut HandleFn<UserData, UserError>) {
+    pub fn insert(&mut self, path_pattern: &str, handler: Box<HandleFn<UserData, UserError>>) {
         self.pathes
             .insert(ObjectPathPattern::new(path_pattern), handler);
     }
@@ -115,7 +115,7 @@ impl<'a, UserData, UserError: std::fmt::Debug> PathMatcher<'a, UserData, UserErr
     ) -> Option<(Matches, &mut HandleFn<UserData, UserError>)> {
         for (path, fun) in &mut self.pathes {
             if let Some(matches) = path.matches(query) {
-                return Some((matches, *fun));
+                return Some((matches, fun.as_mut()));
             }
         }
         None
@@ -139,27 +139,31 @@ impl<UserError: std::fmt::Debug> Into<HandleError<UserError>> for crate::connect
     }
 }
 
+pub struct HandleEnvironment<'a, UserData, UserError: std::fmt::Debug> {
+    pub conn: &'a mut Conn,
+    pub new_dispatches: PathMatcher<UserData, UserError>,
+}
 pub type HandleResult<UserError> =
     std::result::Result<Option<MarshalledMessage>, HandleError<UserError>>;
 pub type HandleFn<UserData, UserError> = dyn FnMut(
     &mut UserData,
     Matches,
     &MarshalledMessage,
-    &mut crate::connection::ll_conn::Conn,
+    &mut HandleEnvironment<UserData, UserError>,
 ) -> HandleResult<UserError>;
 
-pub struct DispatchConn<'a, HandlerCtx, HandlerError: std::fmt::Debug> {
+pub struct DispatchConn<HandlerCtx, HandlerError: std::fmt::Debug> {
     conn: Conn,
-    objects: PathMatcher<'a, HandlerCtx, HandlerError>,
-    default_handler: &'a mut HandleFn<HandlerCtx, HandlerError>,
+    objects: PathMatcher<HandlerCtx, HandlerError>,
+    default_handler: Box<HandleFn<HandlerCtx, HandlerError>>,
     ctx: HandlerCtx,
 }
 
-impl<'a, UserData, UserError: std::fmt::Debug> DispatchConn<'a, UserData, UserError> {
+impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
     pub fn new(
         conn: Conn,
         ctx: UserData,
-        default_handler: &'a mut HandleFn<UserData, UserError>,
+        default_handler: Box<HandleFn<UserData, UserError>>,
     ) -> Self {
         Self {
             conn,
@@ -169,7 +173,7 @@ impl<'a, UserData, UserError: std::fmt::Debug> DispatchConn<'a, UserData, UserEr
         }
     }
 
-    pub fn add_handler(&mut self, path: &str, handler: &'a mut HandleFn<UserData, UserError>) {
+    pub fn add_handler(&mut self, path: &str, handler: Box<HandleFn<UserData, UserError>>) {
         self.objects.insert(path, handler);
     }
 
@@ -186,16 +190,20 @@ impl<'a, UserData, UserError: std::fmt::Debug> DispatchConn<'a, UserData, UserEr
         loop {
             match self.conn.get_next_message(Timeout::Infinite) {
                 Ok(msg) => {
+                    let mut env = HandleEnvironment {
+                        conn: &mut self.conn,
+                        new_dispatches: PathMatcher::new(),
+                    };
                     let result = {
                         if let Some(obj) = &msg.dynheader.object {
                             if let Some((matches, handler)) = self.objects.get_match(obj) {
-                                handler(&mut self.ctx, matches, &msg, &mut self.conn)
+                                handler(&mut self.ctx, matches, &msg, &mut env)
                             } else {
                                 (self.default_handler)(
                                     &mut self.ctx,
                                     Matches::default(),
                                     &msg,
-                                    &mut self.conn,
+                                    &mut env,
                                 )
                             }
                         } else {
@@ -203,15 +211,24 @@ impl<'a, UserData, UserError: std::fmt::Debug> DispatchConn<'a, UserData, UserEr
                                 &mut self.ctx,
                                 Matches::default(),
                                 &msg,
-                                &mut self.conn,
+                                &mut env,
                             )
                         }
                     };
+
+                    if result.is_ok() {
+                        // apply the new pathes established in the handler
+                        for (k, v) in env.new_dispatches.pathes.into_iter() {
+                            self.objects.pathes.insert(k, v);
+                        }
+                    }
+
                     match result {
                         Ok(Some(mut response)) => self
                             .conn
                             .send_message(&mut response, Timeout::Infinite)
                             .map_err(|e| (Some(msg), e.into()))?,
+
                         Ok(None) => self
                             .conn
                             .send_message(&mut msg.dynheader.make_response(), Timeout::Infinite)
