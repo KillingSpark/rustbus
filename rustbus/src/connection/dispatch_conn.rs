@@ -13,10 +13,7 @@ enum PathPart {
 
 impl PathPart {
     fn is_accept_all(&self) -> bool {
-        match self {
-            PathPart::AcceptAll => true,
-            _ => false,
-        }
+        matches!(self, PathPart::AcceptAll)
     }
 }
 
@@ -86,6 +83,12 @@ impl ObjectPathPattern {
 
 pub struct PathMatcher<UserData, UserError: std::fmt::Debug> {
     pathes: HashMap<ObjectPathPattern, Box<HandleFn<UserData, UserError>>>,
+}
+
+impl<UserData, UserError: std::fmt::Debug> Default for PathMatcher<UserData, UserError> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<UserData, UserError: std::fmt::Debug> PathMatcher<UserData, UserError> {
