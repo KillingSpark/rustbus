@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "example_keywallet",
     "rustbus",
     "rustbus_derive",
     "rustbus_derive_test",
