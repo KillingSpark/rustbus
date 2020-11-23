@@ -223,6 +223,12 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
     }
 }
 
+impl<E: Marshal> Marshal for Vec<E> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+        self.as_slice().marshal(ctx)
+    }
+}
+
 impl<E: Signature> Signature for [E] {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
