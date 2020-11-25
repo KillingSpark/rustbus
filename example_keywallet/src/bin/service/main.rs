@@ -71,7 +71,9 @@ fn service_handler(
                     ctx.service.open_session(alg).unwrap();
                     let mut resp = msg.dynheader.make_response();
                     resp.body.push_variant(()).unwrap();
-                    resp.body.push_param(ObjectPath::new("/A/B/C").unwrap()).unwrap();
+                    resp.body
+                        .push_param(ObjectPath::new("/A/B/C").unwrap())
+                        .unwrap();
                     Ok(Some(resp))
                 }
                 "CreateCollection" => {
@@ -100,7 +102,8 @@ fn service_handler(
                         .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
                         .unwrap();
                     resp.body
-                        .push_param(&[ObjectPath::new("/A/B/D").unwrap()][..]).unwrap();
+                        .push_param(&[ObjectPath::new("/A/B/D").unwrap()][..])
+                        .unwrap();
                     Ok(Some(resp))
                 }
                 "Unlock" => {
