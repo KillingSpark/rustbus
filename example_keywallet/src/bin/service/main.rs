@@ -1,6 +1,8 @@
 //! This servers as a testing ground for rustbus. It implements the secret-service API from freedesktop.org (https://specifications.freedesktop.org/secret-service/latest/).
 //! Note though that this is not meant as a real secret-service you should use, it will likely be very insecure. This is just to have a realworld
 //! usecase to validate the existing codebase and new ideas
+use std::collections::HashMap;
+
 use rustbus::connection::dispatch_conn::DispatchConn;
 use rustbus::connection::dispatch_conn::HandleEnvironment;
 use rustbus::connection::dispatch_conn::HandleResult;
@@ -8,7 +10,10 @@ use rustbus::connection::dispatch_conn::Matches;
 use rustbus::connection::get_session_bus_path;
 use rustbus::connection::ll_conn::Conn;
 use rustbus::message_builder::MarshalledMessage;
+use rustbus::wire::marshal::traits::ObjectPath;
 use rustbus::wire::unmarshal::traits::Variant;
+
+use example_keywallet::messages;
 
 mod service;
 struct Context {
@@ -56,24 +61,124 @@ fn service_handler(
                 .as_str()
             {
                 "OpenSession" => {
-                    let (alg, _input) = msg.body.parser().get2::<&str, Variant>().expect("Types did not match!");
+                    let (alg, _input) = msg
+                        .body
+                        .parser()
+                        .get2::<&str, Variant>()
+                        .expect("Types did not match!");
                     println!("Open Session with alg: {}", alg);
+
                     ctx.service.open_session(alg).unwrap();
+                    let mut resp = msg.dynheader.make_response();
+                    resp.body.push_variant(()).unwrap();
+                    resp.body.push_param(ObjectPath::new("/A/B/C").unwrap()).unwrap();
+                    Ok(Some(resp))
                 }
-                "CreateCollection" => {}
-                "SearchItems" => {}
-                "Unlock" => {}
-                "Lock" => {}
-                "GetSecrets" => {}
-                "ReadAlias" => {}
-                "SerAlias" => {}
-                _other => {}
+                "CreateCollection" => {
+                    let (props, alias): (HashMap<&str, Variant>, &str) =
+                        msg.body.parser().get2().expect("Types did not match!");
+                    println!(
+                        "Create collection with props: {:?} and alias: {}",
+                        props, alias
+                    );
+
+                    ctx.service.create_collection("ABCD").unwrap();
+                    let mut resp = msg.dynheader.make_response();
+                    resp.body
+                        .push_param(ObjectPath::new("/A/B/C").unwrap())
+                        .unwrap();
+                    resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
+                    Ok(Some(resp))
+                }
+                "SearchItems" => {
+                    let attrs: HashMap<&str, &str> =
+                        msg.body.parser().get().expect("Types did not match!");
+                    println!("Search items with attrs: {:?}", attrs);
+
+                    let mut resp = msg.dynheader.make_response();
+                    resp.body
+                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
+                        .unwrap();
+                    resp.body
+                        .push_param(&[ObjectPath::new("/A/B/D").unwrap()][..]).unwrap();
+                    Ok(Some(resp))
+                }
+                "Unlock" => {
+                    let objects: Vec<ObjectPath> =
+                        msg.body.parser().get().expect("Types did not match!");
+                    println!("Unlock objects: {:?}", objects);
+
+                    let mut resp = msg.dynheader.make_response();
+                    resp.body
+                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
+                        .unwrap();
+                    resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
+                    Ok(Some(resp))
+                }
+                "Lock" => {
+                    let objects: Vec<ObjectPath> =
+                        msg.body.parser().get().expect("Types did not match!");
+                    println!("Lock objects: {:?}", objects);
+
+                    let mut resp = msg.dynheader.make_response();
+                    resp.body
+                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
+                        .unwrap();
+                    resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
+                    Ok(Some(resp))
+                }
+                "GetSecrets" => {
+                    let (items, session): (Vec<ObjectPath>, ObjectPath) =
+                        msg.body.parser().get2().expect("Types did not match!");
+                    println!("Get secrets: {:?} for session {:?}", items, session);
+
+                    let mut secrets = HashMap::new();
+                    secrets.insert(
+                        ObjectPath::new("/A/B/C").unwrap(),
+                        messages::Secret {
+                            session: session.clone(),
+                            params: vec![],
+                            value: "very secret much info".as_bytes().to_vec(),
+                            content_type: "text/plain".to_owned(),
+                        },
+                    );
+
+                    let mut resp = msg.dynheader.make_response();
+                    resp.body.push_param(secrets).unwrap();
+                    Ok(Some(resp))
+                }
+                "ReadAlias" => {
+                    let alias: &str = msg.body.parser().get().expect("Types did not match!");
+                    println!("Read alias: {}", alias);
+
+                    let mut resp = msg.dynheader.make_response();
+                    resp.body
+                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
+                        .unwrap();
+                    Ok(Some(resp))
+                }
+                "SetAlias" => {
+                    let (alias, object): (&str, ObjectPath) =
+                        msg.body.parser().get2().expect("Types did not match!");
+                    println!("Set alias for object {:?} {}", object, alias);
+
+                    Ok(None)
+                }
+                other => {
+                    println!("Unkown method called: {}", other);
+                    Ok(Some(rustbus::standard_messages::unknown_method(
+                        &msg.dynheader,
+                    )))
+                }
             }
         }
-        _other => {}
+        other => {
+            println!("Unkown interface called: {}", other);
+            Ok(Some(rustbus::standard_messages::unknown_method(
+                &msg.dynheader,
+            )))
+        }
     }
-
-    Ok(None)
 }
 fn collection_handler(
     _ctx: &mut &mut Context,

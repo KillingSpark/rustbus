@@ -620,6 +620,7 @@ impl Marshal for &str {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct ObjectPath<'a>(&'a str);
 impl<'a> ObjectPath<'a> {
     pub fn new(path: &'a str) -> Result<Self, crate::params::validation::Error> {
