@@ -150,16 +150,29 @@ pub fn handle_service_interface(
                 msg.body.parser().get2().expect("Types did not match!");
             println!("Get secrets: {:?} for session {:?}", items, session);
 
-            let mut secrets = HashMap::new();
-            secrets.insert(
-                ObjectPath::new("/A/B/C").unwrap(),
-                messages::Secret {
-                    session: session.clone(),
-                    params: vec![],
-                    value: "very secret much info".as_bytes().to_vec(),
-                    content_type: "text/plain".to_owned(),
-                },
-            );
+            let mut secrets: HashMap<ObjectPath, messages::Secret> = HashMap::new();
+            for item in &items {
+                if let Some(object) = super::get_object_type_and_id(item) {
+                    match object {
+                        super::ObjectType::Collection(_) => {
+                            println!("Tried to get a secret from a collection object O_o")
+                        }
+                        super::ObjectType::Item { col, item: item_id } => {
+                            let secret = ctx.service.get_secret(col, item_id).unwrap();
+                            secrets.insert(
+                                item.clone(),
+                                messages::Secret {
+                                    session: session.clone(),
+                                    params: secret.params.clone(),
+                                    value: secret.value.clone(),
+                                    content_type: secret.content_type.clone(),
+                                },
+                            );
+                        }
+                        super::ObjectType::Session(_) => println!("Tried to unlock session O_o"),
+                    }
+                }
+            }
 
             let mut resp = msg.dynheader.make_response();
             resp.body.push_param(secrets).unwrap();

@@ -86,7 +86,7 @@ pub enum UnlockError {
 }
 
 impl SecretService {
-    fn next_id(&mut self) -> String {
+    pub fn next_id(&mut self) -> String {
         let id = self.id_gen.to_string();
         self.id_gen += 1;
         id
@@ -124,6 +124,14 @@ impl SecretService {
             Ok(())
         } else {
             Err(DeleteCollectionError::NotFound)
+        }
+    }
+    pub fn delete_item(&mut self, col_id: &str, item_id: &str) -> Result<(), DeleteItemError> {
+        let col = self.collections.iter_mut().find(|s| s.id.eq(col_id));
+        if let Some(col) = col {
+            col.delete_item(item_id)
+        } else {
+            Err(DeleteItemError::NotFound)
         }
     }
     pub fn unlock_collection(&mut self, id: &str) -> Result<(), UnlockError> {
@@ -197,22 +205,31 @@ impl SecretService {
             Err(CloseSessionError::NotFound)
         }
     }
-    pub fn get_secret(&self, id: &str) -> Result<Secret, GetSecretError> {
-        let item = self
+    pub fn get_secret(&self, col_id: &str, item_id: &str) -> Result<Secret, GetSecretError> {
+        let col = self
             .collections
             .iter()
-            .find_map(|s| s.items.iter().find(|i| i.id.eq(id)));
+            .find(|col| col.id.eq(col_id))
+            .unwrap();
+        let item = col.items.iter().find(|i| i.id.eq(item_id));
         if let Some(item) = item {
             Ok(item.secret.clone())
         } else {
             Err(GetSecretError::NotFound)
         }
     }
-    pub fn set_secret(&mut self, id: &str, secret: Secret) -> Result<(), SetSecretError> {
-        let item = self
+    pub fn set_secret(
+        &mut self,
+        col_id: &str,
+        item_id: &str,
+        secret: Secret,
+    ) -> Result<(), SetSecretError> {
+        let col = self
             .collections
             .iter_mut()
-            .find_map(|s| s.items.iter_mut().find(|i| i.id.eq(id)));
+            .find(|col| col.id.eq(col_id))
+            .unwrap();
+        let item = col.items.iter_mut().find(|i| i.id.eq(item_id));
         if let Some(item) = item {
             item.secret = secret;
             Ok(())
@@ -220,41 +237,76 @@ impl SecretService {
             Err(SetSecretError::NotFound)
         }
     }
-    pub fn get_secrets(&self, ids: &[&str]) -> Result<Vec<(String, Secret)>, GetSecretError> {
-        let items: Result<Vec<_>, _> = ids
-            .iter()
-            .map(|id| self.get_secret(id).map(|secret| (id.to_string(), secret)))
-            .collect();
-        let items = items?;
-        Ok(items)
-    }
+
     pub fn search_items<'a>(&'a self, attrs: &'a [LookupAttribute]) -> Vec<(&'a str, &'a Item)> {
         self.collections
             .iter()
             .map(|coll| {
-                coll.items
-                    .iter()
-                    .filter(|item| attrs.iter().any(|attr| item.attrs.contains(attr)))
+                coll.search_items(attrs)
+                    .into_iter()
                     .map(|item| (coll.id.as_str(), item))
                     .collect::<Vec<_>>()
             })
             .flatten()
             .collect()
     }
+    pub fn get_collection(&self, id: &str) -> Option<&Collection> {
+        self.collections.iter().find(|coll| coll.id.eq(id))
+    }
+    pub fn get_collection_mut(&mut self, id: &str) -> Option<&mut Collection> {
+        self.collections.iter_mut().find(|coll| coll.id.eq(id))
+    }
 }
 
 impl Collection {
     pub fn create_item(
         &mut self,
-        secret: &[u8],
+        id: String,
+        secret: &example_keywallet::messages::Secret,
         attrs: &[LookupAttribute],
+        _replace: bool,
     ) -> Result<String, CreateItemError> {
-        Ok("ABCD".into())
+        let item = Item {
+            id: id.clone(),
+            lock_state: LockState::Unlocked,
+            attrs: attrs.to_vec(),
+            secret: Secret {
+                params: secret.params.clone(),
+                value: secret.params.clone(),
+                content_type: secret.content_type.clone(),
+            },
+            label: "Label".to_owned(),
+            created: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+            modified: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+        };
+        self.items.push(item);
+        Ok(id)
     }
     pub fn delete_item(&mut self, id: &str) -> Result<(), DeleteItemError> {
-        Ok(())
+        let idx = self
+            .items
+            .iter()
+            .enumerate()
+            .find(|(_idx, s)| s.id.eq(id))
+            .map(|(idx, _)| idx);
+        if let Some(idx) = idx {
+            self.items.remove(idx);
+            Ok(())
+        } else {
+            Err(DeleteItemError::NotFound)
+        }
     }
-    pub fn search_items(&self, attrs: &[LookupAttribute]) -> Vec<&Item> {
-        vec![]
+
+    pub fn search_items<'a>(&'a self, attrs: &'a [LookupAttribute]) -> Vec<&'a Item> {
+        self.items
+            .iter()
+            .filter(|item| attrs.iter().any(|attr| item.attrs.contains(attr)))
+            .collect()
     }
 }

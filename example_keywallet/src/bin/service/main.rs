@@ -10,6 +10,8 @@ use rustbus::connection::ll_conn::Conn;
 use rustbus::message_builder::MarshalledMessage;
 use rustbus::wire::marshal::traits::ObjectPath;
 
+mod collection_interface;
+mod item_interface;
 mod service;
 mod service_interface;
 pub struct Context {
@@ -87,32 +89,66 @@ fn service_handler(
     }
 }
 fn collection_handler(
-    _ctx: &mut &mut Context,
-    _matches: Matches,
+    ctx: &mut &mut Context,
+    matches: Matches,
     msg: &MarshalledMessage,
-    _env: &mut MyHandleEnv,
+    env: &mut MyHandleEnv,
 ) -> HandleResult<()> {
     println!(
         "Woohoo the collection handler got called for: {:?}",
         msg.dynheader
     );
-    Ok(None)
+
+    match msg
+        .dynheader
+        .interface
+        .as_ref()
+        .expect("NO INTERFACE :(")
+        .as_str()
+    {
+        "org.freedesktop.Secret.Collection" => {
+            collection_interface::handle_collection_interface(ctx, matches, msg, env)
+        }
+        other => {
+            println!("Unkown interface called: {}", other);
+            Ok(Some(rustbus::standard_messages::unknown_method(
+                &msg.dynheader,
+            )))
+        }
+    }
 }
 fn item_handler(
-    _ctx: &mut &mut Context,
-    _matches: Matches,
+    ctx: &mut &mut Context,
+    matches: Matches,
     msg: &MarshalledMessage,
-    _env: &mut MyHandleEnv,
+    env: &mut MyHandleEnv,
 ) -> HandleResult<()> {
     println!(
         "Woohoo the item handler got called for: {:?}",
         msg.dynheader
     );
-    Ok(None)
+
+    match msg
+        .dynheader
+        .interface
+        .as_ref()
+        .expect("NO INTERFACE :(")
+        .as_str()
+    {
+        "org.freedesktop.Secret.Item" => {
+            item_interface::handle_item_interface(ctx, matches, msg, env)
+        }
+        other => {
+            println!("Unkown interface called: {}", other);
+            Ok(Some(rustbus::standard_messages::unknown_method(
+                &msg.dynheader,
+            )))
+        }
+    }
 }
 fn session_handler(
-    _ctx: &mut &mut Context,
-    _matches: Matches,
+    ctx: &mut &mut Context,
+    matches: Matches,
     msg: &MarshalledMessage,
     _env: &mut MyHandleEnv,
 ) -> HandleResult<()> {
@@ -120,7 +156,44 @@ fn session_handler(
         "Woohoo the session handler got called for: {:?}",
         msg.dynheader
     );
-    Ok(None)
+    let ses_id = matches
+        .matches
+        .get(":collection_id")
+        .expect("Called session interface without a match on \":session_id\"");
+    match msg
+        .dynheader
+        .interface
+        .as_ref()
+        .expect("NO INTERFACE :(")
+        .as_str()
+    {
+        "org.freedesktop.Secret.Session" => {
+            match msg
+                .dynheader
+                .member
+                .as_ref()
+                .expect("NO MEMBER :(")
+                .as_str()
+            {
+                "Close" => {
+                    ctx.service.close_session(ses_id).unwrap();
+                    Ok(None)
+                }
+                other => {
+                    println!("Unkown method called: {}", other);
+                    Ok(Some(rustbus::standard_messages::unknown_method(
+                        &msg.dynheader,
+                    )))
+                }
+            }
+        }
+        other => {
+            println!("Unkown interface called: {}", other);
+            Ok(Some(rustbus::standard_messages::unknown_method(
+                &msg.dynheader,
+            )))
+        }
+    }
 }
 
 fn main() {
@@ -138,11 +211,11 @@ fn main() {
     let session_handler = Box::new(session_handler);
     dp_con.add_handler("/org/freedesktop/secrets", service_handler);
     dp_con.add_handler(
-        "/org/freedesktop/secrets/collection/:colllection_id",
+        "/org/freedesktop/secrets/collection/:collection_id",
         collection_handler,
     );
     dp_con.add_handler(
-        "/org/freedesktop/secrets/collection/:colllection_id/:item_id",
+        "/org/freedesktop/secrets/collection/:collection_id/:item_id",
         item_handler,
     );
     dp_con.add_handler(
