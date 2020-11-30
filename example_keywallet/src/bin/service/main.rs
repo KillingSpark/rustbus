@@ -1,8 +1,6 @@
 //! This servers as a testing ground for rustbus. It implements the secret-service API from freedesktop.org (https://specifications.freedesktop.org/secret-service/latest/).
 //! Note though that this is not meant as a real secret-service you should use, it will likely be very insecure. This is just to have a realworld
 //! usecase to validate the existing codebase and new ideas
-use std::collections::HashMap;
-
 use rustbus::connection::dispatch_conn::DispatchConn;
 use rustbus::connection::dispatch_conn::HandleEnvironment;
 use rustbus::connection::dispatch_conn::HandleResult;
@@ -11,15 +9,13 @@ use rustbus::connection::get_session_bus_path;
 use rustbus::connection::ll_conn::Conn;
 use rustbus::message_builder::MarshalledMessage;
 use rustbus::wire::marshal::traits::ObjectPath;
-use rustbus::wire::unmarshal::traits::Variant;
-
-use example_keywallet::messages;
 
 mod service;
-struct Context {
+mod service_interface;
+pub struct Context {
     service: service::SecretService,
 }
-type MyHandleEnv<'a, 'b> = HandleEnvironment<'a, &'b mut Context, ()>;
+pub type MyHandleEnv<'a, 'b> = HandleEnvironment<'a, &'b mut Context, ()>;
 
 fn default_handler(
     _ctx: &mut &mut Context,
@@ -63,9 +59,9 @@ fn get_object_type_and_id<'a>(path: &'a ObjectPath) -> Option<ObjectType<'a>> {
 
 fn service_handler(
     ctx: &mut &mut Context,
-    _matches: Matches,
+    matches: Matches,
     msg: &MarshalledMessage,
-    _env: &mut MyHandleEnv,
+    env: &mut MyHandleEnv,
 ) -> HandleResult<()> {
     println!(
         "Woohoo the service handler got called for: {:?}",
@@ -80,185 +76,7 @@ fn service_handler(
         .as_str()
     {
         "org.freedesktop.Secret.Service" => {
-            match msg
-                .dynheader
-                .member
-                .as_ref()
-                .expect("NO MEMBER :(")
-                .as_str()
-            {
-                "OpenSession" => {
-                    let (alg, _input) = msg
-                        .body
-                        .parser()
-                        .get2::<&str, Variant>()
-                        .expect("Types did not match!");
-                    println!("Open Session with alg: {}", alg);
-
-                    ctx.service.open_session(alg).unwrap();
-                    let mut resp = msg.dynheader.make_response();
-                    resp.body.push_variant(()).unwrap();
-                    resp.body
-                        .push_param(ObjectPath::new("/A/B/C").unwrap())
-                        .unwrap();
-                    Ok(Some(resp))
-                }
-                "CreateCollection" => {
-                    let (props, alias): (HashMap<&str, Variant>, &str) =
-                        msg.body.parser().get2().expect("Types did not match!");
-                    println!(
-                        "Create collection with props: {:?} and alias: {}",
-                        props, alias
-                    );
-
-                    ctx.service.create_collection("ABCD").unwrap();
-                    let mut resp = msg.dynheader.make_response();
-                    resp.body
-                        .push_param(ObjectPath::new("/A/B/C").unwrap())
-                        .unwrap();
-                    resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
-                    Ok(Some(resp))
-                }
-                "SearchItems" => {
-                    let attrs: HashMap<&str, &str> =
-                        msg.body.parser().get().expect("Types did not match!");
-                    println!("Search items with attrs: {:?}", attrs);
-
-                    let attrs = attrs
-                        .into_iter()
-                        .map(|(name, value)| example_keywallet::LookupAttribute {
-                            name: name.to_owned(),
-                            value: value.to_owned(),
-                        })
-                        .collect::<Vec<_>>();
-                    let item_ids = ctx.service.search_items(&attrs);
-
-                    let owned_paths: Vec<(String, &service::Item)> = item_ids
-                        .into_iter()
-                        .map(|(col, item)| {
-                            (
-                                format!("/org/freedesktop/secrets/collection/{}/{}", col, item.id),
-                                item,
-                            )
-                        })
-                        .collect();
-
-                    let unlocked_object_paths: Vec<ObjectPath> = owned_paths
-                        .iter()
-                        .filter(|(_, item)| {
-                            matches!(item.lock_state, example_keywallet::LockState::Unlocked)
-                        })
-                        .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
-                        .collect();
-                    let locked_object_paths: Vec<ObjectPath> = owned_paths
-                        .iter()
-                        .filter(|(_, item)| {
-                            matches!(item.lock_state, example_keywallet::LockState::Locked)
-                        })
-                        .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
-                        .collect();
-
-                    let mut resp = msg.dynheader.make_response();
-                    resp.body
-                        .push_param(unlocked_object_paths.as_slice())
-                        .unwrap();
-                    resp.body
-                        .push_param(locked_object_paths.as_slice())
-                        .unwrap();
-                    Ok(Some(resp))
-                }
-                "Unlock" => {
-                    let objects: Vec<ObjectPath> =
-                        msg.body.parser().get().expect("Types did not match!");
-                    println!("Unlock objects: {:?}", objects);
-
-                    for object in &objects {
-                        if let Some(object) = get_object_type_and_id(object) {
-                            match object {
-                                ObjectType::Collection(id) => {
-                                    ctx.service.unlock_collection(id).unwrap()
-                                }
-                                ObjectType::Item { col, item } => {
-                                    ctx.service.unlock_item(col, item).unwrap()
-                                }
-                                ObjectType::Session(_) => println!("Tried to unlock session O_o"),
-                            }
-                        }
-                    }
-
-                    let mut resp = msg.dynheader.make_response();
-                    resp.body.push_param(objects.as_slice()).unwrap();
-                    resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
-                    Ok(Some(resp))
-                }
-                "Lock" => {
-                    let objects: Vec<ObjectPath> =
-                        msg.body.parser().get().expect("Types did not match!");
-                    println!("Lock objects: {:?}", objects);
-
-                    for object in &objects {
-                        if let Some(object) = get_object_type_and_id(object) {
-                            match object {
-                                ObjectType::Collection(id) => {
-                                    ctx.service.lock_collection(id).unwrap()
-                                }
-                                ObjectType::Item { col, item } => {
-                                    ctx.service.lock_item(col, item).unwrap()
-                                }
-                                ObjectType::Session(_) => println!("Tried to unlock session O_o"),
-                            }
-                        }
-                    }
-
-                    let mut resp = msg.dynheader.make_response();
-                    resp.body.push_param(objects.as_slice()).unwrap();
-                    resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
-                    Ok(Some(resp))
-                }
-                "GetSecrets" => {
-                    let (items, session): (Vec<ObjectPath>, ObjectPath) =
-                        msg.body.parser().get2().expect("Types did not match!");
-                    println!("Get secrets: {:?} for session {:?}", items, session);
-
-                    let mut secrets = HashMap::new();
-                    secrets.insert(
-                        ObjectPath::new("/A/B/C").unwrap(),
-                        messages::Secret {
-                            session: session.clone(),
-                            params: vec![],
-                            value: "very secret much info".as_bytes().to_vec(),
-                            content_type: "text/plain".to_owned(),
-                        },
-                    );
-
-                    let mut resp = msg.dynheader.make_response();
-                    resp.body.push_param(secrets).unwrap();
-                    Ok(Some(resp))
-                }
-                "ReadAlias" => {
-                    let alias: &str = msg.body.parser().get().expect("Types did not match!");
-                    println!("Read alias: {}", alias);
-
-                    let mut resp = msg.dynheader.make_response();
-                    resp.body
-                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
-                        .unwrap();
-                    Ok(Some(resp))
-                }
-                "SetAlias" => {
-                    let (alias, object): (&str, ObjectPath) =
-                        msg.body.parser().get2().expect("Types did not match!");
-                    println!("Set alias for object {:?} {}", object, alias);
-
-                    Ok(None)
-                }
-                other => {
-                    println!("Unkown method called: {}", other);
-                    Ok(Some(rustbus::standard_messages::unknown_method(
-                        &msg.dynheader,
-                    )))
-                }
-            }
+            service_interface::handle_service_interface(ctx, matches, msg, env)
         }
         other => {
             println!("Unkown interface called: {}", other);
