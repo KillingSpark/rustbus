@@ -9,11 +9,13 @@ pub struct Secret {
     pub content_type: String,
 }
 
+#[derive(Eq, PartialEq, Clone)]
 pub struct LookupAttribute {
     pub name: String,
     pub value: String,
 }
 
+#[derive(Copy, Clone)]
 pub enum LockState {
     Locked,
     Unlocked,

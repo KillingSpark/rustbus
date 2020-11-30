@@ -34,6 +34,33 @@ fn default_handler(
     Ok(None)
 }
 
+enum ObjectType<'a> {
+    Collection(&'a str),
+    Item { col: &'a str, item: &'a str },
+    Session(&'a str),
+}
+
+fn get_object_type_and_id<'a>(path: &'a ObjectPath) -> Option<ObjectType<'a>> {
+    let mut split = path.as_ref().split("/");
+    let typ = split.nth(3)?;
+    let id = split.nth(0)?;
+    let item_id = split.nth(0);
+    match typ {
+        "collection" => {
+            if item_id.is_some() {
+                Some(ObjectType::Item {
+                    col: id,
+                    item: item_id.unwrap(),
+                })
+            } else {
+                Some(ObjectType::Collection(id))
+            }
+        }
+        "session" => Some(ObjectType::Session(id)),
+        _ => None,
+    }
+}
+
 fn service_handler(
     ctx: &mut &mut Context,
     _matches: Matches,
@@ -97,12 +124,46 @@ fn service_handler(
                         msg.body.parser().get().expect("Types did not match!");
                     println!("Search items with attrs: {:?}", attrs);
 
+                    let attrs = attrs
+                        .into_iter()
+                        .map(|(name, value)| example_keywallet::LookupAttribute {
+                            name: name.to_owned(),
+                            value: value.to_owned(),
+                        })
+                        .collect::<Vec<_>>();
+                    let item_ids = ctx.service.search_items(&attrs);
+
+                    let owned_paths: Vec<(String, &service::Item)> = item_ids
+                        .into_iter()
+                        .map(|(col, item)| {
+                            (
+                                format!("/org/freedesktop/secrets/collection/{}/{}", col, item.id),
+                                item,
+                            )
+                        })
+                        .collect();
+
+                    let unlocked_object_paths: Vec<ObjectPath> = owned_paths
+                        .iter()
+                        .filter(|(_, item)| {
+                            matches!(item.lock_state, example_keywallet::LockState::Unlocked)
+                        })
+                        .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
+                        .collect();
+                    let locked_object_paths: Vec<ObjectPath> = owned_paths
+                        .iter()
+                        .filter(|(_, item)| {
+                            matches!(item.lock_state, example_keywallet::LockState::Locked)
+                        })
+                        .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
+                        .collect();
+
                     let mut resp = msg.dynheader.make_response();
                     resp.body
-                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
+                        .push_param(unlocked_object_paths.as_slice())
                         .unwrap();
                     resp.body
-                        .push_param(&[ObjectPath::new("/A/B/D").unwrap()][..])
+                        .push_param(locked_object_paths.as_slice())
                         .unwrap();
                     Ok(Some(resp))
                 }
@@ -111,10 +172,22 @@ fn service_handler(
                         msg.body.parser().get().expect("Types did not match!");
                     println!("Unlock objects: {:?}", objects);
 
+                    for object in &objects {
+                        if let Some(object) = get_object_type_and_id(object) {
+                            match object {
+                                ObjectType::Collection(id) => {
+                                    ctx.service.unlock_collection(id).unwrap()
+                                }
+                                ObjectType::Item { col, item } => {
+                                    ctx.service.unlock_item(col, item).unwrap()
+                                }
+                                ObjectType::Session(_) => println!("Tried to unlock session O_o"),
+                            }
+                        }
+                    }
+
                     let mut resp = msg.dynheader.make_response();
-                    resp.body
-                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
-                        .unwrap();
+                    resp.body.push_param(objects.as_slice()).unwrap();
                     resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
                     Ok(Some(resp))
                 }
@@ -123,10 +196,22 @@ fn service_handler(
                         msg.body.parser().get().expect("Types did not match!");
                     println!("Lock objects: {:?}", objects);
 
+                    for object in &objects {
+                        if let Some(object) = get_object_type_and_id(object) {
+                            match object {
+                                ObjectType::Collection(id) => {
+                                    ctx.service.lock_collection(id).unwrap()
+                                }
+                                ObjectType::Item { col, item } => {
+                                    ctx.service.lock_item(col, item).unwrap()
+                                }
+                                ObjectType::Session(_) => println!("Tried to unlock session O_o"),
+                            }
+                        }
+                    }
+
                     let mut resp = msg.dynheader.make_response();
-                    resp.body
-                        .push_param(&[ObjectPath::new("/A/B/C").unwrap()][..])
-                        .unwrap();
+                    resp.body.push_param(objects.as_slice()).unwrap();
                     resp.body.push_param(ObjectPath::new("/").unwrap()).unwrap();
                     Ok(Some(resp))
                 }

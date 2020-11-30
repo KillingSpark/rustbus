@@ -2,11 +2,12 @@ use example_keywallet::LockState;
 use example_keywallet::LookupAttribute;
 use example_keywallet::Secret;
 
+#[derive(Clone)]
 pub struct Item {
-    id: String,
+    pub id: String,
+    pub lock_state: LockState,
     attrs: Vec<LookupAttribute>,
     secret: Secret,
-    lock_state: LockState,
 
     // properties from API
     label: String,
@@ -79,6 +80,7 @@ pub enum SetSecretError {
     NotFound,
 }
 
+#[derive(Debug)]
 pub enum UnlockError {
     NotFound,
 }
@@ -133,13 +135,36 @@ impl SecretService {
             Err(UnlockError::NotFound)
         }
     }
-    pub fn unlock_item(&mut self, id: &str) -> Result<(), UnlockError> {
+    pub fn unlock_item(&mut self, col_id: &str, item_id: &str) -> Result<(), UnlockError> {
         let item = self
             .collections
             .iter_mut()
-            .find_map(|s| s.items.iter_mut().find(|i| i.id.eq(id)));
-        if let Some(mut item) = item {
+            .find(|col| col.id.eq(col_id))
+            .map(|col| col.items.iter_mut().find(|i| i.id.eq(item_id)));
+        if let Some(Some(mut item)) = item {
             item.lock_state = LockState::Unlocked;
+            Ok(())
+        } else {
+            Err(UnlockError::NotFound)
+        }
+    }
+    pub fn lock_collection(&mut self, id: &str) -> Result<(), UnlockError> {
+        let coll = self.collections.iter_mut().find(|s| s.id.eq(id));
+        if let Some(mut coll) = coll {
+            coll.lock_state = LockState::Locked;
+            Ok(())
+        } else {
+            Err(UnlockError::NotFound)
+        }
+    }
+    pub fn lock_item(&mut self, col_id: &str, item_id: &str) -> Result<(), UnlockError> {
+        let item = self
+            .collections
+            .iter_mut()
+            .find(|col| col.id.eq(col_id))
+            .map(|col| col.items.iter_mut().find(|i| i.id.eq(item_id)));
+        if let Some(Some(mut item)) = item {
+            item.lock_state = LockState::Locked;
             Ok(())
         } else {
             Err(UnlockError::NotFound)
@@ -202,6 +227,19 @@ impl SecretService {
             .collect();
         let items = items?;
         Ok(items)
+    }
+    pub fn search_items<'a>(&'a self, attrs: &'a [LookupAttribute]) -> Vec<(&'a str, &'a Item)> {
+        self.collections
+            .iter()
+            .map(|coll| {
+                coll.items
+                    .iter()
+                    .filter(|item| attrs.iter().any(|attr| item.attrs.contains(attr)))
+                    .map(|item| (coll.id.as_str(), item))
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect()
     }
 }
 
