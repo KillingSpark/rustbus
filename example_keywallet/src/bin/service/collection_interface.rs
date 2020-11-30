@@ -55,14 +55,14 @@ pub fn handle_collection_interface(
                 })
                 .collect();
 
-            let unlocked_object_paths: Vec<ObjectPath> = owned_paths
+            let unlocked_object_paths: Vec<ObjectPath<&str>> = owned_paths
                 .iter()
                 .filter(|(_, item)| {
                     matches!(item.lock_state, example_keywallet::LockState::Unlocked)
                 })
                 .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
                 .collect();
-            let locked_object_paths: Vec<ObjectPath> = owned_paths
+            let locked_object_paths: Vec<ObjectPath<&str>> = owned_paths
                 .iter()
                 .filter(|(_, item)| matches!(item.lock_state, example_keywallet::LockState::Locked))
                 .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
@@ -100,7 +100,7 @@ pub fn handle_collection_interface(
             Ok(Some(resp))
         }
         "Delete" => {
-            let object: ObjectPath = msg.body.parser().get().expect("Types did not match");
+            let object: ObjectPath<&str> = msg.body.parser().get().expect("Types did not match");
 
             println!("Delete collection {:?}", object);
 

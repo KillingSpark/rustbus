@@ -42,12 +42,12 @@ pub fn handle_item_interface(
                 msg.dynheader.object.as_ref().unwrap()
             );
 
-            let session: ObjectPath = msg.body.parser().get().expect("Types did not match");
+            let session: ObjectPath<&str> = msg.body.parser().get().expect("Types did not match");
             let secret = ctx.service.get_secret(col_id, item_id).unwrap();
             let mut resp = msg.dynheader.make_response();
             resp.body
                 .push_param(messages::Secret {
-                    session: session.clone(),
+                    session: session.to_owned(),
                     params: secret.params.clone(),
                     value: secret.value.clone(),
                     content_type: secret.content_type.clone(),

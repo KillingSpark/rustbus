@@ -6,8 +6,8 @@ use rustbus_derive::Signature;
 use rustbus_derive::Unmarshal;
 
 #[derive(Marshal, Unmarshal, Signature, Clone)]
-pub struct Secret<'a> {
-    pub session: ObjectPath<'a>,
+pub struct Secret {
+    pub session: ObjectPath<String>,
     pub params: Vec<u8>,
     pub value: Vec<u8>,
     pub content_type: String,

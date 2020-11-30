@@ -621,19 +621,22 @@ impl Marshal for &str {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct ObjectPath<'a>(&'a str);
-impl<'a> ObjectPath<'a> {
-    pub fn new(path: &'a str) -> Result<Self, crate::params::validation::Error> {
-        crate::params::validate_object_path(path)?;
+pub struct ObjectPath<S: AsRef<str>>(S);
+impl<S: AsRef<str>> ObjectPath<S> {
+    pub fn new(path: S) -> Result<Self, crate::params::validation::Error> {
+        crate::params::validate_object_path(path.as_ref())?;
         Ok(ObjectPath(path))
     }
-}
-impl<'a> AsRef<str> for ObjectPath<'a> {
-    fn as_ref(&self) -> &str {
-        self.0
+    pub fn to_owned(&self) -> ObjectPath<String> {
+        ObjectPath(self.as_ref().to_owned())
     }
 }
-impl Signature for ObjectPath<'_> {
+impl<S: AsRef<str>> AsRef<str> for ObjectPath<S> {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+impl<S: AsRef<str>> Signature for ObjectPath<S> {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::ObjectPath)
     }
@@ -641,9 +644,9 @@ impl Signature for ObjectPath<'_> {
         Self::signature().get_alignment()
     }
 }
-impl Marshal for ObjectPath<'_> {
+impl<S: AsRef<str>> Marshal for ObjectPath<S> {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        self.0.marshal(ctx)
+        self.0.as_ref().marshal(ctx)
     }
 }
 #[derive(Debug, PartialEq)]

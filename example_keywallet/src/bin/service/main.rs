@@ -38,7 +38,7 @@ enum ObjectType<'a> {
     Session(&'a str),
 }
 
-fn get_object_type_and_id<'a>(path: &'a ObjectPath) -> Option<ObjectType<'a>> {
+fn get_object_type_and_id<'a>(path: &'a ObjectPath<&'a str>) -> Option<ObjectType<'a>> {
     let mut split = path.as_ref().split("/");
     let typ = split.nth(3)?;
     let id = split.nth(0)?;

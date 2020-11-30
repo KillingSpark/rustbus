@@ -77,14 +77,14 @@ pub fn handle_service_interface(
                 })
                 .collect();
 
-            let unlocked_object_paths: Vec<ObjectPath> = owned_paths
+            let unlocked_object_paths: Vec<ObjectPath<&str>> = owned_paths
                 .iter()
                 .filter(|(_, item)| {
                     matches!(item.lock_state, example_keywallet::LockState::Unlocked)
                 })
                 .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
                 .collect();
-            let locked_object_paths: Vec<ObjectPath> = owned_paths
+            let locked_object_paths: Vec<ObjectPath<&str>> = owned_paths
                 .iter()
                 .filter(|(_, item)| matches!(item.lock_state, example_keywallet::LockState::Locked))
                 .map(|(path, _)| ObjectPath::new(path.as_str()).unwrap())
@@ -100,7 +100,8 @@ pub fn handle_service_interface(
             Ok(Some(resp))
         }
         "Unlock" => {
-            let objects: Vec<ObjectPath> = msg.body.parser().get().expect("Types did not match!");
+            let objects: Vec<ObjectPath<&str>> =
+                msg.body.parser().get().expect("Types did not match!");
             println!("Unlock objects: {:?}", objects);
 
             for object in &objects {
@@ -123,7 +124,8 @@ pub fn handle_service_interface(
             Ok(Some(resp))
         }
         "Lock" => {
-            let objects: Vec<ObjectPath> = msg.body.parser().get().expect("Types did not match!");
+            let objects: Vec<ObjectPath<&str>> =
+                msg.body.parser().get().expect("Types did not match!");
             println!("Lock objects: {:?}", objects);
 
             for object in &objects {
@@ -146,11 +148,11 @@ pub fn handle_service_interface(
             Ok(Some(resp))
         }
         "GetSecrets" => {
-            let (items, session): (Vec<ObjectPath>, ObjectPath) =
+            let (items, session): (Vec<ObjectPath<&str>>, ObjectPath<&str>) =
                 msg.body.parser().get2().expect("Types did not match!");
             println!("Get secrets: {:?} for session {:?}", items, session);
 
-            let mut secrets: HashMap<ObjectPath, messages::Secret> = HashMap::new();
+            let mut secrets: HashMap<ObjectPath<String>, messages::Secret> = HashMap::new();
             for item in &items {
                 if let Some(object) = super::get_object_type_and_id(item) {
                     match object {
@@ -160,9 +162,9 @@ pub fn handle_service_interface(
                         super::ObjectType::Item { col, item: item_id } => {
                             let secret = ctx.service.get_secret(col, item_id).unwrap();
                             secrets.insert(
-                                item.clone(),
+                                item.to_owned(),
                                 messages::Secret {
-                                    session: session.clone(),
+                                    session: session.to_owned(),
                                     params: secret.params.clone(),
                                     value: secret.value.clone(),
                                     content_type: secret.content_type.clone(),
@@ -189,7 +191,7 @@ pub fn handle_service_interface(
             Ok(Some(resp))
         }
         "SetAlias" => {
-            let (alias, object): (&str, ObjectPath) =
+            let (alias, object): (&str, ObjectPath<&str>) =
                 msg.body.parser().get2().expect("Types did not match!");
             println!("Set alias for object {:?} {}", object, alias);
 

@@ -513,11 +513,11 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds>
         Ok((bytes, sig))
     }
 }
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds>
-    for crate::wire::marshal::traits::ObjectPath<'r>
+impl<'r, 'buf: 'r, 'fds, S: AsRef<str> + Unmarshal<'r, 'buf, 'fds>> Unmarshal<'r, 'buf, 'fds>
+    for crate::wire::marshal::traits::ObjectPath<S>
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, val) = <&str as Unmarshal>::unmarshal(ctx)?;
+        let (bytes, val) = <S as Unmarshal>::unmarshal(ctx)?;
         let path = crate::wire::marshal::traits::ObjectPath::new(val)?;
         Ok((bytes, path))
     }
@@ -683,12 +683,14 @@ fn test_unmarshal_traits() {
         ]
     );
     let (_, (p, s, _fd)) =
-        <(ObjectPath, SignatureWrapper, UnixFd) as Unmarshal>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+        <(ObjectPath<String>, SignatureWrapper, UnixFd) as Unmarshal>::unmarshal(
+            &mut UnmarshalContext {
+                buf: ctx.buf,
+                fds: ctx.fds,
+                byteorder: ctx.byteorder,
+                offset: 0,
+            },
+        )
         .unwrap();
 
     assert_eq!(p.as_ref(), "/a/b/c");
