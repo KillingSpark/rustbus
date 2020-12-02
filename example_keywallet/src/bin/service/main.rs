@@ -197,12 +197,38 @@ fn session_handler(
 }
 
 fn main() {
-    let con = Conn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
+    let mut con = Conn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
+
+    con.send_message(
+        &mut rustbus::standard_messages::hello(),
+        rustbus::connection::Timeout::Infinite,
+    )
+    .unwrap();
+
+    let resp = con
+        .get_next_message(rustbus::connection::Timeout::Infinite)
+        .unwrap();
+
+    println!("Unique name: {}", resp.body.parser().get::<&str>().unwrap());
+
+    con.send_message(
+        &mut rustbus::standard_messages::request_name(
+            "io.killingspark.secrets".into(),
+            rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
+        ),
+        rustbus::connection::Timeout::Infinite,
+    )
+    .unwrap();
+
+    let _resp = con
+        .get_next_message(rustbus::connection::Timeout::Infinite)
+        .unwrap();
+
+    let dh = Box::new(default_handler);
+
     let mut ctx = Context {
         service: service::SecretService::default(),
     };
-
-    let dh = Box::new(default_handler);
     let mut dp_con = DispatchConn::new(con, &mut ctx, dh);
 
     let service_handler = Box::new(service_handler);
