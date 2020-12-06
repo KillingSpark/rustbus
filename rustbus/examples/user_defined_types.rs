@@ -118,12 +118,10 @@ impl Marshal for &MyOtherSubType {
     }
 }
 
-use rustbus::{
-    client_conn::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder,
-};
+use rustbus::{connection::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder};
 
 // Just to have a main here we will send a message containing two MyType structs
-fn main() -> Result<(), rustbus::client_conn::Error> {
+fn main() -> Result<(), rustbus::connection::Error> {
     let session_path = get_session_bus_path()?;
     let mut con = Conn::connect_to_bus(session_path, true)?;
     con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;

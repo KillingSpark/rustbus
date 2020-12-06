@@ -3,15 +3,15 @@
 //! in the src/bin directory but the gist is:
 //!
 //! ```rust,no_run
-//! use rustbus::{get_session_bus_path, standard_messages, Conn, MessageBuilder, client_conn::Timeout};
+//! use rustbus::{get_session_bus_path, standard_messages, Conn, MessageBuilder, connection::Timeout};
 //!
-//! fn main() -> Result<(), rustbus::client_conn::Error> {
+//! fn main() -> Result<(), rustbus::connection::Error> {
 //!     // Connect to the session bus
 //!     let session_path = get_session_bus_path()?;
 //!     let con = Conn::connect_to_bus(session_path, true)?;
 //!
 //!     // Wrap the con in an RpcConnection which provides many convenient functions
-//!     let mut rpc_con = rustbus::client_conn::RpcConn::new(con);
+//!     let mut rpc_con = rustbus::connection::rpc_conn::RpcConn::new(con);
 //!
 //!     // send the obligatory hello message
 //!     rpc_con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
@@ -45,7 +45,7 @@
 //! actually setup. It is also slower than the Marshal trait. So for most applications I would recommend the
 //! newer, faster, and more ergonomic trait based approach.
 pub mod auth;
-pub mod client_conn;
+pub mod connection;
 pub mod message_builder;
 pub mod params;
 pub mod peer;
@@ -59,7 +59,9 @@ pub mod wire;
 pub use message_builder::MessageType;
 
 // needed to create a connection
-pub use client_conn::{get_session_bus_path, get_system_bus_path, Conn, RpcConn};
+pub use connection::ll_conn::Conn;
+pub use connection::rpc_conn::RpcConn;
+pub use connection::{get_session_bus_path, get_system_bus_path};
 
 // needed to make new messages
 pub use message_builder::{CallBuilder, MessageBuilder, SignalBuilder};
