@@ -3,16 +3,43 @@ use crate::wire::unmarshal::UnmarshalContext;
 use crate::{Marshal, Signature, Unmarshal};
 use std::os::unix::io::RawFd;
 
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
 #[derive(Debug)]
 struct UnixFdInner {
-    inner: Cell<Option<RawFd>>,
+    inner: AtomicU32,
 }
 impl Drop for UnixFdInner {
     fn drop(&mut self) {
-        if let Some(fd) = self.inner.take() {
+        if let Some(fd) = self.take() {
             nix::unistd::close(fd).ok();
+        }
+    }
+}
+
+impl UnixFdInner {
+    const FD_INVALID: u32 = 0;
+
+    /// This is kinda like Cell::take it takes the FD and resets the atomic int to 0 which represents the invalid / taken state here.
+    fn take(&self) -> Option<RawFd> {
+        let fd: u32 = self.inner.load(std::sync::atomic::Ordering::Relaxed);
+        let swapped_fd =
+        self.inner
+        .compare_and_swap(fd, Self::FD_INVALID, std::sync::atomic::Ordering::Relaxed);
+        if swapped_fd == fd {
+            Some(fd as i32)
+        } else {
+            None
+        }
+    }
+    
+    /// This is kinda like Cell::get it returns the FD, 0 represents the invalid / taken state here.
+    fn get(&self) -> Option<RawFd> {
+        let loaded = self.inner.load(std::sync::atomic::Ordering::Relaxed);
+        if loaded == 0 {
+            None
+        } else {
+            Some(loaded as RawFd)
         }
     }
 }
@@ -29,32 +56,32 @@ impl Drop for UnixFdInner {
 /// 1. When a UnixFd is **unmarshalled** rustbus will **NOT** dup() the FD. This means if you call take_raw_fd(), it is gone from the message too! If you do not want this,
 /// you have to call get_raw_fd() and call dup() yourself.
 #[derive(Clone, Debug)]
-pub struct UnixFd(Rc<UnixFdInner>);
+pub struct UnixFd(Arc<UnixFdInner>);
 impl UnixFd {
     pub fn new(fd: RawFd) -> Self {
-        UnixFd(Rc::new(UnixFdInner {
-            inner: Cell::new(Some(fd)),
+        UnixFd(Arc::new(UnixFdInner {
+            inner: AtomicU32::new(fd as u32),
         }))
     }
     /// Gets a non-owning `RawFd`. If `None` is returned.
     /// then this UnixFd has already been taken by somebody else
     /// and is no longer valid.
     pub fn get_raw_fd(&self) -> Option<RawFd> {
-        self.0.inner.get()
+        self.0.get()
     }
     /// Gets a owning `RawFd` from the UnixFd.
     /// Subsequent attempt to get the `RawFd` from
     /// other `UnixFd` referencing the same file descriptor will
     /// fail.
     pub fn take_raw_fd(self) -> Option<RawFd> {
-        self.0.inner.take()
+        self.0.take()
     }
 }
 /// Allow for the comparison of `UnixFd` even after the `RawFd`
 /// has been taken, to see if they originally referred to the same thing.
 impl PartialEq<UnixFd> for UnixFd {
     fn eq(&self, other: &UnixFd) -> bool {
-        Rc::ptr_eq(&self.0, &other.0) || self.get_raw_fd() == other.get_raw_fd()
+        Arc::ptr_eq(&self.0, &other.0) || self.get_raw_fd() == other.get_raw_fd()
     }
 }
 
@@ -116,4 +143,18 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for UnixFd {
             Ok((bytes, val.clone()))
         }
     }
+}
+
+#[test]
+fn test_fd_send() {
+    let x = UnixFd::new(nix::unistd::dup(1).unwrap());
+    std::thread::spawn(move || {
+        println!("Hey the fd {} is Send!!!!", x.get_raw_fd().unwrap());
+    });
+    
+    let x = UnixFd::new(nix::unistd::dup(1).unwrap());
+    let fd = crate::params::Base::UnixFd(x);
+    std::thread::spawn(move || {
+        println!("Hey the fd {:?} is Send!!!!", fd);
+    });
 }
