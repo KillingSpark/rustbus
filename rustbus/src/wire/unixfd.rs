@@ -98,7 +98,7 @@ impl UnixFd {
         self.0.take()
     }
 
-    /// Duplicate the underlying FD so you can use it as you will. This is different from just calling 
+    /// Duplicate the underlying FD so you can use it as you will. This is different from just calling
     /// clone(). Clone only makes a new ref to the same underlying FD.
     pub fn dup(&self) -> Option<Result<Self, nix::Error>> {
         match self.0.dup()? {
