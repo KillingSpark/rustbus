@@ -51,6 +51,17 @@ impl UnixFdInner {
             Some(loaded as RawFd)
         }
     }
+
+    /// Dup the underlying FD
+    fn dup(&self) -> Option<Result<Self, nix::Error>> {
+        let fd = self.get()?;
+        match nix::unistd::dup(fd) {
+            Ok(new_fd) => Some(Ok(Self {
+                inner: AtomicU32::new(new_fd as u32),
+            })),
+            Err(e) => Some(Err(e)),
+        }
+    }
 }
 
 /// UnixFd is a wrapper around RawFd, to ensure that opened FDs are closed again, while still having the possibility of having multiple references to it.
@@ -63,7 +74,7 @@ impl UnixFdInner {
 /// 1. When a UnixFd is **marshalled** rustbus will dup() the FD so that the message and the original UnixFd do not depend on each others lifetime. You are free to use
 /// or close the original one.
 /// 1. When a UnixFd is **unmarshalled** rustbus will **NOT** dup() the FD. This means if you call take_raw_fd(), it is gone from the message too! If you do not want this,
-/// you have to call get_raw_fd() and call dup() yourself.
+/// you have to call dup() and then get_raw_fd() or take_raw_fd()
 #[derive(Clone, Debug)]
 pub struct UnixFd(Arc<UnixFdInner>);
 impl UnixFd {
@@ -78,12 +89,22 @@ impl UnixFd {
     pub fn get_raw_fd(&self) -> Option<RawFd> {
         self.0.get()
     }
+
     /// Gets a owning `RawFd` from the UnixFd.
     /// Subsequent attempt to get the `RawFd` from
     /// other `UnixFd` referencing the same file descriptor will
     /// fail.
     pub fn take_raw_fd(self) -> Option<RawFd> {
         self.0.take()
+    }
+
+    /// Duplicate the underlying FD so you can use it as you will. This is different from just calling 
+    /// clone(). Clone only makes a new ref to the same underlying FD.
+    pub fn dup(&self) -> Option<Result<Self, nix::Error>> {
+        match self.0.dup()? {
+            Ok(inner) => Some(Ok(Self(Arc::new(inner)))),
+            Err(e) => Some(Err(e)),
+        }
     }
 }
 /// Allow for the comparison of `UnixFd` even after the `RawFd`
