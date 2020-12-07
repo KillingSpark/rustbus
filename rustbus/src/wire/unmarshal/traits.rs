@@ -668,7 +668,7 @@ fn test_unmarshal_traits() {
 
     use crate::wire::marshal::traits::{ObjectPath, SignatureWrapper};
     use crate::wire::UnixFd;
-    let orig_fd = UnixFd::new(0);
+    let orig_fd = UnixFd::new(nix::unistd::dup(1).unwrap());
     let orig = (
         ObjectPath::new("/a/b/c").unwrap(),
         SignatureWrapper::new("ss(aiau)").unwrap(),
@@ -695,7 +695,6 @@ fn test_unmarshal_traits() {
 
     assert_eq!(p.as_ref(), "/a/b/c");
     assert_eq!(s.as_ref(), "ss(aiau)");
-    orig_fd.take_raw_fd(); // prevent accidental closing of real fd
 }
 
 #[test]

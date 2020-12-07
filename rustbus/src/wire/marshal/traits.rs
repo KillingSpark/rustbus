@@ -692,7 +692,8 @@ fn test_trait_signature_creation() {
     body.push_param(ObjectPath::new("/a/b").unwrap()).unwrap();
     body.push_param(SignatureWrapper::new("(a{su})").unwrap())
         .unwrap();
-    let fd = crate::wire::UnixFd::new(0);
+
+    let fd = crate::wire::UnixFd::new(nix::unistd::dup(1).unwrap());
     body.push_param(&fd).unwrap();
     body.push_param(true).unwrap();
     body.push_param(0u8).unwrap();
@@ -709,7 +710,6 @@ fn test_trait_signature_creation() {
     body.push_param(&map).unwrap();
 
     assert_eq!("soghbyqutnixaya{s(tuqy)}", msg.get_sig());
-    fd.take_raw_fd(); //prevent accidental closing of real fd
 }
 
 #[test]

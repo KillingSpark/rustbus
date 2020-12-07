@@ -23,16 +23,22 @@ impl UnixFdInner {
     /// This is kinda like Cell::take it takes the FD and resets the atomic int to 0 which represents the invalid / taken state here.
     fn take(&self) -> Option<RawFd> {
         let fd: u32 = self.inner.load(std::sync::atomic::Ordering::Relaxed);
-        let swapped_fd =
-        self.inner
-        .compare_and_swap(fd, Self::FD_INVALID, std::sync::atomic::Ordering::Relaxed);
-        if swapped_fd == fd {
-            Some(fd as i32)
-        } else {
+        if fd == Self::FD_INVALID {
             None
+        } else {
+            let swapped_fd = self.inner.compare_and_swap(
+                fd,
+                Self::FD_INVALID,
+                std::sync::atomic::Ordering::Relaxed,
+            );
+            if swapped_fd == fd {
+                Some(fd as i32)
+            } else {
+                None
+            }
         }
     }
-    
+
     /// This is kinda like Cell::get it returns the FD, 0 represents the invalid / taken state here.
     fn get(&self) -> Option<RawFd> {
         let loaded = self.inner.load(std::sync::atomic::Ordering::Relaxed);
@@ -151,7 +157,7 @@ fn test_fd_send() {
     std::thread::spawn(move || {
         println!("Hey the fd {} is Send!!!!", x.get_raw_fd().unwrap());
     });
-    
+
     let x = UnixFd::new(nix::unistd::dup(1).unwrap());
     let fd = crate::params::Base::UnixFd(x);
     std::thread::spawn(move || {
