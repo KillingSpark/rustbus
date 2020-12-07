@@ -164,3 +164,41 @@ fn test_fd_send() {
         println!("Hey the fd {:?} is Send!!!!", fd);
     });
 }
+
+#[test]
+fn test_races_in_unixfd() {
+    let fd = UnixFd::new(nix::unistd::dup(1).unwrap());
+    let raw_fd = fd.get_raw_fd().unwrap();
+
+    const NUM_THREADS: usize = 20;
+    const NUM_RUNS: usize = 10000;
+
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(NUM_THREADS + 1));
+
+    let result = std::sync::Arc::new(std::sync::Mutex::new(vec![false; NUM_THREADS]));
+
+    for _ in 0..NUM_RUNS {
+        for idx in 0..NUM_THREADS {
+            let local_fd = fd.clone();
+            let local_result = result.clone();
+            let local_barrier = barrier.clone();
+            std::thread::spawn(move || {
+                // wait for all other threads
+                local_barrier.wait();
+                if let Some(taken_fd) = local_fd.take_raw_fd() {
+                    assert_eq!(raw_fd, taken_fd);
+                    local_result.lock().unwrap()[idx] = true;
+                }
+                // wait for all other threads to finish so the main thread knows when to collect the results
+                local_barrier.wait();
+            });
+        }
+
+        // wait for all threads to be ready to take the fd all at once
+        barrier.wait();
+        // wait for all threads to finish
+        barrier.wait();
+        let result_iter = result.lock().unwrap();
+        assert_eq!(result_iter.iter().filter(|b| **b).count(), 1)
+    }
+}
