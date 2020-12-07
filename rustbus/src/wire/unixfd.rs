@@ -22,15 +22,18 @@ impl UnixFdInner {
 
     /// This is kinda like Cell::take it takes the FD and resets the atomic int to 0 which represents the invalid / taken state here.
     fn take(&self) -> Option<RawFd> {
+        // load fd and see if it is already been taken
         let fd: u32 = self.inner.load(std::sync::atomic::Ordering::Relaxed);
         if fd == Self::FD_INVALID {
             None
         } else {
+            //try to swap with FD_INVALID
             let swapped_fd = self.inner.compare_and_swap(
                 fd,
                 Self::FD_INVALID,
                 std::sync::atomic::Ordering::Relaxed,
             );
+            //  If swapped_fd == fd then we did a sucessful swap and we actually took the value
             if swapped_fd == fd {
                 Some(fd as i32)
             } else {
@@ -42,7 +45,7 @@ impl UnixFdInner {
     /// This is kinda like Cell::get it returns the FD, 0 represents the invalid / taken state here.
     fn get(&self) -> Option<RawFd> {
         let loaded = self.inner.load(std::sync::atomic::Ordering::Relaxed);
-        if loaded == 0 {
+        if loaded == Self::FD_INVALID {
             None
         } else {
             Some(loaded as RawFd)
@@ -166,12 +169,22 @@ fn test_fd_send() {
 }
 
 #[test]
+fn test_unix_fd() {
+    let fd = UnixFd::new(nix::unistd::dup(1).unwrap());
+    let _ = fd.get_raw_fd().unwrap();
+    let _ = fd.get_raw_fd().unwrap();
+    let _ = fd.clone().take_raw_fd().unwrap();
+    assert!(fd.get_raw_fd().is_none());
+    assert!(fd.take_raw_fd().is_none());
+}
+
+#[test]
 fn test_races_in_unixfd() {
     let fd = UnixFd::new(nix::unistd::dup(1).unwrap());
     let raw_fd = fd.get_raw_fd().unwrap();
 
     const NUM_THREADS: usize = 20;
-    const NUM_RUNS: usize = 10000;
+    const NUM_RUNS: usize = 100;
 
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(NUM_THREADS + 1));
 
