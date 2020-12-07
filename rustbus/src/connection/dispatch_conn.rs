@@ -1,8 +1,12 @@
-use super::ll_conn::Conn;
+use super::ll_conn::DuplexConn;
+use super::ll_conn::RecvConn;
+use super::ll_conn::SendConn;
 use super::*;
 use crate::message_builder::MarshalledMessage;
 
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 #[derive(Eq, PartialEq, Hash)]
 enum PathPart {
@@ -142,8 +146,8 @@ impl<UserError: std::fmt::Debug> Into<HandleError<UserError>> for crate::connect
     }
 }
 
-pub struct HandleEnvironment<'a, UserData, UserError: std::fmt::Debug> {
-    pub conn: &'a mut Conn,
+pub struct HandleEnvironment<UserData, UserError: std::fmt::Debug> {
+    pub conn: Arc<Mutex<SendConn>>,
     pub new_dispatches: PathMatcher<UserData, UserError>,
 }
 pub type HandleResult<UserError> =
@@ -156,7 +160,8 @@ pub type HandleFn<UserData, UserError> = dyn FnMut(
 ) -> HandleResult<UserError>;
 
 pub struct DispatchConn<HandlerCtx, HandlerError: std::fmt::Debug> {
-    conn: Conn,
+    recv: RecvConn,
+    send: Arc<Mutex<SendConn>>,
     objects: PathMatcher<HandlerCtx, HandlerError>,
     default_handler: Box<HandleFn<HandlerCtx, HandlerError>>,
     ctx: HandlerCtx,
@@ -164,12 +169,13 @@ pub struct DispatchConn<HandlerCtx, HandlerError: std::fmt::Debug> {
 
 impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
     pub fn new(
-        conn: Conn,
+        conn: DuplexConn,
         ctx: UserData,
         default_handler: Box<HandleFn<UserData, UserError>>,
     ) -> Self {
         Self {
-            conn,
+            recv: conn.recv,
+            send: Arc::new(Mutex::new(conn.send)),
             objects: PathMatcher::new(),
             default_handler,
             ctx,
@@ -191,10 +197,10 @@ impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
         &mut self,
     ) -> std::result::Result<(), (Option<MarshalledMessage>, HandleError<UserError>)> {
         loop {
-            match self.conn.get_next_message(Timeout::Infinite) {
+            match self.recv.get_next_message(Timeout::Infinite) {
                 Ok(msg) => {
                     let mut env = HandleEnvironment {
-                        conn: &mut self.conn,
+                        conn: self.send.clone(),
                         new_dispatches: PathMatcher::new(),
                     };
                     let result = {
@@ -228,12 +234,16 @@ impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
 
                     match result {
                         Ok(Some(mut response)) => self
-                            .conn
+                            .send
+                            .lock()
+                            .unwrap()
                             .send_message(&mut response, Timeout::Infinite)
                             .map_err(|e| (Some(msg), e.into()))?,
 
                         Ok(None) => self
-                            .conn
+                            .send
+                            .lock()
+                            .unwrap()
                             .send_message(&mut msg.dynheader.make_response(), Timeout::Infinite)
                             .map_err(|e| (Some(msg), e.into()))?,
                         Err(error) => return Err((Some(msg), error)),

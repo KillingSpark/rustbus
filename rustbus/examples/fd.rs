@@ -1,5 +1,6 @@
 use rustbus::{
-    connection::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder, RpcConn,
+    connection::Timeout, get_session_bus_path, standard_messages, DuplexConn, MessageBuilder,
+    RpcConn,
 };
 
 use std::io::Write;
@@ -13,7 +14,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
         send_fd()?;
     } else {
         let session_path = get_session_bus_path()?;
-        let con = Conn::connect_to_bus(session_path, true)?;
+        let con = DuplexConn::connect_to_bus(session_path, true)?;
         let mut con = RpcConn::new(con);
         con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
 
@@ -54,8 +55,9 @@ fn main() -> Result<(), rustbus::connection::Error> {
 
 fn send_fd() -> Result<(), rustbus::connection::Error> {
     let session_path = rustbus::connection::get_session_bus_path()?;
-    let mut con = rustbus::Conn::connect_to_bus(session_path, true)?;
-    con.send_message(&mut rustbus::standard_messages::hello(), Timeout::Infinite)?;
+    let mut con = rustbus::DuplexConn::connect_to_bus(session_path, true)?;
+    con.send
+        .send_message(&mut rustbus::standard_messages::hello(), Timeout::Infinite)?;
     let mut sig = MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
@@ -68,7 +70,7 @@ fn send_fd() -> Result<(), rustbus::connection::Error> {
     let stdin_fd = std::io::stdin();
     sig.body.push_param((&stdin_fd) as &dyn AsRawFd).unwrap();
     sig.dynheader.num_fds = Some(1);
-    con.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig, Timeout::Infinite)?;
 
     let mut sig = MessageBuilder::new()
         .signal(
@@ -77,7 +79,7 @@ fn send_fd() -> Result<(), rustbus::connection::Error> {
             "/io/killing/spark".into(),
         )
         .build();
-    con.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig, Timeout::Infinite)?;
 
     println!("Printing stuff from stdin. The following is input from the other process!");
     let mut line = String::new();

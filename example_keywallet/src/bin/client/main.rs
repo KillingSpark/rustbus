@@ -3,17 +3,19 @@
 //! usecase to validate the existing codebase and new ideas
 
 use rustbus::connection::get_session_bus_path;
-use rustbus::connection::ll_conn::Conn;
+use rustbus::connection::ll_conn::DuplexConn;
 fn main() {
-    let mut con = Conn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
+    let mut con = DuplexConn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
 
-    con.send_message(
-        &mut rustbus::standard_messages::hello(),
-        rustbus::connection::Timeout::Infinite,
-    )
-    .unwrap();
+    con.send
+        .send_message(
+            &mut rustbus::standard_messages::hello(),
+            rustbus::connection::Timeout::Infinite,
+        )
+        .unwrap();
 
     let resp = con
+        .recv
         .get_next_message(rustbus::connection::Timeout::Infinite)
         .unwrap();
 

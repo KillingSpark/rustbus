@@ -1,10 +1,10 @@
 use rustbus::{
-    connection::Timeout, get_session_bus_path, standard_messages, Conn, MessageType, RpcConn,
+    connection::Timeout, get_session_bus_path, standard_messages, DuplexConn, MessageType, RpcConn,
 };
 
 fn main() -> Result<(), rustbus::connection::Error> {
     let session_path = get_session_bus_path()?;
-    let con = Conn::connect_to_bus(session_path, true)?;
+    let con = DuplexConn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);
 
     let mut hello_msg = standard_messages::hello();

@@ -1,9 +1,12 @@
-use rustbus::{connection::Timeout, get_session_bus_path, standard_messages, Conn, MessageBuilder};
+use rustbus::{
+    connection::Timeout, get_session_bus_path, standard_messages, DuplexConn, MessageBuilder,
+};
 
 fn main() -> Result<(), rustbus::connection::Error> {
     let session_path = get_session_bus_path()?;
-    let mut con = Conn::connect_to_bus(session_path, true)?;
-    con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
+    let mut con = DuplexConn::connect_to_bus(session_path, true)?;
+    con.send
+        .send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
 
     let mut sig = MessageBuilder::new()
         .signal(
@@ -37,9 +40,9 @@ fn main() -> Result<(), rustbus::connection::Error> {
 
     println!("{:?}", sig);
 
-    con.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig, Timeout::Infinite)?;
     std::thread::sleep(std::time::Duration::from_secs(1));
-    con.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig, Timeout::Infinite)?;
 
     Ok(())
 }
