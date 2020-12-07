@@ -217,14 +217,3 @@ fn marshal_header_field(
     }
     Ok(())
 }
-
-fn marshal_header_fields(
-    byteorder: ByteOrder,
-    header_fields: &[HeaderField],
-    buf: &mut Vec<u8>,
-) -> message::Result<()> {
-    for field in header_fields {
-        marshal_header_field(byteorder, field, buf)?;
-    }
-    Ok(())
-}
