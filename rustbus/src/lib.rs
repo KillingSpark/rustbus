@@ -1,49 +1,59 @@
 //! # Rustbus
-//! Rustbus is a dbus library that allows for RPC on services on the bus or to implement your own service that listens on the bus. There are some examples
-//! in the src/bin directory but the gist is:
+//! Rustbus is a dbus library that allows for clients to perform method_calls on services on the bus or to implement your own service that listens on the bus.
 //!
-//! ```rust,no_run
-//! use rustbus::{get_session_bus_path, standard_messages, DuplexConn, MessageBuilder, connection::Timeout};
-//!
+//! ## Quickstart
+//! ```rust
+//! use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
 //! fn main() -> Result<(), rustbus::connection::Error> {
-//!     // Connect to the session bus
+//!     /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
 //!     let session_path = get_session_bus_path()?;
 //!     let con = DuplexConn::connect_to_bus(session_path, true)?;
+//!     // Dont forget to send the obligatory hello message. send_hello wraps the call and parses the response for convenience.
+//!     let unique_name = con.send_hello(Timeout::Infinite)?;
 //!
-//!     // Wrap the con in an RpcConnection which provides many convenient functions
-//!     let mut rpc_con = rustbus::connection::rpc_conn::RpcConn::new(con);
-//!
-//!     // send the obligatory hello message
-//!     rpc_con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
-//!
-//!     // Request a bus name if you want to
-//!     rpc_con.send_message(&mut standard_messages::request_name(
-//!         "io.killing.spark".into(),
-//!         0,
-//!     ), Timeout::Infinite)?;
-//!
-//!     // send a signal to all bus members
+//!     // Next you will probably want to create a new message to send out to the world
 //!     let mut sig = MessageBuilder::new()
-//!     .signal(
-//!         "io.killing.spark".into(),
-//!         "TestSignal".into(),
-//!         "/io/killing/spark".into(),
-//!     )
-//!     .build();
+//!         .signal(
+//!             "io.killing.spark".into(),
+//!             "TestSignal".into(),
+//!             "/io/killing/spark".into(),
+//!         )
+//!         .build();
 //!     
-//!     sig.body.push_param("Signal message!").unwrap();
-//!     rpc_con.send_message(&mut sig, Timeout::Infinite)?;
-//!     Ok(())
+//!     // To put parameters into that message you use the sig.body.push_param functions. These accept anything that can be marshalled into a dbus parameter
+//!     // You can derive or manually implement that trait for your own types if you need that.
+//!     sig.body.push_param("My cool new Signal!").unwrap();
+//!     
+//!     // Now send you signal to all that want to hear it!
+//!     con.send.send_message(&mut sig, Timeout::Infinite)?;
+//!     
+//!     // To receive messages sent to you you can call the various functions on the RecvConn. The simplest is this:
+//!     let message = con.recv.get_next_message(Timeout::Infinite)?;  
+//!     
+//!     // Now you can inspect the message.dynheader for all the metadata on the message
+//!     println!("The messages dynamic header: {:?}", message.dynheader);
+//! 
+//!     // After inspecting that dynheader you should know which content the message should contain
+//!     let cool_string = message.body.parser().get::<&str>().unwrap();
+//!     println!("Received a cool string: {}", cool_string);
 //! }
 //! ```
 //!
-//! To add parameters to messages there are currently two possibilities:
-//! 1. Using the explicit nested structs/enums from rustbus::params
-//! 2. Using the (Un-)Marshal trait exported as rustbus::(Un-)Marshal
-//!
-//! The first will work for any and everything you might want to marshal, but is a bit more work to
-//! actually setup. It is also slower than the Marshal trait. So for most applications I would recommend the
-//! newer, faster, and more ergonomic trait based approach.
+//! ## Other connection Types
+//! There are some more connection types in the connection module. These are convenience wrappes around the concepts presented in the quickstart. 
+//! * RpcConn is meant for clients calling methods on services on the bus
+//! * DispatchConn is meant for services that need to dispatch calls to many handlers.
+//! 
+//! Since different usecases have diffenret constraints you might need to write your own wrapper around the low level conn. This should not be too hard
+//! if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding 
+//! it to this libary.
+//! 
+//! ## Params and Marshal and Unmarshal
+//! This lib started out as an attempt to understand how dbus worked. Thus I modeled the types a closely as possible with enums, which is still in the params module.
+//! This is kept around for weird weird edge-cases where that might be necessary but they should not generally be used.
+//! 
+//! Instead you should be using the Marshal and Unmarshal traits which are implemented for most common types you will need.
+
 pub mod auth;
 pub mod connection;
 pub mod message_builder;
