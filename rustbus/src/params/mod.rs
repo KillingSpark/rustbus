@@ -1,4 +1,4 @@
-//! Map dbus concepts 1:1 to enums/structs
+//! Map dbus concepts 1:1 to enums/structs. You probably do not want to use this.
 //!
 //! This is for cases where the trait based (un-)marshalling does not work for you. It is a bit less effcient
 //! and way less ergonomic but it allows to do everything dbus can do for you. It also allows for a more explorative approach

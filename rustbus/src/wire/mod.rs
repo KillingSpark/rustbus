@@ -1,4 +1,4 @@
-//! Everything that deals with converting from/to raw bytes. You probably do not need this.
+//! Everything that deals with converting from/to raw bytes. You probably only need the various wrapper types.
 
 pub mod marshal;
 pub mod unixfd;

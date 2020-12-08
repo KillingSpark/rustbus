@@ -1,3 +1,9 @@
+//! Different connection types you will need to talk to the bus
+//!
+//! * ll_conn is the basic send and recive primitives used to build the other connection types
+//! * dispatch_conn is meant for services that need to dispatch calls to different handlers
+//! * rpc_conn is meant for clients that make calls to services on the bus
+
 pub mod dispatch_conn;
 pub mod ll_conn;
 pub mod rpc_conn;

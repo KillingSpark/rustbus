@@ -1,4 +1,4 @@
-//! Helps in building messages conveniently
+//! Build new messages that you want to send over a connection
 
 use crate::params::message;
 use crate::wire::marshal::traits::Marshal;
