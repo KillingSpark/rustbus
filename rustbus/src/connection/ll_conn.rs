@@ -274,10 +274,7 @@ impl SendConn {
 
 impl DuplexConn {
     /// Connect to a unix socket and choose a byteorder
-    pub fn connect_to_bus(
-        addr: UnixAddr,
-        with_unix_fd: bool,
-    ) -> super::Result<DuplexConn> {
+    pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> super::Result<DuplexConn> {
         let sock = socket(
             socket::AddressFamily::Unix,
             socket::SockType::Stream,

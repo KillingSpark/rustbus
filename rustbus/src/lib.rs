@@ -32,7 +32,7 @@
 //!     
 //!     // Now you can inspect the message.dynheader for all the metadata on the message
 //!     println!("The messages dynamic header: {:?}", message.dynheader);
-//! 
+//!
 //!     // After inspecting that dynheader you should know which content the message should contain
 //!     let cool_string = message.body.parser().get::<&str>().unwrap();
 //!     println!("Received a cool string: {}", cool_string);
@@ -40,23 +40,23 @@
 //! ```
 //!
 //! ## Other connection Types
-//! There are some more connection types in the connection module. These are convenience wrappes around the concepts presented in the quickstart. 
+//! There are some more connection types in the connection module. These are convenience wrappes around the concepts presented in the quickstart.
 //! * RpcConn is meant for clients calling methods on services on the bus
 //! * DispatchConn is meant for services that need to dispatch calls to many handlers.
-//! 
+//!
 //! Since different usecases have diffenret constraints you might need to write your own wrapper around the low level conn. This should not be too hard
-//! if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding 
+//! if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding
 //! it to this libary.
-//! 
+//!
 //! ## Params and Marshal and Unmarshal
 //! This lib started out as an attempt to understand how dbus worked. Thus I modeled the types a closely as possible with enums, which is still in the params module.
 //! This is kept around for weird weird edge-cases where that might be necessary but they should not generally be used.
-//! 
+//!
 //! Instead you should be using the Marshal and Unmarshal traits which are implemented for most common types you will need. The idea is to map rust types
-//! as closely as possible to dbus types. The trivial types like String and u64 etc are dealt with easily. For tuple-structs there are impls up to a 
-//! certain size. After that you'd need to copy the impl from this lib and extend it accordingly. This might be dealt with in the future if variadic generics get 
+//! as closely as possible to dbus types. The trivial types like String and u64 etc are dealt with easily. For tuple-structs there are impls up to a
+//! certain size. After that you'd need to copy the impl from this lib and extend it accordingly. This might be dealt with in the future if variadic generics get
 //! added to rust.
-//! 
+//!
 //! For structs there is a derive proc-macro that derives the necessary trait impls for you. Look into rustbus_derive if this is of need for you.
 //!
 //! For Variants there is a macro dbus_variant_sig! and dbus_variant_var! which will generate an enum and the Marshal and Unmarshal impls for you. These might get
@@ -70,7 +70,7 @@
 //! open an issue.
 //!
 //! ## Byteorders
-//! Dbus supports both big and little endian and so does rustbus. You can specify how a message should be marshalled when you create the MessageBuilder. Messages 
+//! Dbus supports both big and little endian and so does rustbus. You can specify how a message should be marshalled when you create the MessageBuilder. Messages
 //! can be received in any byteorder and will be transparently unmarshalled into the byteorder you CPU uses. Note that unmarshalling from/to the native byteorder will
 //! be faster. The default byteorder is little endian.
 
@@ -89,11 +89,11 @@ pub mod wire;
 pub use message_builder::MessageType;
 
 // needed to create a connection
+pub use connection::dispatch_conn::DispatchConn;
 pub use connection::ll_conn::DuplexConn;
 pub use connection::ll_conn::RecvConn;
 pub use connection::ll_conn::SendConn;
 pub use connection::rpc_conn::RpcConn;
-pub use connection::dispatch_conn::DispatchConn;
 pub use connection::{get_session_bus_path, get_system_bus_path};
 
 // needed to make new messages
