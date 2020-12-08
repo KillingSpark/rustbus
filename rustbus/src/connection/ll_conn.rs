@@ -5,7 +5,6 @@ use crate::auth;
 use crate::message_builder::MarshalledMessage;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
-use crate::ByteOrder;
 
 use std::time;
 
@@ -25,7 +24,6 @@ use nix::sys::uio::IoVec;
 pub struct SendConn {
     stream: UnixStream,
 
-    byteorder: ByteOrder,
     msg_buf_out: Vec<u8>,
 
     serial_counter: u32,
@@ -227,7 +225,7 @@ impl SendConn {
             (true, serial)
         };
 
-        marshal::marshal(&msg, self.byteorder, &mut self.msg_buf_out)?;
+        marshal::marshal(&msg, msg.body.byteorder, &mut self.msg_buf_out)?;
 
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
         let flags = MsgFlags::empty();
@@ -276,9 +274,8 @@ impl SendConn {
 
 impl DuplexConn {
     /// Connect to a unix socket and choose a byteorder
-    pub fn connect_to_bus_with_byteorder(
+    pub fn connect_to_bus(
         addr: UnixAddr,
-        byteorder: ByteOrder,
         with_unix_fd: bool,
     ) -> super::Result<DuplexConn> {
         let sock = socket(
@@ -308,7 +305,6 @@ impl DuplexConn {
             send: SendConn {
                 stream: stream.try_clone()?,
                 msg_buf_out: Vec::new(),
-                byteorder,
                 serial_counter: 1,
             },
             recv: RecvConn {
@@ -317,11 +313,6 @@ impl DuplexConn {
                 stream,
             },
         })
-    }
-
-    /// Connect to a unix socket. The default little endian byteorder is used
-    pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> Result<DuplexConn> {
-        Self::connect_to_bus_with_byteorder(addr, ByteOrder::LittleEndian, with_unix_fd)
     }
 
     /// Sends the obligatory hello message and returns the unique id the daemon assigned this connection

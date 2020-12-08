@@ -282,7 +282,7 @@ pub struct MarshalledMessageBody {
     pub(crate) raw_fds: Vec<crate::wire::UnixFd>,
 
     sig: String,
-    byteorder: ByteOrder,
+    pub(crate) byteorder: ByteOrder,
 }
 
 impl Default for MarshalledMessageBody {
