@@ -3,11 +3,11 @@ use crate::wire::unmarshal::UnmarshalContext;
 use crate::{Marshal, Signature, Unmarshal};
 use std::os::unix::io::RawFd;
 
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 #[derive(Debug)]
 struct UnixFdInner {
-    inner: AtomicU32,
+    inner: AtomicI32,
 }
 impl Drop for UnixFdInner {
     fn drop(&mut self) {
@@ -18,12 +18,14 @@ impl Drop for UnixFdInner {
 }
 
 impl UnixFdInner {
-    const FD_INVALID: u32 = 0;
+    /// -1 seems like a good 'invalid' state for the atomici32
+    /// -1 is a common return value for operations that return FDs to signal an error occurance.
+    const FD_INVALID: RawFd = -1;
 
-    /// This is kinda like Cell::take it takes the FD and resets the atomic int to 0 which represents the invalid / taken state here.
+    /// This is kinda like Cell::take it takes the FD and resets the atomic int to FD_INVALID which represents the invalid / taken state here.
     fn take(&self) -> Option<RawFd> {
         // load fd and see if it is already been taken
-        let fd: u32 = self.inner.load(std::sync::atomic::Ordering::Relaxed);
+        let fd: RawFd = self.inner.load(std::sync::atomic::Ordering::Relaxed);
         if fd == Self::FD_INVALID {
             None
         } else {
@@ -42,7 +44,7 @@ impl UnixFdInner {
         }
     }
 
-    /// This is kinda like Cell::get it returns the FD, 0 represents the invalid / taken state here.
+    /// This is kinda like Cell::get it returns the FD, FD_INVALID represents the invalid / taken state here.
     fn get(&self) -> Option<RawFd> {
         let loaded = self.inner.load(std::sync::atomic::Ordering::Relaxed);
         if loaded == Self::FD_INVALID {
@@ -57,7 +59,7 @@ impl UnixFdInner {
         let fd = self.get()?;
         match nix::unistd::dup(fd) {
             Ok(new_fd) => Some(Ok(Self {
-                inner: AtomicU32::new(new_fd as u32),
+                inner: AtomicI32::new(new_fd),
             })),
             Err(e) => Some(Err(e)),
         }
@@ -80,7 +82,7 @@ pub struct UnixFd(Arc<UnixFdInner>);
 impl UnixFd {
     pub fn new(fd: RawFd) -> Self {
         UnixFd(Arc::new(UnixFdInner {
-            inner: AtomicU32::new(fd as u32),
+            inner: AtomicI32::new(fd),
         }))
     }
     /// Gets a non-owning `RawFd`. If `None` is returned.
