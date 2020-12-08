@@ -1,11 +1,11 @@
 [package]
 name = "rustbus_derive_test"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Moritz Borcherding <moritz.borcherding@web.de>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-"rustbus" = {path = "../rustbus", version = "0.10.0"}
-"rustbus_derive" = {path = "../rustbus_derive", version = "0.1.0"}
+"rustbus" = {path = "../rustbus", version = "0.11.0"}
+"rustbus_derive" = {path = "../rustbus_derive", version = "0.1.2"}
