@@ -1,5 +1,5 @@
 use rustbus::MessageBuilder;
-use rustbus_derive::{Marshal, Signature, Unmarshal};
+use rustbus::{Marshal, Signature, Unmarshal};
 
 #[derive(Marshal, Unmarshal, Signature, Default, Debug)]
 struct A {

@@ -1,9 +1,9 @@
 //! Data types needed for communication between service and client
 
 use rustbus::wire::marshal::traits::ObjectPath;
-use rustbus_derive::Marshal;
-use rustbus_derive::Signature;
-use rustbus_derive::Unmarshal;
+use rustbus::Marshal;
+use rustbus::Signature;
+use rustbus::Unmarshal;
 
 #[derive(Marshal, Unmarshal, Signature, Clone)]
 pub struct Secret {

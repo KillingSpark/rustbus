@@ -65,7 +65,8 @@
 //!
 //! The doc for the traits gives more specifics on how to implement them for your own types if necessary.
 //!
-//! There is an exmaple for all of this in `examples/user_defined_types.rs`
+//! There is an exmaple for all of this in `examples/user_defined_types.rs`.
+//! And for the deriving for structs there is an example in `examples/deriving.rs`
 //!
 //! ## Filedescriptors
 //! Dbus can send filedescriptors around for you. Rustbus supports this. There is a special wrapper type in the wire module. This type tries to sensibly deal with
@@ -85,6 +86,9 @@ pub mod peer;
 pub mod signature;
 pub mod standard_messages;
 pub mod wire;
+
+// reexport derive macros
+pub use rustbus_derive::*;
 
 // TODO create a rustbus::prelude
 

@@ -11,6 +11,7 @@ homepage = "https://github.com/KillingSpark/rustbus"
 
 [dependencies]
 nix = "0.17.0"
+rustbus_derive = "0.1.2"
 
 [dev-dependencies]
 criterion = "0.3"
