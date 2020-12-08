@@ -45,7 +45,7 @@
 //! * RpcConn is meant for clients calling methods on services on the bus
 //! * DispatchConn is meant for services that need to dispatch calls to many handlers.
 //!
-//! Since different usecases have diffenret constraints you might need to write your own wrapper around the low level conn. This should not be too hard
+//! Since different usecases have different constraints you might need to write your own wrapper around the low level conn. This should not be too hard
 //! if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding
 //! it to this libary.
 //!
