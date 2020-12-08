@@ -45,7 +45,7 @@ fn test_marshal_unmarshal() {
 
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
-    marshal(&msg, crate::ByteOrder::LittleEndian, &[], &mut buf).unwrap();
+    marshal(&msg, crate::ByteOrder::LittleEndian, &mut buf).unwrap();
     let (hdrbytes, header) = unmarshal_header(&buf, 0).unwrap();
     let (dynhdrbytes, dynheader) = unmarshal_dynamic_header(&header, &buf, hdrbytes).unwrap();
 
@@ -113,7 +113,7 @@ fn test_invalid_stuff() {
         Err(crate::Error::Validation(
             crate::params::validation::Error::InvalidInterface
         )),
-        marshal(&msg, crate::ByteOrder::LittleEndian, &[], &mut buf)
+        marshal(&msg, crate::ByteOrder::LittleEndian, &mut buf)
     );
 
     // invalid member
@@ -130,6 +130,6 @@ fn test_invalid_stuff() {
         Err(crate::Error::Validation(
             crate::params::validation::Error::InvalidMembername
         )),
-        marshal(&msg, crate::ByteOrder::LittleEndian, &[], &mut buf)
+        marshal(&msg, crate::ByteOrder::LittleEndian, &mut buf)
     );
 }

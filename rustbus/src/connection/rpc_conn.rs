@@ -1,7 +1,7 @@
 //! The connection stuff you probably want to use. Conn is the lowlevel abstraction RpcConn is the higher level wrapper with convenience functions
 //! over the Conn struct.
 
-use super::ll_conn::Conn;
+use super::ll_conn::DuplexConn;
 use super::*;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MessageType;
@@ -14,7 +14,7 @@ pub struct RpcConn {
     signals: VecDeque<MarshalledMessage>,
     calls: VecDeque<MarshalledMessage>,
     responses: HashMap<u32, MarshalledMessage>,
-    conn: Conn,
+    conn: DuplexConn,
     filter: MessageFilter,
 }
 
@@ -22,11 +22,11 @@ pub struct RpcConn {
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
 /// ```rust,no_run
-/// use rustbus::{get_session_bus_path, standard_messages, Conn, params::Container, params::DictMap, MessageBuilder, MessageType, RpcConn};
+/// use rustbus::{get_session_bus_path, standard_messages, DuplexConn, params::Container, params::DictMap, MessageBuilder, MessageType, RpcConn};
 ///
 /// fn main() -> Result<(), rustbus::connection::Error> {
 ///     let session_path = get_session_bus_path()?;
-///     let con = Conn::connect_to_bus(session_path, true)?;
+///     let con = DuplexConn::connect_to_bus(session_path, true)?;
 ///     let mut rpc_con = RpcConn::new(con);
 ///
 ///     rpc_con.set_filter(Box::new(|msg| match msg.typ {
@@ -57,7 +57,7 @@ pub struct RpcConn {
 pub type MessageFilter = Box<dyn Fn(&MarshalledMessage) -> bool + Sync + Send>;
 
 impl RpcConn {
-    pub fn new(conn: Conn) -> Self {
+    pub fn new(conn: DuplexConn) -> Self {
         RpcConn {
             signals: VecDeque::new(),
             calls: VecDeque::new(),
@@ -66,21 +66,21 @@ impl RpcConn {
             filter: Box::new(|_| true),
         }
     }
-    pub fn conn(&self) -> &Conn {
+    pub fn conn(&self) -> &DuplexConn {
         &self.conn
     }
-    pub fn conn_mut(&mut self) -> &mut Conn {
+    pub fn conn_mut(&mut self) -> &mut DuplexConn {
         &mut self.conn
     }
 
     /// get the next new serial
     pub fn alloc_serial(&mut self) -> u32 {
-        self.conn.alloc_serial()
+        self.conn.send.alloc_serial()
     }
 
     pub fn session_conn(timeout: Timeout) -> Result<Self> {
         let session_path = get_session_bus_path()?;
-        let con = Conn::connect_to_bus(session_path, true)?;
+        let con = DuplexConn::connect_to_bus(session_path, true)?;
         let mut con = Self::new(con);
         let serial = con.send_message(&mut crate::standard_messages::hello(), Timeout::Infinite)?;
         con.wait_response(serial, timeout)?;
@@ -89,7 +89,7 @@ impl RpcConn {
 
     pub fn system_conn(timeout: Timeout) -> Result<Self> {
         let session_path = get_system_bus_path()?;
-        let con = Conn::connect_to_bus(session_path, true)?;
+        let con = DuplexConn::connect_to_bus(session_path, true)?;
         let mut con = Self::new(con);
         let serial = con.send_message(&mut crate::standard_messages::hello(), Timeout::Infinite)?;
         con.wait_response(serial, timeout)?;
@@ -151,7 +151,7 @@ impl RpcConn {
         msg: &mut crate::message_builder::MarshalledMessage,
         timeout: Timeout,
     ) -> Result<u32> {
-        self.conn.send_message(msg, timeout)
+        self.conn.send.send_message(msg, timeout)
     }
 
     fn insert_message_or_send_error(
@@ -183,6 +183,7 @@ impl RpcConn {
                 MessageType::Call => {
                     let mut reply = crate::standard_messages::unknown_method(&msg.dynheader);
                     self.conn
+                        .send
                         .send_message(&mut reply, calc_timeout_left(&start_time, timeout)?)?;
                 }
                 MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
@@ -208,6 +209,7 @@ impl RpcConn {
         let start_time = time::Instant::now();
         let msg = self
             .conn
+            .recv
             .get_next_message(calc_timeout_left(&start_time, timeout)?)?;
 
         let typ = msg.typ;
@@ -241,7 +243,7 @@ impl RpcConn {
         let mut filtered_out = Vec::new();
         loop {
             //  break if the call would block (aka no more io is possible), or return if an actual error occured
-            let msg = match self.conn.get_next_message(Timeout::Nonblock) {
+            let msg = match self.conn.recv.get_next_message(Timeout::Nonblock) {
                 Err(Error::TimedOut) => break,
                 Err(e) => return Err(e),
                 Ok(m) => m,

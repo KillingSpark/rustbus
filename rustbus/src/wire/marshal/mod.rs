@@ -36,10 +36,9 @@ impl MarshalContext<'_, '_> {
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
     byteorder: ByteOrder,
-    header_fields: &[HeaderField],
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    marshal_header(msg, byteorder, header_fields, buf)?;
+    marshal_header(msg, byteorder, buf)?;
     pad_to_align(8, buf);
     let header_len = buf.len();
 
@@ -54,7 +53,6 @@ pub fn marshal(
 fn marshal_header(
     msg: &crate::message_builder::MarshalledMessage,
     byteorder: ByteOrder,
-    header_fields: &[HeaderField],
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
     match byteorder {
@@ -124,7 +122,6 @@ fn marshal_header(
         let sig_str = msg.get_sig().to_owned();
         marshal_header_field(byteorder, &HeaderField::Signature(sig_str), buf)?;
     }
-    marshal_header_fields(byteorder, header_fields, buf)?;
     let len = buf.len() - pos - 4; // -4 the bytes for the length indicator do not count
     insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
 
@@ -217,17 +214,6 @@ fn marshal_header_field(
             pad_to_align(4, buf);
             write_u32(*fds, byteorder, buf);
         }
-    }
-    Ok(())
-}
-
-fn marshal_header_fields(
-    byteorder: ByteOrder,
-    header_fields: &[HeaderField],
-    buf: &mut Vec<u8>,
-) -> message::Result<()> {
-    for field in header_fields {
-        marshal_header_field(byteorder, field, buf)?;
     }
     Ok(())
 }

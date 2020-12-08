@@ -3,12 +3,12 @@
 //! in the src/bin directory but the gist is:
 //!
 //! ```rust,no_run
-//! use rustbus::{get_session_bus_path, standard_messages, Conn, MessageBuilder, connection::Timeout};
+//! use rustbus::{get_session_bus_path, standard_messages, DuplexConn, MessageBuilder, connection::Timeout};
 //!
 //! fn main() -> Result<(), rustbus::connection::Error> {
 //!     // Connect to the session bus
 //!     let session_path = get_session_bus_path()?;
-//!     let con = Conn::connect_to_bus(session_path, true)?;
+//!     let con = DuplexConn::connect_to_bus(session_path, true)?;
 //!
 //!     // Wrap the con in an RpcConnection which provides many convenient functions
 //!     let mut rpc_con = rustbus::connection::rpc_conn::RpcConn::new(con);
@@ -59,7 +59,9 @@ pub mod wire;
 pub use message_builder::MessageType;
 
 // needed to create a connection
-pub use connection::ll_conn::Conn;
+pub use connection::ll_conn::DuplexConn;
+pub use connection::ll_conn::RecvConn;
+pub use connection::ll_conn::SendConn;
 pub use connection::rpc_conn::RpcConn;
 pub use connection::{get_session_bus_path, get_system_bus_path};
 

@@ -6,7 +6,7 @@ use rustbus::connection::dispatch_conn::HandleEnvironment;
 use rustbus::connection::dispatch_conn::HandleResult;
 use rustbus::connection::dispatch_conn::Matches;
 use rustbus::connection::get_session_bus_path;
-use rustbus::connection::ll_conn::Conn;
+use rustbus::connection::ll_conn::DuplexConn;
 use rustbus::message_builder::MarshalledMessage;
 use rustbus::wire::marshal::traits::ObjectPath;
 
@@ -17,7 +17,7 @@ mod service_interface;
 pub struct Context {
     service: service::SecretService,
 }
-pub type MyHandleEnv<'a, 'b> = HandleEnvironment<'a, &'b mut Context, ()>;
+pub type MyHandleEnv<'a, 'b> = HandleEnvironment<&'b mut Context, ()>;
 
 fn default_handler(
     _ctx: &mut &mut Context,
@@ -197,30 +197,27 @@ fn session_handler(
 }
 
 fn main() {
-    let mut con = Conn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
+    let mut con = DuplexConn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
 
-    con.send_message(
-        &mut rustbus::standard_messages::hello(),
-        rustbus::connection::Timeout::Infinite,
-    )
-    .unwrap();
-
-    let resp = con
-        .get_next_message(rustbus::connection::Timeout::Infinite)
+    let unique_name = con
+        .send_hello(rustbus::connection::Timeout::Infinite)
         .unwrap();
 
-    println!("Unique name: {}", resp.body.parser().get::<&str>().unwrap());
+    println!("Unique name: {}", unique_name);
 
-    con.send_message(
-        &mut rustbus::standard_messages::request_name(
-            "io.killingspark.secrets".into(),
-            rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
-        ),
-        rustbus::connection::Timeout::Infinite,
-    )
-    .unwrap();
+    con.send
+        .send_message(
+            &mut rustbus::standard_messages::request_name(
+                "io.killingspark.secrets".into(),
+                rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
+            ),
+            rustbus::connection::Timeout::Infinite,
+        )
+        .unwrap();
 
+    // The responses content should be looked at. ATM we just assume the name aquistion worked...
     let _resp = con
+        .recv
         .get_next_message(rustbus::connection::Timeout::Infinite)
         .unwrap();
 

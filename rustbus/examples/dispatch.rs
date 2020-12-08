@@ -2,11 +2,11 @@ use rustbus::connection::dispatch_conn::DispatchConn;
 use rustbus::connection::dispatch_conn::HandleEnvironment;
 use rustbus::connection::dispatch_conn::HandleResult;
 use rustbus::connection::dispatch_conn::Matches;
-use rustbus::connection::ll_conn::Conn;
+use rustbus::connection::ll_conn::DuplexConn;
 use rustbus::message_builder::MarshalledMessage;
 
 // just to make the function definitions a bit shorter
-type MyHandleEnv<'a, 'b> = HandleEnvironment<'a, &'b mut Counter, ()>;
+type MyHandleEnv<'a, 'b> = HandleEnvironment<&'b mut Counter, ()>;
 
 struct Counter {
     count: u64,
@@ -65,22 +65,21 @@ fn name_handler(
 
 fn main() {
     let mut con =
-        Conn::connect_to_bus(rustbus::connection::get_session_bus_path().unwrap(), false).unwrap();
-    con.send_message(
-        &mut rustbus::standard_messages::hello(),
-        rustbus::connection::Timeout::Infinite,
-    )
-    .unwrap();
+        DuplexConn::connect_to_bus(rustbus::connection::get_session_bus_path().unwrap(), false)
+            .unwrap();
+    con.send_hello(rustbus::connection::Timeout::Infinite)
+        .unwrap();
 
     if std::env::args().find(|arg| "server".eq(arg)).is_some() {
-        con.send_message(
-            &mut rustbus::standard_messages::request_name(
-                "killing.spark.io".into(),
-                rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
-            ),
-            rustbus::connection::Timeout::Infinite,
-        )
-        .unwrap();
+        con.send
+            .send_message(
+                &mut rustbus::standard_messages::request_name(
+                    "killing.spark.io".into(),
+                    rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
+                ),
+                rustbus::connection::Timeout::Infinite,
+            )
+            .unwrap();
 
         let mut counter = Counter { count: 0 };
         let dh = Box::new(default_handler);
@@ -109,7 +108,8 @@ fn main() {
             .at("killing.spark.io".into())
             .on("/ABCD".into())
             .build();
-        con.send_message(&mut msg1, rustbus::connection::Timeout::Infinite)
+        con.send
+            .send_message(&mut msg1, rustbus::connection::Timeout::Infinite)
             .unwrap();
 
         // pick up the name
@@ -118,7 +118,8 @@ fn main() {
             .at("killing.spark.io".into())
             .on("/A/B/moritz".into())
             .build();
-        con.send_message(&mut msg2, rustbus::connection::Timeout::Infinite)
+        con.send
+            .send_message(&mut msg2, rustbus::connection::Timeout::Infinite)
             .unwrap();
 
         // call new handler for that name
@@ -127,11 +128,14 @@ fn main() {
             .at("killing.spark.io".into())
             .on("/moritz".into())
             .build();
-        con.send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+        con.send
+            .send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
             .unwrap();
-        con.send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+        con.send
+            .send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
             .unwrap();
-        con.send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+        con.send
+            .send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
             .unwrap();
     }
 }

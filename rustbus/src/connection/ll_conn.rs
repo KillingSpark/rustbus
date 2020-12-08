@@ -22,62 +22,28 @@ use nix::sys::uio::IoVec;
 
 /// A lowlevel abstraction over the raw unix socket
 #[derive(Debug)]
-pub struct Conn {
-    socket_addr: UnixAddr,
+pub struct SendConn {
     stream: UnixStream,
 
     byteorder: ByteOrder,
-
-    msg_buf_in: Vec<u8>,
-    cmsgs_in: Vec<ControlMessageOwned>,
-
     msg_buf_out: Vec<u8>,
 
     serial_counter: u32,
 }
 
-impl<'msga, 'msge> Conn {
-    /// Connect to a unix socket and choose a byteorder
-    pub fn connect_to_bus_with_byteorder(
-        addr: UnixAddr,
-        byteorder: ByteOrder,
-        with_unix_fd: bool,
-    ) -> super::Result<Conn> {
-        let sock = socket(
-            socket::AddressFamily::Unix,
-            socket::SockType::Stream,
-            socket::SockFlag::empty(),
-            None,
-        )?;
-        let sock_addr = SockAddr::Unix(addr);
-        connect(sock, &sock_addr)?;
-        let mut stream = unsafe { UnixStream::from_raw_fd(sock) };
-        match auth::do_auth(&mut stream)? {
-            auth::AuthResult::Ok => {}
-            auth::AuthResult::Rejected => return Err(Error::AuthFailed),
-        }
+pub struct RecvConn {
+    stream: UnixStream,
 
-        if with_unix_fd {
-            match auth::negotiate_unix_fds(&mut stream)? {
-                auth::AuthResult::Ok => {}
-                auth::AuthResult::Rejected => return Err(Error::UnixFdNegotiationFailed),
-            }
-        }
+    msg_buf_in: Vec<u8>,
+    cmsgs_in: Vec<ControlMessageOwned>,
+}
 
-        auth::send_begin(&mut stream)?;
+pub struct DuplexConn {
+    pub send: SendConn,
+    pub recv: RecvConn,
+}
 
-        Ok(Conn {
-            socket_addr: addr,
-            stream,
-            msg_buf_in: Vec::new(),
-            cmsgs_in: Vec::new(),
-            msg_buf_out: Vec::new(),
-            byteorder,
-
-            serial_counter: 1,
-        })
-    }
-
+impl RecvConn {
     pub fn can_read_from_source(&self) -> nix::Result<bool> {
         let mut fdset = nix::sys::select::FdSet::new();
         let fd = self.stream.as_raw_fd();
@@ -88,11 +54,6 @@ impl<'msga, 'msge> Conn {
 
         nix::sys::select::select(None, Some(&mut fdset), None, None, Some(&mut zero_timeout))?;
         Ok(fdset.contains(fd))
-    }
-
-    /// Connect to a unix socket. The default little endian byteorder is used
-    pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> Result<Conn> {
-        Self::connect_to_bus_with_byteorder(addr, ByteOrder::LittleEndian, with_unix_fd)
     }
 
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
@@ -240,7 +201,9 @@ impl<'msga, 'msge> Conn {
 
         Ok(msg)
     }
+}
 
+impl SendConn {
     /// get the next new serial
     pub fn alloc_serial(&mut self) -> u32 {
         let serial = self.serial_counter;
@@ -264,7 +227,7 @@ impl<'msga, 'msge> Conn {
             (true, serial)
         };
 
-        marshal::marshal(&msg, ByteOrder::LittleEndian, &[], &mut self.msg_buf_out)?;
+        marshal::marshal(&msg, self.byteorder, &mut self.msg_buf_out)?;
 
         let iov = [IoVec::from_slice(&self.msg_buf_out)];
         let flags = MsgFlags::empty();
@@ -311,10 +274,93 @@ impl<'msga, 'msge> Conn {
     }
 }
 
-impl AsRawFd for Conn {
+impl DuplexConn {
+    /// Connect to a unix socket and choose a byteorder
+    pub fn connect_to_bus_with_byteorder(
+        addr: UnixAddr,
+        byteorder: ByteOrder,
+        with_unix_fd: bool,
+    ) -> super::Result<DuplexConn> {
+        let sock = socket(
+            socket::AddressFamily::Unix,
+            socket::SockType::Stream,
+            socket::SockFlag::empty(),
+            None,
+        )?;
+        let sock_addr = SockAddr::Unix(addr);
+        connect(sock, &sock_addr)?;
+        let mut stream = unsafe { UnixStream::from_raw_fd(sock) };
+        match auth::do_auth(&mut stream)? {
+            auth::AuthResult::Ok => {}
+            auth::AuthResult::Rejected => return Err(Error::AuthFailed),
+        }
+
+        if with_unix_fd {
+            match auth::negotiate_unix_fds(&mut stream)? {
+                auth::AuthResult::Ok => {}
+                auth::AuthResult::Rejected => return Err(Error::UnixFdNegotiationFailed),
+            }
+        }
+
+        auth::send_begin(&mut stream)?;
+
+        Ok(DuplexConn {
+            send: SendConn {
+                stream: stream.try_clone()?,
+                msg_buf_out: Vec::new(),
+                byteorder,
+                serial_counter: 1,
+            },
+            recv: RecvConn {
+                msg_buf_in: Vec::new(),
+                cmsgs_in: Vec::new(),
+                stream,
+            },
+        })
+    }
+
+    /// Connect to a unix socket. The default little endian byteorder is used
+    pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> Result<DuplexConn> {
+        Self::connect_to_bus_with_byteorder(addr, ByteOrder::LittleEndian, with_unix_fd)
+    }
+
+    /// Sends the obligatory hello message and returns the unique id the daemon assigned this connection
+    pub fn send_hello(&mut self, timeout: crate::connection::Timeout) -> super::Result<String> {
+        let start_time = time::Instant::now();
+
+        let serial = self.send.send_message(
+            &mut crate::standard_messages::hello(),
+            super::calc_timeout_left(&start_time, timeout)?,
+        )?;
+        let resp = self
+            .recv
+            .get_next_message(super::calc_timeout_left(&start_time, timeout)?)?;
+        if resp.dynheader.response_serial != Some(serial) {
+            return Err(super::Error::AuthFailed);
+        }
+        let unique_name = resp.body.parser().get::<String>()?;
+        Ok(unique_name)
+    }
+}
+
+impl AsRawFd for SendConn {
     /// Reading or writing to the `RawFd` may result in undefined behavior
     /// and break the `Conn`.
     fn as_raw_fd(&self) -> RawFd {
         self.stream.as_raw_fd()
+    }
+}
+impl AsRawFd for RecvConn {
+    /// Reading or writing to the `RawFd` may result in undefined behavior
+    /// and break the `Conn`.
+    fn as_raw_fd(&self) -> RawFd {
+        self.stream.as_raw_fd()
+    }
+}
+impl AsRawFd for DuplexConn {
+    /// Reading or writing to the `RawFd` may result in undefined behavior
+    /// and break the `Conn`.
+    fn as_raw_fd(&self) -> RawFd {
+        self.recv.stream.as_raw_fd()
     }
 }
