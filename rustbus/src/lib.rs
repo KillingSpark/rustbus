@@ -2,7 +2,7 @@
 //! Rustbus is a dbus library that allows for clients to perform method_calls on services on the bus or to implement your own service that listens on the bus.
 //!
 //! ## Quickstart
-//! ```rust
+//! ```rust,norun
 //! use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
 //! fn main() -> Result<(), rustbus::connection::Error> {
 //!     /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
