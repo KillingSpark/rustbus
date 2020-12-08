@@ -23,7 +23,6 @@ use nix::sys::uio::IoVec;
 /// A lowlevel abstraction over the raw unix socket
 #[derive(Debug)]
 pub struct SendConn {
-    socket_addr: UnixAddr,
     stream: UnixStream,
 
     byteorder: ByteOrder,
@@ -307,7 +306,6 @@ impl DuplexConn {
 
         Ok(DuplexConn {
             send: SendConn {
-                socket_addr: addr,
                 stream: stream.try_clone()?,
                 msg_buf_out: Vec::new(),
                 byteorder,
@@ -324,6 +322,24 @@ impl DuplexConn {
     /// Connect to a unix socket. The default little endian byteorder is used
     pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> Result<DuplexConn> {
         Self::connect_to_bus_with_byteorder(addr, ByteOrder::LittleEndian, with_unix_fd)
+    }
+
+    /// Sends the obligatory hello message and returns the unique id the daemon assigned this connection
+    pub fn send_hello(&mut self, timeout: crate::connection::Timeout) -> super::Result<String> {
+        let start_time = time::Instant::now();
+
+        let serial = self.send.send_message(
+            &mut crate::standard_messages::hello(),
+            super::calc_timeout_left(&start_time, timeout)?,
+        )?;
+        let resp = self
+            .recv
+            .get_next_message(super::calc_timeout_left(&start_time, timeout)?)?;
+        if resp.dynheader.response_serial != Some(serial) {
+            return Err(super::Error::AuthFailed);
+        }
+        let unique_name = resp.body.parser().get::<String>()?;
+        Ok(unique_name)
     }
 }
 

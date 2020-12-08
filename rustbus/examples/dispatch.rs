@@ -67,11 +67,7 @@ fn main() {
     let mut con =
         DuplexConn::connect_to_bus(rustbus::connection::get_session_bus_path().unwrap(), false)
             .unwrap();
-    con.send
-        .send_message(
-            &mut rustbus::standard_messages::hello(),
-            rustbus::connection::Timeout::Infinite,
-        )
+    con.send_hello(rustbus::connection::Timeout::Infinite)
         .unwrap();
 
     if std::env::args().find(|arg| "server".eq(arg)).is_some() {
