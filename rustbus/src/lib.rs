@@ -7,7 +7,7 @@
 //! fn main() -> Result<(), rustbus::connection::Error> {
 //!     /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
 //!     let session_path = get_session_bus_path()?;
-//!     let con = DuplexConn::connect_to_bus(session_path, true)?;
+//!     let mut con = DuplexConn::connect_to_bus(session_path, true)?;
 //!     // Dont forget to send the obligatory hello message. send_hello wraps the call and parses the response for convenience.
 //!     let unique_name = con.send_hello(Timeout::Infinite)?;
 //!
@@ -36,6 +36,7 @@
 //!     // After inspecting that dynheader you should know which content the message should contain
 //!     let cool_string = message.body.parser().get::<&str>().unwrap();
 //!     println!("Received a cool string: {}", cool_string);
+//!     Ok(())
 //! }
 //! ```
 //!
