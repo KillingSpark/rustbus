@@ -65,6 +65,8 @@
 //!
 //! The doc for the traits gives more specifics on how to implement them for your own types if necessary.
 //!
+//! There is an exmaple for all of this in `examples/user_defined_types.rs`
+//!
 //! ## Filedescriptors
 //! Dbus can send filedescriptors around for you. Rustbus supports this. There is a special wrapper type in the wire module. This type tries to sensibly deal with
 //! the pitfalls of sending and receiving filedescriptors in a sensible way. If you see any issues with the API or have wishes for extensions to the API please
