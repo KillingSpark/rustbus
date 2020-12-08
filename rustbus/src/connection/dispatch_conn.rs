@@ -1,5 +1,5 @@
-//! A connection type that allows dispatching method calls to different handlers. 
-//! 
+//! A connection type that allows dispatching method calls to different handlers.
+//!
 //! The basic concept is similar to how http routers work. The object path is split up and can be matched against to determin which handler
 //! should be called. After setting up all the handlers you can call run() on the DispatchConnection. There is a simple example in the examples
 //! directory and an extensive example in the rustbus repo called `example_keywallet` which somewhat implements the freedesktop `secret service API`.
