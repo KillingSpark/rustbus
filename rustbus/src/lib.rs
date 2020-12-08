@@ -52,7 +52,27 @@
 //! This lib started out as an attempt to understand how dbus worked. Thus I modeled the types a closely as possible with enums, which is still in the params module.
 //! This is kept around for weird weird edge-cases where that might be necessary but they should not generally be used.
 //! 
-//! Instead you should be using the Marshal and Unmarshal traits which are implemented for most common types you will need.
+//! Instead you should be using the Marshal and Unmarshal traits which are implemented for most common types you will need. The idea is to map rust types
+//! as closely as possible to dbus types. The trivial types like String and u64 etc are dealt with easily. For tuple-structs there are impls up to a 
+//! certain size. After that you'd need to copy the impl from this lib and extend it accordingly. This might be dealt with in the future if variadic generics get 
+//! added to rust.
+//! 
+//! For structs there is a derive proc-macro that derives the necessary trait impls for you. Look into rustbus_derive if this is of need for you.
+//!
+//! For Variants there is a macro dbus_variant_sig! and dbus_variant_var! which will generate an enum and the Marshal and Unmarshal impls for you. These might get
+//! replaced with a proc-macro derive like it exists already for structs.
+//!
+//! The doc for the traits gives more specifics on how to implement them for your own types if necessary.
+//!
+//! ## Filedescriptors
+//! Dbus can send filedescriptors around for you. Rustbus supports this. There is a special wrapper type in the wire module. This type tries to sensibly deal with
+//! the pitfalls of sending and receiving filedescriptors in a sensible way. If you see any issues with the API or have wishes for extensions to the API please
+//! open an issue.
+//!
+//! ## Byteorders
+//! Dbus supports both big and little endian and so does rustbus. You can specify how a message should be marshalled when you create the MessageBuilder. Messages 
+//! can be received in any byteorder and will be transparently unmarshalled into the byteorder you CPU uses. Note that unmarshalling from/to the native byteorder will
+//! be faster. The default byteorder is little endian.
 
 pub mod auth;
 pub mod connection;
@@ -73,6 +93,7 @@ pub use connection::ll_conn::DuplexConn;
 pub use connection::ll_conn::RecvConn;
 pub use connection::ll_conn::SendConn;
 pub use connection::rpc_conn::RpcConn;
+pub use connection::dispatch_conn::DispatchConn;
 pub use connection::{get_session_bus_path, get_system_bus_path};
 
 // needed to make new messages
