@@ -199,19 +199,11 @@ fn session_handler(
 fn main() {
     let mut con = DuplexConn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
 
-    con.send
-        .send_message(
-            &mut rustbus::standard_messages::hello(),
-            rustbus::connection::Timeout::Infinite,
-        )
+    let unique_name = con
+        .send_hello(rustbus::connection::Timeout::Infinite)
         .unwrap();
 
-    let resp = con
-        .recv
-        .get_next_message(rustbus::connection::Timeout::Infinite)
-        .unwrap();
-
-    println!("Unique name: {}", resp.body.parser().get::<&str>().unwrap());
+    println!("Unique name: {}", unique_name);
 
     con.send
         .send_message(
@@ -223,6 +215,7 @@ fn main() {
         )
         .unwrap();
 
+    // The responses content should be looked at. ATM we just assume the name aquistion worked...
     let _resp = con
         .recv
         .get_next_message(rustbus::connection::Timeout::Infinite)
