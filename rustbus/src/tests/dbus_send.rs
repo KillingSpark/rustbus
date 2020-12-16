@@ -1,3 +1,4 @@
+use crate::connection::ll_conn::force_finish_on_error;
 use crate::connection::rpc_conn::RpcConn;
 use crate::connection::Timeout;
 use crate::standard_messages;
@@ -20,29 +21,32 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
             .eq(&Some("io.killing.spark.dbustest".to_owned())),
     }));
 
-    let hello_serial = rpc_con.send_message(
-        &mut standard_messages::hello(),
-        Timeout::Duration(std::time::Duration::from_millis(10)),
-    )?;
+    let hello_serial = rpc_con
+        .send_message(&mut standard_messages::hello())?
+        .write_all()
+        .map_err(force_finish_on_error)?;
     let _msg = rpc_con.wait_response(
         hello_serial,
         Timeout::Duration(std::time::Duration::from_millis(10)),
     )?;
 
     // Request name
-    let reqname_serial = rpc_con.send_message(
-        &mut standard_messages::request_name("io.killing.spark.dbustest".into(), 0),
-        Timeout::Duration(std::time::Duration::from_millis(10)),
-    )?;
+    let reqname_serial = rpc_con
+        .send_message(&mut standard_messages::request_name(
+            "io.killing.spark.dbustest".into(),
+            0,
+        ))?
+        .write_all()
+        .map_err(force_finish_on_error)?;
     let _msg = rpc_con.wait_response(
         reqname_serial,
         Timeout::Duration(std::time::Duration::from_millis(10)),
     )?;
 
-    let sig_serial = rpc_con.send_message(
-        &mut standard_messages::add_match("type='signal'".into()),
-        Timeout::Duration(std::time::Duration::from_millis(10)),
-    )?;
+    let sig_serial = rpc_con
+        .send_message(&mut standard_messages::add_match("type='signal'".into()))?
+        .write_all()
+        .map_err(force_finish_on_error)?;
     let _msg = rpc_con.wait_response(
         sig_serial,
         Timeout::Duration(std::time::Duration::from_millis(10)),

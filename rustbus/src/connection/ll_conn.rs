@@ -212,65 +212,170 @@ impl SendConn {
     }
 
     /// send a message over the conn
-    pub fn send_message(
-        &mut self,
-        msg: &mut crate::message_builder::MarshalledMessage,
-        timeout: Timeout,
-    ) -> Result<u32> {
+    pub fn send_message<'a>(
+        &'a mut self,
+        msg: &'a mut MarshalledMessage,
+    ) -> Result<SendMessageContext<'a>> {
         self.msg_buf_out.clear();
-        let (remove_later, serial) = if let Some(serial) = msg.dynheader.serial {
-            (false, serial)
+        let remove_later = if msg.dynheader.serial.is_some() {
+            false
         } else {
             let serial = self.serial_counter;
             self.serial_counter += 1;
             msg.dynheader.serial = Some(serial);
-            (true, serial)
+            true
         };
 
         marshal::marshal(&msg, self.byteorder, &mut self.msg_buf_out)?;
 
-        let iov = [IoVec::from_slice(&self.msg_buf_out)];
-        let flags = MsgFlags::empty();
+        let ctx = SendMessageContext {
+            msg,
+            conn: self,
 
-        let old_timeout = self.stream.write_timeout()?;
-        match timeout {
-            Timeout::Duration(d) => {
-                self.stream.set_write_timeout(Some(d))?;
-            }
-            Timeout::Infinite => {
-                self.stream.set_write_timeout(None)?;
-            }
-            Timeout::Nonblock => {
-                self.stream.set_nonblocking(true)?;
+            bytes_sent: 0,
+            remove_serial_after_sending: remove_later,
+        };
+
+        Ok(ctx)
+    }
+}
+
+/// only call if you deem the connection doomed by an error returned from writing.
+/// The connection might be left in an invalid state if some but not all bytes of the message
+/// have been written
+pub fn force_finish_on_error<E>((s, e): (SendMessageContext<'_>, E)) -> E {
+    s.force_finish();
+    e
+}
+
+#[must_use = "Dropping this type is considered an error since it might leave the connection in an illdefined state if only some bytes of a message have been written"]
+#[derive(Debug)]
+/// Handles the process of actually sending a message over the connection it was created from. This allows graceful handling of short writes or timeouts with only
+/// parts of the message written. You can loop over write or write_once or use write_all to wait until all bytes have been written or an error besides a timeout
+/// arises.
+pub struct SendMessageContext<'a> {
+    msg: &'a mut MarshalledMessage,
+    conn: &'a mut SendConn,
+
+    bytes_sent: usize,
+    remove_serial_after_sending: bool,
+}
+
+/// This panics if the SendMessageContext was dropped when it was not yet finished. Use force_finish / force_finish_on_error
+/// if you want to do this. It will be necessary for handling errors that make the connection unusable.
+impl Drop for SendMessageContext<'_> {
+    fn drop(&mut self) {
+        if self.bytes_sent != 0 && !self.all_bytes_written() {
+            panic!("You dropped a SendMessageContext that only partially sent the message! This is not ok since that leaves the connection in an ill defined state. Use one of the consuming functions!");
+        } else {
+            if self.remove_serial_after_sending {
+                self.msg.dynheader.serial = None;
             }
         }
-        let raw_fds = msg
-            .body
-            .raw_fds
-            .iter()
-            .map(|fd| fd.get_raw_fd())
-            .flatten()
-            .collect::<Vec<RawFd>>();
-        let l = sendmsg(
-            self.stream.as_raw_fd(),
+    }
+}
+
+impl SendMessageContext<'_> {
+    fn finish_if_ok<O, E>(
+        self,
+        res: std::result::Result<O, E>,
+    ) -> std::result::Result<O, (Self, E)> {
+        match res {
+            Ok(o) => {
+                // this is technically unnecessary but just to make it explicit we drop self here
+                std::mem::drop(self);
+                Ok(o)
+            }
+            Err(e) => Err((self, e)),
+        }
+    }
+
+    /// only call if you deem the connection doomed by an error returned from writing.
+    /// The connection might be left in an invalid state if some but not all bytes of the message
+    /// have been written
+    pub fn force_finish(self) {
+        std::mem::forget(self)
+    }
+
+    pub fn write(mut self, timeout: Timeout) -> std::result::Result<u32, (Self, super::Error)> {
+        let start_time = std::time::Instant::now();
+
+        // loop until either the time is up or all bytes have been written
+        let res = loop {
+            let iteration_timeout = super::calc_timeout_left(&start_time, timeout);
+            let iteration_timeout = match iteration_timeout {
+                Err(e) => break Err(e),
+                Ok(t) => t,
+            };
+
+            match self.write_once(iteration_timeout) {
+                Err(e) => break Err(e),
+                Ok(t) => t,
+            };
+            if self.all_bytes_written() {
+                break Ok(self.msg.dynheader.serial.unwrap());
+            }
+        };
+
+        // This only occurs if all bytes have been sent. Otherwise we return with Error::TimedOut or another error
+        self.finish_if_ok(res)
+    }
+
+    pub fn write_all(self) -> std::result::Result<u32, (Self, super::Error)> {
+        self.write(Timeout::Infinite)
+    }
+
+    pub fn all_bytes_written(&self) -> bool {
+        self.bytes_sent == self.conn.msg_buf_out.len()
+    }
+
+    pub fn write_once(&mut self, timeout: Timeout) -> Result<usize> {
+        let slice_to_send = &self.conn.msg_buf_out[self.bytes_sent..];
+        let iov = [IoVec::from_slice(slice_to_send)];
+        let flags = MsgFlags::empty();
+
+        let old_timeout = self.conn.stream.write_timeout()?;
+        match timeout {
+            Timeout::Duration(d) => {
+                self.conn.stream.set_write_timeout(Some(d))?;
+            }
+            Timeout::Infinite => {
+                self.conn.stream.set_write_timeout(None)?;
+            }
+            Timeout::Nonblock => {
+                self.conn.stream.set_nonblocking(true)?;
+            }
+        }
+
+        // if this is not the first write for this message do not send the raw_fds again. This would lead to unexpected
+        // duplicated FDs on the other end!
+        let raw_fds = if self.bytes_sent == 0 {
+            self.msg
+                .body
+                .raw_fds
+                .iter()
+                .map(|fd| fd.get_raw_fd())
+                .flatten()
+                .collect::<Vec<RawFd>>()
+        } else {
+            vec![]
+        };
+        let bytes_sent = sendmsg(
+            self.conn.stream.as_raw_fd(),
             &iov,
             &[ControlMessage::ScmRights(&raw_fds)],
             flags,
             None,
         );
 
-        self.stream.set_write_timeout(old_timeout)?;
-        self.stream.set_nonblocking(false)?;
+        self.conn.stream.set_write_timeout(old_timeout)?;
+        self.conn.stream.set_nonblocking(false)?;
 
-        let l = l?;
+        let bytes_sent = bytes_sent?;
 
-        assert_eq!(l, self.msg_buf_out.len());
+        self.bytes_sent += bytes_sent;
 
-        if remove_later {
-            msg.dynheader.serial = None;
-        }
-
-        Ok(serial)
+        Ok(bytes_sent)
     }
 }
 
@@ -325,13 +430,21 @@ impl DuplexConn {
     }
 
     /// Sends the obligatory hello message and returns the unique id the daemon assigned this connection
-    pub fn send_hello(&mut self, timeout: crate::connection::Timeout) -> super::Result<String> {
+    pub fn send_hello<'a>(
+        &'a mut self,
+        timeout: crate::connection::Timeout,
+    ) -> super::Result<String> {
         let start_time = time::Instant::now();
 
-        let serial = self.send.send_message(
-            &mut crate::standard_messages::hello(),
-            super::calc_timeout_left(&start_time, timeout)?,
-        )?;
+        let mut hello = crate::standard_messages::hello();
+        let serial = self
+            .send
+            .send_message(&mut hello)?
+            .write(super::calc_timeout_left(&start_time, timeout)?)
+            .map_err(|(ctx, e)| {
+                ctx.force_finish();
+                e
+            })?;
         let resp = self
             .recv
             .get_next_message(super::calc_timeout_left(&start_time, timeout)?)?;

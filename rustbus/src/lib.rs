@@ -32,7 +32,7 @@
 //!     
 //!     // Now you can inspect the message.dynheader for all the metadata on the message
 //!     println!("The messages dynamic header: {:?}", message.dynheader);
-//! 
+//!
 //!     // After inspecting that dynheader you should know which content the message should contain
 //!     let cool_string = message.body.parser().get::<&str>().unwrap();
 //!     println!("Received a cool string: {}", cool_string);
@@ -40,18 +40,18 @@
 //! ```
 //!
 //! ## Other connection Types
-//! There are some more connection types in the connection module. These are convenience wrappes around the concepts presented in the quickstart. 
+//! There are some more connection types in the connection module. These are convenience wrappes around the concepts presented in the quickstart.
 //! * RpcConn is meant for clients calling methods on services on the bus
 //! * DispatchConn is meant for services that need to dispatch calls to many handlers.
-//! 
+//!
 //! Since different usecases have diffenret constraints you might need to write your own wrapper around the low level conn. This should not be too hard
-//! if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding 
+//! if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding
 //! it to this libary.
-//! 
+//!
 //! ## Params and Marshal and Unmarshal
 //! This lib started out as an attempt to understand how dbus worked. Thus I modeled the types a closely as possible with enums, which is still in the params module.
 //! This is kept around for weird weird edge-cases where that might be necessary but they should not generally be used.
-//! 
+//!
 //! Instead you should be using the Marshal and Unmarshal traits which are implemented for most common types you will need.
 
 pub mod auth;

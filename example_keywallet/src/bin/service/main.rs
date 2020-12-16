@@ -206,13 +206,12 @@ fn main() {
     println!("Unique name: {}", unique_name);
 
     con.send
-        .send_message(
-            &mut rustbus::standard_messages::request_name(
-                "io.killingspark.secrets".into(),
-                rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
-            ),
-            rustbus::connection::Timeout::Infinite,
-        )
+        .send_message(&mut rustbus::standard_messages::request_name(
+            "io.killingspark.secrets".into(),
+            rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
+        ))
+        .unwrap()
+        .write_all()
         .unwrap();
 
     // The responses content should be looked at. ATM we just assume the name aquistion worked...

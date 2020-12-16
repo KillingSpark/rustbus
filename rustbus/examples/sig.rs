@@ -37,9 +37,9 @@ fn main() -> Result<(), rustbus::connection::Error> {
 
     println!("{:?}", sig);
 
-    con.send.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig)?.write_all().unwrap();
     std::thread::sleep(std::time::Duration::from_secs(1));
-    con.send.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig)?.write_all().unwrap();
 
     Ok(())
 }

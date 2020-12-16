@@ -16,12 +16,13 @@ fn main() -> Result<(), rustbus::connection::Error> {
         let session_path = get_session_bus_path()?;
         let con = DuplexConn::connect_to_bus(session_path, true)?;
         let mut con = RpcConn::new(con);
-        con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
+        con.send_message(&mut standard_messages::hello())?
+            .write_all()
+            .unwrap();
 
-        con.send_message(
-            &mut standard_messages::add_match("type='signal'".into()),
-            Timeout::Infinite,
-        )?;
+        con.send_message(&mut standard_messages::add_match("type='signal'".into()))?
+            .write_all()
+            .unwrap();
 
         let sig = loop {
             let signal = con.wait_signal(Timeout::Infinite)?;
@@ -56,8 +57,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
 fn send_fd() -> Result<(), rustbus::connection::Error> {
     let session_path = rustbus::connection::get_session_bus_path()?;
     let mut con = rustbus::DuplexConn::connect_to_bus(session_path, true)?;
-    con.send
-        .send_message(&mut rustbus::standard_messages::hello(), Timeout::Infinite)?;
+    con.send_hello(Timeout::Infinite).unwrap();
     let mut sig = MessageBuilder::new()
         .signal(
             "io.killing.spark".into(),
@@ -70,7 +70,7 @@ fn send_fd() -> Result<(), rustbus::connection::Error> {
     let stdin_fd = std::io::stdin();
     sig.body.push_param((&stdin_fd) as &dyn AsRawFd).unwrap();
     sig.dynheader.num_fds = Some(1);
-    con.send.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig)?.write_all().unwrap();
 
     let mut sig = MessageBuilder::new()
         .signal(
@@ -79,7 +79,7 @@ fn send_fd() -> Result<(), rustbus::connection::Error> {
             "/io/killing/spark".into(),
         )
         .build();
-    con.send.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig)?.write_all().unwrap();
 
     println!("Printing stuff from stdin. The following is input from the other process!");
     let mut line = String::new();

@@ -154,7 +154,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
     sig.body.push_param(MyVar::Int32(100))?;
     sig.body.push_param(MyVar::Int64(-100))?;
 
-    con.send.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&mut sig)?.write_all().unwrap();
 
     Ok(())
 }
