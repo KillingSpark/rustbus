@@ -232,7 +232,7 @@ impl SendConn {
             msg,
             conn: self,
 
-            bytes_sent: 0,
+            progress: SendMessageProgress::default(),
             remove_serial_after_sending: remove_later,
         };
 
@@ -257,15 +257,24 @@ pub struct SendMessageContext<'a> {
     msg: &'a mut MarshalledMessage,
     conn: &'a mut SendConn,
 
-    bytes_sent: usize,
     remove_serial_after_sending: bool,
+
+    progress: SendMessageProgress,
+}
+
+/// Tracks the progress of sending the message. Can be used to resume a SendMessageContext.
+///
+///Note that this only makes sense if you resume with the same Message and Connection that were used to create the original SendMessageContext.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct SendMessageProgress {
+    bytes_sent: usize,
 }
 
 /// This panics if the SendMessageContext was dropped when it was not yet finished. Use force_finish / force_finish_on_error
 /// if you want to do this. It will be necessary for handling errors that make the connection unusable.
 impl Drop for SendMessageContext<'_> {
     fn drop(&mut self) {
-        if self.bytes_sent != 0 && !self.all_bytes_written() {
+        if self.progress.bytes_sent != 0 && !self.all_bytes_written() {
             panic!("You dropped a SendMessageContext that only partially sent the message! This is not ok since that leaves the connection in an ill defined state. Use one of the consuming functions!");
         } else {
             if self.remove_serial_after_sending {
@@ -276,6 +285,31 @@ impl Drop for SendMessageContext<'_> {
 }
 
 impl SendMessageContext<'_> {
+    /// Resume a SendMessageContext from the progress. This needs to be called with the same
+    /// conn and msg that were used to create the original SendMessageContext.
+    pub fn resume<'a>(
+        conn: &'a mut SendConn,
+        msg: &'a mut MarshalledMessage,
+        remove_serial_after_sending: bool,
+        progress: SendMessageProgress,
+    ) -> SendMessageContext<'a> {
+        SendMessageContext {
+            conn,
+            msg,
+            progress,
+            remove_serial_after_sending,
+        }
+    }
+
+    /// Turn this into the progress to resume the sending later. Note that you cannot send another
+    /// message while doing that. You need to resume a SendMessageContext from this progress and
+    /// send the current message beofre starting the next one.
+    pub fn into_progress(self) -> SendMessageProgress {
+        let progress = self.progress;
+        Self::force_finish(self);
+        progress
+    }
+
     fn finish_if_ok<O, E>(
         self,
         res: std::result::Result<O, E>,
@@ -326,11 +360,11 @@ impl SendMessageContext<'_> {
     }
 
     pub fn all_bytes_written(&self) -> bool {
-        self.bytes_sent == self.conn.msg_buf_out.len()
+        self.progress.bytes_sent == self.conn.msg_buf_out.len()
     }
 
     pub fn write_once(&mut self, timeout: Timeout) -> Result<usize> {
-        let slice_to_send = &self.conn.msg_buf_out[self.bytes_sent..];
+        let slice_to_send = &self.conn.msg_buf_out[self.progress.bytes_sent..];
         let iov = [IoVec::from_slice(slice_to_send)];
         let flags = MsgFlags::empty();
 
@@ -349,7 +383,7 @@ impl SendMessageContext<'_> {
 
         // if this is not the first write for this message do not send the raw_fds again. This would lead to unexpected
         // duplicated FDs on the other end!
-        let raw_fds = if self.bytes_sent == 0 {
+        let raw_fds = if self.progress.bytes_sent == 0 {
             self.msg
                 .body
                 .raw_fds
@@ -373,7 +407,7 @@ impl SendMessageContext<'_> {
 
         let bytes_sent = bytes_sent?;
 
-        self.bytes_sent += bytes_sent;
+        self.progress.bytes_sent += bytes_sent;
 
         Ok(bytes_sent)
     }
