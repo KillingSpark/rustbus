@@ -65,6 +65,9 @@ pub fn validate_interface(int: &str) -> Result<()> {
         if element.is_empty() {
             return Err(Error::InvalidInterface);
         }
+        if let Some(true) = element.chars().next().map(|c| c.is_numeric()) {
+            return Err(Error::InvalidInterface);
+        }
         let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
         if !alphanum_or_underscore {
             return Err(Error::InvalidInterface);
