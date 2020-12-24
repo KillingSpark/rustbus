@@ -33,12 +33,14 @@ impl MarshalContext<'_, '_> {
     }
 }
 
+/// This ignores the serial in the message and always uses chosen_serial.
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
+    chosen_serial: u32,
     byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    marshal_header(msg, byteorder, buf)?;
+    marshal_header(msg, chosen_serial, byteorder, buf)?;
     pad_to_align(8, buf);
     let header_len = buf.len();
 
@@ -52,6 +54,7 @@ pub fn marshal(
 
 fn marshal_header(
     msg: &crate::message_builder::MarshalledMessage,
+    chosen_serial: u32,
     byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
@@ -96,6 +99,7 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
 
+    marshal_header_field(byteorder, &HeaderField::ReplySerial(chosen_serial), buf)?;
     if let Some(int) = &msg.dynheader.interface {
         marshal_header_field(byteorder, &HeaderField::Interface(int.clone()), buf)?;
     }
@@ -115,9 +119,7 @@ fn marshal_header(
             buf,
         )?;
     }
-    if let Some(serial) = &msg.dynheader.response_serial {
-        marshal_header_field(byteorder, &HeaderField::ReplySerial(*serial), buf)?;
-    }
+
     if !msg.get_buf().is_empty() {
         let sig_str = msg.get_sig().to_owned();
         marshal_header_field(byteorder, &HeaderField::Signature(sig_str), buf)?;

@@ -214,29 +214,33 @@ impl SendConn {
     /// send a message over the conn
     pub fn send_message<'a>(
         &'a mut self,
-        msg: &'a mut MarshalledMessage,
+        msg: &'a MarshalledMessage,
     ) -> Result<SendMessageContext<'a>> {
         self.msg_buf_out.clear();
-        let remove_later = if msg.dynheader.serial.is_some() {
-            false
+        let serial = if let Some(serial) = msg.dynheader.serial {
+            serial
         } else {
             let serial = self.serial_counter;
             self.serial_counter += 1;
-            msg.dynheader.serial = Some(serial);
-            true
+            serial
         };
 
-        marshal::marshal(&msg, self.byteorder, &mut self.msg_buf_out)?;
+        marshal::marshal(&msg, serial, self.byteorder, &mut self.msg_buf_out)?;
 
         let ctx = SendMessageContext {
             msg,
             conn: self,
 
             progress: SendMessageProgress::default(),
-            remove_serial_after_sending: remove_later,
         };
 
         Ok(ctx)
+    }
+
+    /// send a message and block until all bytes have been sent. Returns the serial of the message to match the response.
+    pub fn send_message_write_all(&mut self, msg: &MarshalledMessage) -> Result<u32> {
+        let ctx = self.send_message(msg)?;
+        ctx.write_all().map_err(force_finish_on_error)
     }
 }
 
@@ -254,10 +258,8 @@ pub fn force_finish_on_error<E>((s, e): (SendMessageContext<'_>, E)) -> E {
 /// parts of the message written. You can loop over write or write_once or use write_all to wait until all bytes have been written or an error besides a timeout
 /// arises.
 pub struct SendMessageContext<'a> {
-    msg: &'a mut MarshalledMessage,
+    msg: &'a MarshalledMessage,
     conn: &'a mut SendConn,
-
-    remove_serial_after_sending: bool,
 
     progress: SendMessageProgress,
 }
@@ -277,9 +279,7 @@ impl Drop for SendMessageContext<'_> {
         if self.progress.bytes_sent != 0 && !self.all_bytes_written() {
             panic!("You dropped a SendMessageContext that only partially sent the message! This is not ok since that leaves the connection in an ill defined state. Use one of the consuming functions!");
         } else {
-            if self.remove_serial_after_sending {
-                self.msg.dynheader.serial = None;
-            }
+            // No special cleanup needed
         }
     }
 }
@@ -289,15 +289,13 @@ impl SendMessageContext<'_> {
     /// conn and msg that were used to create the original SendMessageContext.
     pub fn resume<'a>(
         conn: &'a mut SendConn,
-        msg: &'a mut MarshalledMessage,
-        remove_serial_after_sending: bool,
+        msg: &'a MarshalledMessage,
         progress: SendMessageProgress,
     ) -> SendMessageContext<'a> {
         SendMessageContext {
             conn,
             msg,
             progress,
-            remove_serial_after_sending,
         }
     }
 
