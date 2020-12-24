@@ -96,7 +96,7 @@ fn test_invalid_stuff() {
         .push_old_param(&Param::Base(Base::ObjectPath("invalid/object/path".into())));
     assert_eq!(
         Err(crate::Error::Validation(
-            crate::params::validation::Error::InvalidObjectPath("invalid/object/path".to_owned())
+            crate::params::validation::Error::InvalidObjectPath
         )),
         err
     );
