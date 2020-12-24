@@ -235,8 +235,8 @@ impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
                     let mut send_conn = self.send.lock().unwrap();
 
                     match result {
-                        Ok(Some(mut response)) => {
-                            let ctx = match send_conn.send_message(&mut response) {
+                        Ok(Some(response)) => {
+                            let ctx = match send_conn.send_message(&response) {
                                 Ok(ctx) => ctx,
                                 Err(e) => return Err((Some(msg), e.into())),
                             };
@@ -246,8 +246,8 @@ impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
                         }
 
                         Ok(None) => {
-                            let mut response = msg.dynheader.make_response();
-                            let ctx = match send_conn.send_message(&mut response) {
+                            let response = msg.dynheader.make_response();
+                            let ctx = match send_conn.send_message(&response) {
                                 Ok(ctx) => ctx,
                                 Err(e) => return Err((Some(msg), e.into())),
                             };

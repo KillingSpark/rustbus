@@ -181,10 +181,10 @@ impl RpcConn {
         } else {
             match msg.typ {
                 MessageType::Call => {
-                    let mut reply = crate::standard_messages::unknown_method(&msg.dynheader);
+                    let reply = crate::standard_messages::unknown_method(&msg.dynheader);
                     self.conn
                         .send
-                        .send_message(&mut reply)?
+                        .send_message(&reply)?
                         .write_all()
                         .map_err(ll_conn::force_finish_on_error)?;
                 }

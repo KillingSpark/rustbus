@@ -480,16 +480,13 @@ impl DuplexConn {
     }
 
     /// Sends the obligatory hello message and returns the unique id the daemon assigned this connection
-    pub fn send_hello<'a>(
-        &'a mut self,
-        timeout: crate::connection::Timeout,
-    ) -> super::Result<String> {
+    pub fn send_hello(&mut self, timeout: crate::connection::Timeout) -> super::Result<String> {
         let start_time = time::Instant::now();
 
-        let mut hello = crate::standard_messages::hello();
+        let hello = crate::standard_messages::hello();
         let serial = self
             .send
-            .send_message(&mut hello)?
+            .send_message(&hello)?
             .write(super::calc_timeout_left(&start_time, timeout)?)
             .map_err(|(ctx, e)| {
                 ctx.force_finish();
