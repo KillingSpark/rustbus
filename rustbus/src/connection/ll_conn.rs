@@ -312,6 +312,7 @@ impl SendMessageContext<'_> {
         progress
     }
 
+    /// Either drop self and return Ok value or return (self, error)
     fn finish_if_ok<O, E>(
         self,
         res: std::result::Result<O, E>,
@@ -333,6 +334,8 @@ impl SendMessageContext<'_> {
         std::mem::forget(self)
     }
 
+    /// Try writing as many bytes as possible until either no more bytes need to be written or
+    /// the timeout is reached. For an infinite timeout there is write_all as a shortcut
     pub fn write(mut self, timeout: Timeout) -> std::result::Result<u32, (Self, super::Error)> {
         let start_time = std::time::Instant::now();
 
@@ -357,6 +360,7 @@ impl SendMessageContext<'_> {
         self.finish_if_ok(res)
     }
 
+    /// Block until all bytes have been written
     pub fn write_all(self) -> std::result::Result<u32, (Self, super::Error)> {
         self.write(Timeout::Infinite)
     }
@@ -371,7 +375,8 @@ impl SendMessageContext<'_> {
         self.state.bytes_sent == self.bytes_total()
     }
 
-    /// Basic routine to do a write to the fd once
+    /// Basic routine to do a write to the fd once. Mostly useful if you are using a nonblocking timeout. But even then I would recommend using
+    /// write() and not write_once()
     pub fn write_once(&mut self, timeout: Timeout) -> Result<usize> {
         // This will result in a zero sized slice if the header has been sent. Actually we would not need to
         // include that anymore in the iov but that is harder than just giving it the zero sized slice.
