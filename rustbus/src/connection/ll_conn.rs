@@ -5,7 +5,6 @@ use crate::auth;
 use crate::message_builder::MarshalledMessage;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
-use crate::ByteOrder;
 
 use std::time;
 
@@ -24,9 +23,7 @@ use nix::sys::uio::IoVec;
 #[derive(Debug)]
 pub struct SendConn {
     stream: UnixStream,
-
-    byteorder: ByteOrder,
-    msg_buf_out: Vec<u8>,
+    header_buf: Vec<u8>,
 
     serial_counter: u32,
 }
@@ -216,7 +213,6 @@ impl SendConn {
         &'a mut self,
         msg: &'a MarshalledMessage,
     ) -> Result<SendMessageContext<'a>> {
-        self.msg_buf_out.clear();
         let serial = if let Some(serial) = msg.dynheader.serial {
             serial
         } else {
@@ -225,7 +221,9 @@ impl SendConn {
             serial
         };
 
-        marshal::marshal(&msg, serial, self.byteorder, &mut self.msg_buf_out)?;
+        // clear the buf before marshalling the new header
+        self.header_buf.clear();
+        marshal::marshal(&msg, serial, &mut self.header_buf)?;
 
         let ctx = SendMessageContext {
             msg,
@@ -289,6 +287,10 @@ impl Drop for SendMessageContext<'_> {
 }
 
 impl SendMessageContext<'_> {
+    pub fn serial(&self) -> u32 {
+        self.state.serial
+    }
+
     /// Resume a SendMessageContext from the progress. This needs to be called with the same
     /// conn and msg that were used to create the original SendMessageContext.
     pub fn resume<'a>(
@@ -367,7 +369,7 @@ impl SendMessageContext<'_> {
 
     /// How many bytes need to be sent in total
     pub fn bytes_total(&self) -> usize {
-        self.conn.msg_buf_out.len() + self.msg.get_buf().len()
+        self.conn.header_buf.len() + self.msg.get_buf().len()
     }
 
     /// Check if all bytes have been written
@@ -380,8 +382,8 @@ impl SendMessageContext<'_> {
     pub fn write_once(&mut self, timeout: Timeout) -> Result<usize> {
         // This will result in a zero sized slice if the header has been sent. Actually we would not need to
         // include that anymore in the iov but that is harder than just giving it the zero sized slice.
-        let header_bytes_sent = usize::min(self.state.bytes_sent, self.conn.msg_buf_out.len());
-        let header_slice_to_send = &self.conn.msg_buf_out[header_bytes_sent..];
+        let header_bytes_sent = usize::min(self.state.bytes_sent, self.conn.header_buf.len());
+        let header_slice_to_send = &self.conn.header_buf[header_bytes_sent..];
 
         let body_bytes_sent = self.state.bytes_sent - header_bytes_sent;
         let body_slice_to_send = &self.msg.get_buf()[body_bytes_sent..];
@@ -438,12 +440,8 @@ impl SendMessageContext<'_> {
 }
 
 impl DuplexConn {
-    /// Connect to a unix socket and choose a byteorder
-    pub fn connect_to_bus_with_byteorder(
-        addr: UnixAddr,
-        byteorder: ByteOrder,
-        with_unix_fd: bool,
-    ) -> super::Result<DuplexConn> {
+    /// Connect to a unix socket
+    pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> super::Result<DuplexConn> {
         let sock = socket(
             socket::AddressFamily::Unix,
             socket::SockType::Stream,
@@ -470,8 +468,7 @@ impl DuplexConn {
         Ok(DuplexConn {
             send: SendConn {
                 stream: stream.try_clone()?,
-                msg_buf_out: Vec::new(),
-                byteorder,
+                header_buf: Vec::new(),
                 serial_counter: 1,
             },
             recv: RecvConn {
@@ -480,11 +477,6 @@ impl DuplexConn {
                 stream,
             },
         })
-    }
-
-    /// Connect to a unix socket. The default little endian byteorder is used
-    pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> Result<DuplexConn> {
-        Self::connect_to_bus_with_byteorder(addr, ByteOrder::LittleEndian, with_unix_fd)
     }
 
     /// Sends the obligatory hello message and returns the unique id the daemon assigned this connection

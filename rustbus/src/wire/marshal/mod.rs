@@ -38,23 +38,27 @@ impl MarshalContext<'_, '_> {
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
     chosen_serial: u32,
-    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
-    marshal_header(msg, chosen_serial, byteorder, buf)?;
+    marshal_header(msg, chosen_serial, buf)?;
     pad_to_align(8, buf);
 
     // set the correct message length
-    insert_u32(byteorder, msg.get_buf().len() as u32, &mut buf[4..8]);
+    insert_u32(
+        msg.body.byteorder,
+        msg.get_buf().len() as u32,
+        &mut buf[4..8],
+    );
     Ok(())
 }
 
 fn marshal_header(
     msg: &crate::message_builder::MarshalledMessage,
     chosen_serial: u32,
-    byteorder: ByteOrder,
     buf: &mut Vec<u8>,
 ) -> message::Result<()> {
+    let byteorder = msg.body.byteorder;
+
     match byteorder {
         ByteOrder::BigEndian => {
             buf.push(b'B');
