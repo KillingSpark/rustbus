@@ -231,7 +231,10 @@ impl SendConn {
             msg,
             conn: self,
 
-            progress: SendMessageProgress::default(),
+            state: SendMessageState {
+                bytes_sent: 0,
+                serial,
+            },
         };
 
         Ok(ctx)
@@ -261,22 +264,23 @@ pub struct SendMessageContext<'a> {
     msg: &'a MarshalledMessage,
     conn: &'a mut SendConn,
 
-    progress: SendMessageProgress,
+    state: SendMessageState,
 }
 
 /// Tracks the progress of sending the message. Can be used to resume a SendMessageContext.
 ///
 ///Note that this only makes sense if you resume with the same Message and Connection that were used to create the original SendMessageContext.
-#[derive(Debug, Default, Copy, Clone)]
-pub struct SendMessageProgress {
+#[derive(Debug, Copy, Clone)]
+pub struct SendMessageState {
     bytes_sent: usize,
+    serial: u32,
 }
 
 /// This panics if the SendMessageContext was dropped when it was not yet finished. Use force_finish / force_finish_on_error
 /// if you want to do this. It will be necessary for handling errors that make the connection unusable.
 impl Drop for SendMessageContext<'_> {
     fn drop(&mut self) {
-        if self.progress.bytes_sent != 0 && !self.all_bytes_written() {
+        if self.state.bytes_sent != 0 && !self.all_bytes_written() {
             panic!("You dropped a SendMessageContext that only partially sent the message! This is not ok since that leaves the connection in an ill defined state. Use one of the consuming functions!");
         } else {
             // No special cleanup needed
@@ -290,20 +294,20 @@ impl SendMessageContext<'_> {
     pub fn resume<'a>(
         conn: &'a mut SendConn,
         msg: &'a MarshalledMessage,
-        progress: SendMessageProgress,
+        progress: SendMessageState,
     ) -> SendMessageContext<'a> {
         SendMessageContext {
             conn,
             msg,
-            progress,
+            state: progress,
         }
     }
 
     /// Turn this into the progress to resume the sending later. Note that you cannot send another
     /// message while doing that. You need to resume a SendMessageContext from this progress and
     /// send the current message beofre starting the next one.
-    pub fn into_progress(self) -> SendMessageProgress {
-        let progress = self.progress;
+    pub fn into_progress(self) -> SendMessageState {
+        let progress = self.state;
         Self::force_finish(self);
         progress
     }
@@ -345,7 +349,7 @@ impl SendMessageContext<'_> {
                 Ok(t) => t,
             };
             if self.all_bytes_written() {
-                break Ok(self.msg.dynheader.serial.unwrap());
+                break Ok(self.state.serial);
             }
         };
 
@@ -357,13 +361,30 @@ impl SendMessageContext<'_> {
         self.write(Timeout::Infinite)
     }
 
-    pub fn all_bytes_written(&self) -> bool {
-        self.progress.bytes_sent == self.conn.msg_buf_out.len()
+    /// How many bytes need to be sent in total
+    pub fn bytes_total(&self) -> usize {
+        self.conn.msg_buf_out.len() + self.msg.get_buf().len()
     }
 
+    /// Check if all bytes have been written
+    pub fn all_bytes_written(&self) -> bool {
+        self.state.bytes_sent == self.bytes_total()
+    }
+
+    /// Basic routine to do a write to the fd once
     pub fn write_once(&mut self, timeout: Timeout) -> Result<usize> {
-        let slice_to_send = &self.conn.msg_buf_out[self.progress.bytes_sent..];
-        let iov = [IoVec::from_slice(slice_to_send)];
+        // This will result in a zero sized slice if the header has been sent. Actually we would not need to
+        // include that anymore in the iov but that is harder than just giving it the zero sized slice.
+        let header_bytes_sent = usize::min(self.state.bytes_sent, self.conn.msg_buf_out.len());
+        let header_slice_to_send = &self.conn.msg_buf_out[header_bytes_sent..];
+
+        let body_bytes_sent = self.state.bytes_sent - header_bytes_sent;
+        let body_slice_to_send = &self.msg.get_buf()[body_bytes_sent..];
+
+        let iov = [
+            IoVec::from_slice(header_slice_to_send),
+            IoVec::from_slice(body_slice_to_send),
+        ];
         let flags = MsgFlags::empty();
 
         let old_timeout = self.conn.stream.write_timeout()?;
@@ -381,7 +402,7 @@ impl SendMessageContext<'_> {
 
         // if this is not the first write for this message do not send the raw_fds again. This would lead to unexpected
         // duplicated FDs on the other end!
-        let raw_fds = if self.progress.bytes_sent == 0 {
+        let raw_fds = if self.state.bytes_sent == 0 {
             self.msg
                 .body
                 .raw_fds
@@ -405,7 +426,7 @@ impl SendMessageContext<'_> {
 
         let bytes_sent = bytes_sent?;
 
-        self.progress.bytes_sent += bytes_sent;
+        self.state.bytes_sent += bytes_sent;
 
         Ok(bytes_sent)
     }

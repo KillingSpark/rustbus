@@ -33,7 +33,8 @@ impl MarshalContext<'_, '_> {
     }
 }
 
-/// This ignores the serial in the message and always uses chosen_serial.
+/// This only prepares the header and dynheader fields. To send a message you still need the original message
+/// and use get_buf() to get to the contents
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
     chosen_serial: u32,
@@ -42,13 +43,9 @@ pub fn marshal(
 ) -> message::Result<()> {
     marshal_header(msg, chosen_serial, byteorder, buf)?;
     pad_to_align(8, buf);
-    let header_len = buf.len();
-
-    buf.extend_from_slice(msg.get_buf());
 
     // set the correct message length
-    let body_len = buf.len() - header_len;
-    insert_u32(byteorder, body_len as u32, &mut buf[4..8]);
+    insert_u32(byteorder, msg.get_buf().len() as u32, &mut buf[4..8]);
     Ok(())
 }
 
@@ -87,10 +84,7 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
 
-    match msg.dynheader.serial {
-        Some(serial) => write_u32(serial, byteorder, buf),
-        None => return Err(crate::wire::unmarshal::Error::NoSerial.into()),
-    }
+    write_u32(chosen_serial, byteorder, buf);
 
     // Zero bytes where the length of the header fields will be put
     let pos = buf.len();
@@ -99,7 +93,9 @@ fn marshal_header(
     buf.push(0);
     buf.push(0);
 
-    marshal_header_field(byteorder, &HeaderField::ReplySerial(chosen_serial), buf)?;
+    if let Some(serial) = &msg.dynheader.response_serial {
+        marshal_header_field(byteorder, &HeaderField::ReplySerial(*serial), buf)?;
+    }
     if let Some(int) = &msg.dynheader.interface {
         marshal_header_field(byteorder, &HeaderField::Interface(int.clone()), buf)?;
     }
