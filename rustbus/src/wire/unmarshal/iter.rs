@@ -221,10 +221,7 @@ impl<'a, 'parent> ParamIter<'a> {
     }
 
     pub fn is_base(&self) -> bool {
-        match self {
-            ParamIter::Base(_) => true,
-            _ => false,
-        }
+        matches!(self, ParamIter::Base(_))
     }
 
     pub fn base(self) -> Option<params::Base<'a>> {

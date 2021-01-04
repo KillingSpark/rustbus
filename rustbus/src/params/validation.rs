@@ -89,13 +89,13 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         return Err(Error::InvalidBusname);
     }
 
-    let (unique, bn) = if bn.starts_with(':') {
-        (true, &bn[1..])
+    let (unique, bus_name) = if let Some(unique_name) = bn.strip_prefix(':') {
+        (true, unique_name)
     } else {
-        (false, &bn[..])
+        (false, bn)
     };
 
-    let split = bn.split('.').collect::<Vec<_>>();
+    let split = bus_name.split('.').collect::<Vec<_>>();
     if split.len() < 2 {
         return Err(Error::InvalidBusname);
     }

@@ -9,13 +9,8 @@ pub fn filter_peer(msg: &DynamicHeader) -> bool {
     if let Some(interface) = &msg.interface {
         if interface.eq("org.freedesktop.DBus.Peer") {
             if let Some(member) = &msg.member {
-                match member.as_str() {
-                    "Ping" => true,
-                    "GetMachineId" => true,
-
-                    // anything else is not in this interface and thus not handled here
-                    _ => false,
-                }
+                // anything else is not in this interface and thus not handled here
+                matches!(member.as_str(), "Ping" | "GetMachineId")
             } else {
                 false
             }
@@ -75,9 +70,9 @@ pub fn handle_peer_message(
             if let Some(member) = &msg.dynheader.member {
                 match member.as_str() {
                     "Ping" => {
-                        let mut reply = msg.make_response();
+                        let reply = msg.make_response();
                         con.send
-                            .send_message(&mut reply)?
+                            .send_message(&reply)?
                             .write_all()
                             .map_err(crate::connection::ll_conn::force_finish_on_error)?;
                         Ok(true)
@@ -86,7 +81,7 @@ pub fn handle_peer_message(
                         let mut reply = msg.make_response();
                         reply.body.push_param(get_machine_id().unwrap()).unwrap();
                         con.send
-                            .send_message(&mut reply)?
+                            .send_message(&reply)?
                             .write_all()
                             .map_err(crate::connection::ll_conn::force_finish_on_error)?;
                         Ok(true)

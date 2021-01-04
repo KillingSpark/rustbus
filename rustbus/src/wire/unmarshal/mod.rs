@@ -132,8 +132,10 @@ pub fn unmarshal_dynamic_header(
     offset: usize,
 ) -> UnmarshalResult<DynamicHeader> {
     let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
-    let mut hdr = DynamicHeader::default();
-    hdr.serial = Some(header.serial);
+    let mut hdr = DynamicHeader {
+        serial: Some(header.serial),
+        ..Default::default()
+    };
     collect_header_fields(&fields, &mut hdr);
     Ok((fields_bytes_used, hdr))
 }
