@@ -39,16 +39,16 @@ enum ObjectType<'a> {
 }
 
 fn get_object_type_and_id<'a>(path: &'a ObjectPath<&'a str>) -> Option<ObjectType<'a>> {
-    let mut split = path.as_ref().split("/");
+    let mut split = path.as_ref().split('/');
     let typ = split.nth(3)?;
-    let id = split.nth(0)?;
-    let item_id = split.nth(0);
+    let id = split.next()?;
+    let item_id = split.next();
     match typ {
         "collection" => {
-            if item_id.is_some() {
+            if let Some(item_id) = item_id {
                 Some(ObjectType::Item {
                     col: id,
-                    item: item_id.unwrap(),
+                    item: item_id,
                 })
             } else {
                 Some(ObjectType::Collection(id))
@@ -206,13 +206,12 @@ fn main() {
     println!("Unique name: {}", unique_name);
 
     con.send
-        .send_message(
-            &mut rustbus::standard_messages::request_name(
-                "io.killingspark.secrets".into(),
-                rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
-            ),
-            rustbus::connection::Timeout::Infinite,
-        )
+        .send_message(&rustbus::standard_messages::request_name(
+            "io.killingspark.secrets".into(),
+            rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
+        ))
+        .unwrap()
+        .write_all()
         .unwrap();
 
     // The responses content should be looked at. ATM we just assume the name aquistion worked...

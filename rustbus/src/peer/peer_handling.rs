@@ -1,4 +1,3 @@
-use crate::connection;
 use crate::connection::ll_conn::DuplexConn;
 use crate::message_builder::DynamicHeader;
 use crate::params::message::Message;
@@ -70,7 +69,6 @@ fn get_machine_id() -> Result<String, std::io::Error> {
 pub fn handle_peer_message(
     msg: &Message,
     con: &mut DuplexConn,
-    timeout: connection::Timeout,
 ) -> Result<bool, crate::connection::Error> {
     if let Some(interface) = &msg.dynheader.interface {
         if interface.eq("org.freedesktop.DBus.Peer") {
@@ -78,13 +76,19 @@ pub fn handle_peer_message(
                 match member.as_str() {
                     "Ping" => {
                         let mut reply = msg.make_response();
-                        con.send.send_message(&mut reply, timeout)?;
+                        con.send
+                            .send_message(&mut reply)?
+                            .write_all()
+                            .map_err(crate::connection::ll_conn::force_finish_on_error)?;
                         Ok(true)
                     }
                     "GetMachineId" => {
                         let mut reply = msg.make_response();
                         reply.body.push_param(get_machine_id().unwrap()).unwrap();
-                        con.send.send_message(&mut reply, timeout)?;
+                        con.send
+                            .send_message(&mut reply)?
+                            .write_all()
+                            .map_err(crate::connection::ll_conn::force_finish_on_error)?;
                         Ok(true)
                     }
 

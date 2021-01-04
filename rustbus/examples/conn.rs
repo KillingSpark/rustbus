@@ -19,7 +19,10 @@ fn main() -> Result<(), rustbus::connection::Error> {
     }));
 
     //println!("Send message: {:?}", hello_msg);
-    let hello_serial = rpc_con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
+    let hello_serial = rpc_con
+        .send_message(&mut standard_messages::hello())?
+        .write_all()
+        .unwrap();
 
     println!("\n");
     println!("\n");
@@ -31,10 +34,13 @@ fn main() -> Result<(), rustbus::connection::Error> {
     println!("\n");
     println!("\n");
 
-    let reqname_serial = rpc_con.send_message(
-        &mut standard_messages::request_name("io.killing.spark".into(), 0),
-        Timeout::Infinite,
-    )?;
+    let reqname_serial = rpc_con
+        .send_message(&mut standard_messages::request_name(
+            "io.killing.spark".into(),
+            0,
+        ))?
+        .write_all()
+        .unwrap();
 
     println!("Wait for name request response");
     let msg = rpc_con.wait_response(reqname_serial, Timeout::Infinite)?;
@@ -56,8 +62,10 @@ fn main() -> Result<(), rustbus::connection::Error> {
         panic!("Wrong args: {:?}", msg.params);
     }
 
-    let list_serial =
-        rpc_con.send_message(&mut standard_messages::list_names(), Timeout::Infinite)?;
+    let list_serial = rpc_con
+        .send_message(&mut standard_messages::list_names())?
+        .write_all()
+        .unwrap();
 
     println!("Wait for list response");
     let msg = rpc_con.wait_response(list_serial, Timeout::Infinite)?;
@@ -70,7 +78,10 @@ fn main() -> Result<(), rustbus::connection::Error> {
     let mut sig_listen_msg = standard_messages::add_match("type='signal'".into());
 
     //println!("Send message: {:?}", sig_listen_msg);
-    rpc_con.send_message(&mut sig_listen_msg, Timeout::Infinite)?;
+    rpc_con
+        .send_message(&mut sig_listen_msg)?
+        .write_all()
+        .unwrap();
 
     loop {
         println!("Do important work while signals might arrive");

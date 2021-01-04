@@ -50,7 +50,7 @@ pub fn handle_item_interface(
                     session: session.to_owned(),
                     params: secret.params.clone(),
                     value: secret.value.clone(),
-                    content_type: secret.content_type.clone(),
+                    content_type: secret.content_type,
                 })
                 .unwrap();
             Ok(Some(resp))

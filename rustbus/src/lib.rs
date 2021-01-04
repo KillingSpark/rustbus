@@ -3,7 +3,7 @@
 //!
 //! ## Quickstart
 //! ```rust,no_run
-//! use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
+//! use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder, connection::ll_conn::force_finish_on_error};
 //! fn main() -> Result<(), rustbus::connection::Error> {
 //!     /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
 //!     let session_path = get_session_bus_path()?;
@@ -25,7 +25,7 @@
 //!     sig.body.push_param("My cool new Signal!").unwrap();
 //!     
 //!     // Now send you signal to all that want to hear it!
-//!     con.send.send_message(&mut sig, Timeout::Infinite)?;
+//!     con.send.send_message(&sig)?.write_all().map_err(force_finish_on_error)?;
 //!     
 //!     // To receive messages sent to you you can call the various functions on the RecvConn. The simplest is this:
 //!     let message = con.recv.get_next_message(Timeout::Infinite)?;  

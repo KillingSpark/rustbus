@@ -1,3 +1,6 @@
+// Because I modeled some stuff I did not need in the end. Might need it thoug to expand this example...
+#![allow(dead_code)]
+
 use example_keywallet::LockState;
 use example_keywallet::LookupAttribute;
 use example_keywallet::Secret;

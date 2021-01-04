@@ -12,20 +12,19 @@ fn test_fd_passing() {
         connection::rpc_conn::RpcConn::system_conn(connection::Timeout::Infinite).unwrap();
     let mut con2 =
         connection::rpc_conn::RpcConn::system_conn(connection::Timeout::Infinite).unwrap();
-    con1.send_message(
-        &mut crate::standard_messages::hello(),
-        connection::Timeout::Infinite,
-    )
-    .unwrap();
-    con2.send_message(
-        &mut crate::standard_messages::hello(),
-        connection::Timeout::Infinite,
-    )
-    .unwrap();
-    con2.send_message(
-        &mut crate::standard_messages::add_match("type='signal'".into()),
-        connection::Timeout::Infinite,
-    )
+    con1.send_message(&mut crate::standard_messages::hello())
+        .unwrap()
+        .write_all()
+        .unwrap();
+    con2.send_message(&mut crate::standard_messages::hello())
+        .unwrap()
+        .write_all()
+        .unwrap();
+    con2.send_message(&mut crate::standard_messages::add_match(
+        "type='signal'".into(),
+    ))
+    .unwrap()
+    .write_all()
     .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -84,7 +83,10 @@ fn send_fd(
         .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(fd)))
         .unwrap();
 
-    con.send_message(&mut sig, connection::Timeout::Infinite)?;
+    con.send_message(&mut sig)?
+        .write_all()
+        .map_err(crate::connection::ll_conn::force_finish_on_error)
+        .unwrap();
 
     let mut sig = MessageBuilder::new()
         .signal(
@@ -93,7 +95,10 @@ fn send_fd(
             "/io/killing/spark".into(),
         )
         .build();
-    con.send_message(&mut sig, connection::Timeout::Infinite)?;
+    con.send_message(&mut sig)?
+        .write_all()
+        .map_err(crate::connection::ll_conn::force_finish_on_error)
+        .unwrap();
 
     Ok(())
 }

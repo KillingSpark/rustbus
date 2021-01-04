@@ -80,18 +80,24 @@ impl RpcConn {
 
     pub fn session_conn(timeout: Timeout) -> Result<Self> {
         let session_path = get_session_bus_path()?;
-        let con = DuplexConn::connect_to_bus(session_path, true)?;
-        let mut con = Self::new(con);
-        let serial = con.send_message(&mut crate::standard_messages::hello(), Timeout::Infinite)?;
-        con.wait_response(serial, timeout)?;
-        Ok(con)
+        Self::connect_to_path(session_path, timeout)
     }
 
     pub fn system_conn(timeout: Timeout) -> Result<Self> {
         let session_path = get_system_bus_path()?;
-        let con = DuplexConn::connect_to_bus(session_path, true)?;
+        Self::connect_to_path(session_path, timeout)
+    }
+
+    pub fn connect_to_path(path: UnixAddr, timeout: Timeout) -> Result<Self> {
+        let con = DuplexConn::connect_to_bus(path, true)?;
         let mut con = Self::new(con);
-        let serial = con.send_message(&mut crate::standard_messages::hello(), Timeout::Infinite)?;
+
+        let mut hello = crate::standard_messages::hello();
+        let serial = con
+            .send_message(&mut hello)?
+            .write(timeout)
+            .map_err(super::ll_conn::force_finish_on_error)?;
+
         con.wait_response(serial, timeout)?;
         Ok(con)
     }
@@ -146,20 +152,14 @@ impl RpcConn {
     }
 
     /// Send a message to the bus
-    pub fn send_message(
-        &mut self,
-        msg: &mut crate::message_builder::MarshalledMessage,
-        timeout: Timeout,
-    ) -> Result<u32> {
-        self.conn.send.send_message(msg, timeout)
+    pub fn send_message<'a>(
+        &'a mut self,
+        msg: &'a mut crate::message_builder::MarshalledMessage,
+    ) -> Result<super::ll_conn::SendMessageContext<'a>> {
+        self.conn.send.send_message(msg)
     }
 
-    fn insert_message_or_send_error(
-        &mut self,
-        msg: MarshalledMessage,
-        timeout: Timeout,
-    ) -> Result<()> {
-        let start_time = time::Instant::now();
+    fn insert_message_or_send_error(&mut self, msg: MarshalledMessage) -> Result<()> {
         if self.filter.as_ref()(&msg) {
             match msg.typ {
                 MessageType::Call => {
@@ -181,10 +181,12 @@ impl RpcConn {
         } else {
             match msg.typ {
                 MessageType::Call => {
-                    let mut reply = crate::standard_messages::unknown_method(&msg.dynheader);
+                    let reply = crate::standard_messages::unknown_method(&msg.dynheader);
                     self.conn
                         .send
-                        .send_message(&mut reply, calc_timeout_left(&start_time, timeout)?)?;
+                        .send_message(&reply)?
+                        .write_all()
+                        .map_err(ll_conn::force_finish_on_error)?;
                 }
                 MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
                 MessageType::Error => {
@@ -213,7 +215,7 @@ impl RpcConn {
             .get_next_message(calc_timeout_left(&start_time, timeout)?)?;
 
         let typ = msg.typ;
-        self.insert_message_or_send_error(msg, calc_timeout_left(&start_time, timeout)?)?;
+        self.insert_message_or_send_error(msg)?;
         Ok(Some(typ))
     }
 

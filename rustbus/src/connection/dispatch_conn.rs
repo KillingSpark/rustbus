@@ -238,20 +238,29 @@ impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
                         }
                     }
 
-                    match result {
-                        Ok(Some(mut response)) => self
-                            .send
-                            .lock()
-                            .unwrap()
-                            .send_message(&mut response, Timeout::Infinite)
-                            .map_err(|e| (Some(msg), e.into()))?,
+                    let mut send_conn = self.send.lock().unwrap();
 
-                        Ok(None) => self
-                            .send
-                            .lock()
-                            .unwrap()
-                            .send_message(&mut msg.dynheader.make_response(), Timeout::Infinite)
-                            .map_err(|e| (Some(msg), e.into()))?,
+                    match result {
+                        Ok(Some(response)) => {
+                            let ctx = match send_conn.send_message(&response) {
+                                Ok(ctx) => ctx,
+                                Err(e) => return Err((Some(msg), e.into())),
+                            };
+                            ctx.write_all()
+                                .map_err(|(ctx, e)| ll_conn::force_finish_on_error((ctx, e)))
+                                .map_err(|e| (Some(msg), e.into()))?
+                        }
+
+                        Ok(None) => {
+                            let response = msg.dynheader.make_response();
+                            let ctx = match send_conn.send_message(&response) {
+                                Ok(ctx) => ctx,
+                                Err(e) => return Err((Some(msg), e.into())),
+                            };
+                            ctx.write_all()
+                                .map_err(|(ctx, e)| ll_conn::force_finish_on_error((ctx, e)))
+                                .map_err(|e| (Some(msg), e.into()))?
+                        }
                         Err(error) => return Err((Some(msg), error)),
                     };
                 }

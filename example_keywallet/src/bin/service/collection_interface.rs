@@ -42,7 +42,7 @@ pub fn handle_collection_interface(
             let col = ctx
                 .service
                 .get_collection(col_id)
-                .expect(&format!("Collection with ID: {} not found", col_id));
+                .unwrap_or_else(|| panic!("Collection with ID: {} not found", col_id));
             let item_ids = col.search_items(&attrs);
 
             let owned_paths: Vec<(String, &service::Item)> = item_ids
@@ -88,9 +88,9 @@ pub fn handle_collection_interface(
             let col = ctx
                 .service
                 .get_collection_mut(col_id)
-                .expect(&format!("Collection with ID: {} not found", col_id));
+                .unwrap_or_else(|| panic!("Collection with ID: {} not found", col_id));
 
-            let item_id = col.create_item(new_id, &secret, &vec![], replace).unwrap();
+            let item_id = col.create_item(new_id, &secret, &[], replace).unwrap();
             let path = format!("/org/freedesktop/secrets/collection/{}/{}", col_id, item_id);
             let path = ObjectPath::new(&path).unwrap();
 

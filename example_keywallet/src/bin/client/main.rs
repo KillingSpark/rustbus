@@ -7,11 +7,7 @@ use rustbus::connection::ll_conn::DuplexConn;
 fn main() {
     let mut con = DuplexConn::connect_to_bus(get_session_bus_path().unwrap(), false).unwrap();
 
-    con.send
-        .send_message(
-            &mut rustbus::standard_messages::hello(),
-            rustbus::connection::Timeout::Infinite,
-        )
+    con.send_hello(rustbus::connection::Timeout::Infinite)
         .unwrap();
 
     let resp = con
@@ -33,7 +29,9 @@ fn main() {
     msg.body.push_param(&attrs).unwrap();
 
     let serial = rpc_conn
-        .send_message(&mut msg, rustbus::connection::Timeout::Infinite)
+        .send_message(&mut msg)
+        .unwrap()
+        .write_all()
         .unwrap();
     let resp = rpc_conn
         .wait_response(serial, rustbus::connection::Timeout::Infinite)

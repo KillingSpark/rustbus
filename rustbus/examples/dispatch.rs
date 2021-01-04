@@ -72,13 +72,12 @@ fn main() {
 
     if std::env::args().find(|arg| "server".eq(arg)).is_some() {
         con.send
-            .send_message(
-                &mut rustbus::standard_messages::request_name(
-                    "killing.spark.io".into(),
-                    rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
-                ),
-                rustbus::connection::Timeout::Infinite,
-            )
+            .send_message(&mut rustbus::standard_messages::request_name(
+                "killing.spark.io".into(),
+                rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
+            ))
+            .unwrap()
+            .write_all()
             .unwrap();
 
         let mut counter = Counter { count: 0 };
@@ -109,7 +108,9 @@ fn main() {
             .on("/ABCD".into())
             .build();
         con.send
-            .send_message(&mut msg1, rustbus::connection::Timeout::Infinite)
+            .send_message(&mut msg1)
+            .unwrap()
+            .write_all()
             .unwrap();
 
         // pick up the name
@@ -119,7 +120,9 @@ fn main() {
             .on("/A/B/moritz".into())
             .build();
         con.send
-            .send_message(&mut msg2, rustbus::connection::Timeout::Infinite)
+            .send_message(&mut msg2)
+            .unwrap()
+            .write_all()
             .unwrap();
 
         // call new handler for that name
@@ -129,13 +132,19 @@ fn main() {
             .on("/moritz".into())
             .build();
         con.send
-            .send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+            .send_message(&mut msg3)
+            .unwrap()
+            .write_all()
             .unwrap();
         con.send
-            .send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+            .send_message(&mut msg3)
+            .unwrap()
+            .write_all()
             .unwrap();
         con.send
-            .send_message(&mut msg3, rustbus::connection::Timeout::Infinite)
+            .send_message(&mut msg3)
+            .unwrap()
+            .write_all()
             .unwrap();
     }
 }

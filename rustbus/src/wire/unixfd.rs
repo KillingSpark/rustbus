@@ -181,13 +181,13 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for UnixFd {
 fn test_fd_send() {
     let x = UnixFd::new(nix::unistd::dup(1).unwrap());
     std::thread::spawn(move || {
-        println!("Hey the fd {} is Send!!!!", x.get_raw_fd().unwrap());
+        let _x = x.get_raw_fd();
     });
 
     let x = UnixFd::new(nix::unistd::dup(1).unwrap());
     let fd = crate::params::Base::UnixFd(x);
     std::thread::spawn(move || {
-        println!("Hey the fd {:?} is Send!!!!", fd);
+        let _x = fd;
     });
 }
 
