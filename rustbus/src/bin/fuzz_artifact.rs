@@ -3,7 +3,15 @@
 use std::io::Read;
 
 fn main() {
-    let mut file = std::fs::File::open(std::env::args().nth(1).unwrap()).unwrap();
+    for path in std::env::args().skip(1) {
+        println!("Run artifact: {}", path);
+
+        run_artifact(&path);
+    }
+}
+
+fn run_artifact(path: &str) {
+    let mut file = std::fs::File::open(path).unwrap();
     let mut data = vec![];
     file.read_to_end(&mut data).unwrap();
     let data = &data;
