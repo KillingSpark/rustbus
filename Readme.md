@@ -26,6 +26,15 @@ The unmarshalling has been fuzzed and doesn't panic on any input so far. If you 
 
 The API is still very much in progress and breaking changes are to be expected.
 
+## What's where?
+* `rustbus` is the core crate containing bus-connection and (un)-marshalling code. If you want to write an application you only need this.
+* `rustbus_derive` contains the procmacros to derive the (Un-)Marshal traits for structs. The macros are re-exported by rustbus so you dont need to worry about that.
+* `rustbus_derive_test` is only there to verify that the derives do the right things. procmacro crates apparently can't contain tests themselves.
+* `example_keywallet` is there as
+    * a more complex example showcasing rustbus
+    * a testing ground for new ideas to validate how it would impact actual development
+
+
 ## Quickstart
  ```rust
  use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
