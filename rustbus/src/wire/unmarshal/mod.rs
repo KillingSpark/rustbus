@@ -211,6 +211,10 @@ fn unmarshal_header_fields(
     let (_, header_fields_bytes) = parse_u32(&buf[offset..], header.byteorder)?;
     let offset = offset + 4;
 
+    if offset + header_fields_bytes as usize > buf.len() {
+        return Err(Error::NotEnoughBytes);
+    }
+
     let mut fields = Vec::new();
     let mut bytes_used_counter = 0;
 
