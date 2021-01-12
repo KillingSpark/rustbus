@@ -257,10 +257,12 @@ fn unmarshal_header_field(
     buf: &[u8],
     offset: usize,
 ) -> UnmarshalResult<HeaderField> {
+    // align to 8 because the header fields are an array structs `a(yv)`
     let padding = align_offset(8, buf, offset)?;
     let offset = offset + padding;
 
-    if buf.is_empty() {
+    // check that there is enough bytes in the buffer after padding
+    if buf.len() <= offset {
         return Err(Error::NotEnoughBytes);
     }
     let typ = buf[offset];
