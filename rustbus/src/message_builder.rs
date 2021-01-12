@@ -248,6 +248,12 @@ impl MarshalledMessage {
         }
     }
 
+    /// Reserves space for `additional` bytes in the internal buffer. This is useful to reduce the amount of allocations done while marshalling,
+    /// if you can predict somewhat accuratly how many bytes you will be marshalling.
+    pub fn reserve(&mut self, additional: usize) {
+        self.body.reserve(additional)
+    }
+
     pub fn unmarshall_all<'a, 'e>(self) -> Result<message::Message<'a, 'e>, crate::Error> {
         let params = if self.body.sig.is_empty() {
             vec![]
@@ -356,6 +362,12 @@ impl MarshalledMessageBody {
     pub fn reset(&mut self) {
         self.sig.clear();
         self.buf.clear();
+    }
+
+    /// Reserves space for `additional` bytes in the internal buffer. This is useful to reduce the amount of allocations done while marshalling,
+    /// if you can predict somewhat accuratly how many bytes you will be marshalling.
+    pub fn reserve(&mut self, additional: usize) {
+        self.buf.reserve(additional)
     }
 
     /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
