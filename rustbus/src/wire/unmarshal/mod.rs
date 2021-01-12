@@ -225,7 +225,24 @@ fn unmarshal_header_fields(
                 bytes_used_counter += bytes_used;
             }
             Err(Error::UnknownHeaderField) => {
-                // ignore
+                // for the unknown header field code which is always one byte
+                bytes_used_counter += 1;
+
+                // try to validate that there is indeed a valid dbus variant. This is mandatory so the message follows the spec,
+                // even if we just ignore the contents.
+                match crate::wire::validate_raw::validate_marshalled(
+                    header.byteorder,
+                    offset + bytes_used_counter,
+                    buf,
+                    &crate::signature::Type::Container(crate::signature::Container::Variant),
+                ) {
+                    Ok(bytes) => {
+                        // ignore happy path, but increase counter.
+                        bytes_used_counter += bytes;
+                    }
+                    // if the unknown header contains invalid values this is still an error, and the message should be treated as unreadable
+                    Err((_bytes, err)) => return Err(err),
+                }
             }
             Err(e) => return Err(e),
         }
