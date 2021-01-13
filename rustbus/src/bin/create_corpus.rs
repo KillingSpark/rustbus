@@ -4,7 +4,7 @@ use rustbus::message_builder::MarshalledMessage;
 use rustbus::message_builder::MessageBuilder;
 use rustbus::Marshal;
 
-use std::{char::MAX, io::Write};
+use std::io::Write;
 
 fn main() {
     make_and_dump(

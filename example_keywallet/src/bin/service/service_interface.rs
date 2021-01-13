@@ -32,7 +32,7 @@ pub fn handle_service_interface(
 
             ctx.service.open_session(alg).unwrap();
             let mut resp = msg.dynheader.make_response();
-            resp.body.push_variant(()).unwrap();
+            resp.body.push_variant(0u8).unwrap();
             resp.body
                 .push_param(ObjectPath::new("/A/B/C").unwrap())
                 .unwrap();

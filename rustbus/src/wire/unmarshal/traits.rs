@@ -32,9 +32,9 @@ use crate::ByteOrder;
 /// use rustbus::signature;
 /// impl Signature for MyStruct {
 ///     fn signature() -> signature::Type {
-///         signature::Type::Container(signature::Container::Struct(vec![
+///         signature::Type::Container(signature::Container::Struct(signature::StructTypes::new(vec![
 ///             u64::signature(),
-///         ]))
+///         ]).unwrap()))
 ///     }
 ///
 ///     fn alignment() -> usize {

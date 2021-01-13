@@ -264,7 +264,7 @@ fn test_raw_validation() {
             ByteOrder::LittleEndian,
             0,
             &empty_array,
-            &signature::Type::parse_description("a()").unwrap()[0],
+            &signature::Type::parse_description("a(y)").unwrap()[0],
         )
         .err()
         .unwrap(),
@@ -278,7 +278,7 @@ fn test_raw_validation() {
             ByteOrder::LittleEndian,
             0,
             &empty_array,
-            &signature::Type::parse_description("a()u").unwrap()[0],
+            &signature::Type::parse_description("a(y)u").unwrap()[0],
         )
         .err()
         .unwrap(),

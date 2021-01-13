@@ -25,13 +25,19 @@ impl Signature for &MyType {
         // in dbus signature coding: (t(sv))
         // Note how the type of the `sub` is represented as `v`
         // variants include the signature of their content in marshalled form
-        signature::Type::Container(signature::Container::Struct(vec![
-            u64::signature(),
-            signature::Type::Container(signature::Container::Struct(vec![
-                signature::Type::Base(signature::Base::String),
-                signature::Type::Container(signature::Container::Variant),
-            ])),
-        ]))
+        signature::Type::Container(signature::Container::Struct(
+            signature::StructTypes::new(vec![
+                u64::signature(),
+                signature::Type::Container(signature::Container::Struct(
+                    signature::StructTypes::new(vec![
+                        signature::Type::Base(signature::Base::String),
+                        signature::Type::Container(signature::Container::Variant),
+                    ])
+                    .unwrap(),
+                )),
+            ])
+            .unwrap(),
+        ))
     }
 
     fn alignment() -> usize {
@@ -76,10 +82,9 @@ struct MyOtherSubType {
 
 impl Signature for &MySubType {
     fn signature() -> signature::Type {
-        signature::Type::Container(signature::Container::Struct(vec![
-            i32::signature(),
-            i32::signature(),
-        ]))
+        signature::Type::Container(signature::Container::Struct(
+            signature::StructTypes::new(vec![i32::signature(), i32::signature()]).unwrap(),
+        ))
     }
 
     fn alignment() -> usize {
@@ -98,10 +103,9 @@ impl Marshal for &MySubType {
 
 impl Signature for &MyOtherSubType {
     fn signature() -> signature::Type {
-        signature::Type::Container(signature::Container::Struct(vec![
-            u32::signature(),
-            u32::signature(),
-        ]))
+        signature::Type::Container(signature::Container::Struct(
+            signature::StructTypes::new(vec![u32::signature(), u32::signature()]).unwrap(),
+        ))
     }
 
     fn alignment() -> usize {

@@ -63,7 +63,7 @@ impl UnmarshalContext<'_, '_> {
     pub fn align_to(&mut self, alignment: usize) -> Result<usize, crate::wire::unmarshal::Error> {
         let padding = crate::wire::util::align_offset(alignment, self.buf, self.offset)?;
 
-        if self.offset + padding >= self.buf.len() {
+        if self.offset + padding > self.buf.len() {
             Err(Error::NotEnoughBytes)
         } else {
             self.offset += padding;

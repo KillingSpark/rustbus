@@ -412,7 +412,7 @@ fn test_signature_constraints() {
         crate::params::validate_signature(invalid_chars)
     );
 
-    let too_deep_nesting = "((((((((((((((((((((((((((((((((()))))))))))))))))))))))))))))))))";
+    let too_deep_nesting = "(((((((((((((((((((((((((((((((((y)))))))))))))))))))))))))))))))))";
     assert_eq!(
         Err(Error::InvalidSignature(
             crate::signature::Error::NestingTooDeep
