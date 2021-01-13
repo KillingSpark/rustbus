@@ -62,6 +62,10 @@ pub fn unmarshal_container<'a, 'e>(
             let mut elements = Vec::new();
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_array as usize {
+                if ctx.offset >= ctx.buf.len() {
+                    return Err(super::Error::NotEnoughBytes);
+                }
+
                 let (bytes_used, element) = unmarshal_with_sig(&elem_sig, ctx)?;
                 elements.push(element);
                 bytes_used_counter += bytes_used;
@@ -88,6 +92,10 @@ pub fn unmarshal_container<'a, 'e>(
             let mut elements = std::collections::HashMap::new();
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_dict as usize {
+                if ctx.offset >= ctx.buf.len() {
+                    return Err(super::Error::NotEnoughBytes);
+                }
+
                 let element_padding = align_offset(8, ctx.buf, ctx.offset)?;
                 bytes_used_counter += element_padding;
                 ctx.offset += element_padding;

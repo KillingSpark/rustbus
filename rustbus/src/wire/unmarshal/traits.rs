@@ -437,6 +437,10 @@ impl<'r, 'buf: 'r, 'fds, E: Unmarshal<'r, 'buf, 'fds>> Unmarshal<'r, 'buf, 'fds>
         let mut elements = Vec::new();
         let mut bytes_used_counter = 0;
         while bytes_used_counter < bytes_in_array as usize {
+            if ctx.offset >= ctx.buf.len() {
+                return Err(super::Error::NotEnoughBytes);
+            }
+
             let elem_padding = util::align_offset(E::alignment(), ctx.buf, ctx.offset)?;
 
             bytes_used_counter += elem_padding;
@@ -472,6 +476,10 @@ impl<
         let mut map = std::collections::HashMap::new();
         let mut bytes_used_counter = 0;
         while bytes_used_counter < bytes_in_array as usize {
+            if ctx.offset >= ctx.buf.len() {
+                return Err(super::Error::NotEnoughBytes);
+            }
+
             let elem_padding = util::align_offset(8, ctx.buf, ctx.offset)?;
             bytes_used_counter += elem_padding;
             ctx.offset += elem_padding;
