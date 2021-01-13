@@ -202,7 +202,7 @@ pub fn validate_marshalled_container(
             let offset = offset + padding;
 
             let mut bytes_used_counter = 0;
-            for field_sig in sigs {
+            for field_sig in sigs.as_ref() {
                 let bytes_used =
                     validate_marshalled(byteorder, offset + bytes_used_counter, buf, field_sig)?;
                 bytes_used_counter += bytes_used;

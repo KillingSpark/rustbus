@@ -247,11 +247,14 @@ fn test_variant_sig_macro() {
     assert_eq!(
         uv,
         MyVariant2::Catchall(crate::signature::Type::Container(
-            crate::signature::Container::Struct(vec![
-                crate::signature::Type::Base(crate::signature::Base::String),
-                crate::signature::Type::Base(crate::signature::Base::String),
-                crate::signature::Type::Base(crate::signature::Base::Byte),
-            ])
+            crate::signature::Container::Struct(
+                crate::signature::StructTypes::new(vec![
+                    crate::signature::Type::Base(crate::signature::Base::String),
+                    crate::signature::Type::Base(crate::signature::Base::String),
+                    crate::signature::Type::Base(crate::signature::Base::Byte),
+                ])
+                .unwrap()
+            )
         ))
     )
 }
@@ -575,11 +578,14 @@ fn test_variant_var_macro() {
                 .unwrap()
                 .eq(&("testtext", "moretesttext", 100u8))
                 && var.sig
-                    == crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-                        crate::signature::Type::Base(crate::signature::Base::String),
-                        crate::signature::Type::Base(crate::signature::Base::String),
-                        crate::signature::Type::Base(crate::signature::Base::Byte),
-                    ]))
+                    == crate::signature::Type::Container(crate::signature::Container::Struct(
+                        crate::signature::StructTypes::new(vec![
+                            crate::signature::Type::Base(crate::signature::Base::String),
+                            crate::signature::Type::Base(crate::signature::Base::String),
+                            crate::signature::Type::Base(crate::signature::Base::Byte),
+                        ])
+                        .unwrap(),
+                    ))
         }
         _ => false,
     });

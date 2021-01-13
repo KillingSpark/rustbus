@@ -18,11 +18,32 @@ pub enum Base {
     Boolean,
 }
 
+/// Wraps the types a struct contains. Must contain at least one type, empty structs are not allowed in the spec
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructTypes(Vec<Type>);
+
+impl StructTypes {
+    /// Create a new StructTypes. Returns error if `types` is empty. Empty structs are not allow in the spec
+    pub fn new(types: Vec<Type>) -> Result<Self> {
+        if types.is_empty() {
+            Err(Error::EmptyStruct)
+        } else {
+            Ok(Self(types))
+        }
+    }
+}
+
+impl AsRef<[Type]> for StructTypes {
+    fn as_ref(&self) -> &[Type] {
+        &self.0
+    }
+}
+
 /// Containers for other types
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Container {
     Array(Box<Type>),
-    Struct(Vec<Type>),
+    Struct(StructTypes),
     Dict(Base, Box<Type>),
     Variant,
 }
@@ -42,6 +63,7 @@ pub enum Error {
     SignatureTooLong,
     NestingTooDeep,
     EmptySignature,
+    EmptyStruct,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -131,7 +153,7 @@ impl Container {
             }
             Container::Struct(types) => {
                 buf.push('(');
-                for t in types {
+                for t in types.as_ref() {
                     t.to_str(buf);
                 }
                 buf.push(')');
@@ -217,7 +239,7 @@ impl Type {
             match t {
                 Type::Base(_) => Ok(()),
                 Type::Container(Container::Struct(types)) => {
-                    for t in types {
+                    for t in types.as_ref() {
                         Self::check_nesting_depth(t, struct_depth + 1, array_depth)?;
                     }
                     Ok(())
@@ -256,7 +278,9 @@ impl Type {
             match token {
                 Token::Structstart => {
                     let types = Self::parse_struct(tokens)?;
-                    Ok(Some(Type::Container(Container::Struct(types))))
+                    Ok(Some(Type::Container(Container::Struct(StructTypes::new(
+                        types,
+                    )?))))
                 }
                 Token::Structend => {
                     if Some(token) == delim {

@@ -273,7 +273,7 @@ impl<'a, 'parent> ParamIter<'a> {
 
                     source,
                     current_offset: offset,
-                    sig,
+                    sig: sig.as_ref(),
                     counter: 0,
                 })))
             }

@@ -117,7 +117,11 @@ pub fn unmarshal_container<'a, 'e>(
             ctx.align_to(8)?;
             let mut fields = Vec::new();
 
-            for field_sig in sigs {
+            if sigs.as_ref().is_empty() {
+                return Err(super::Error::EmptyStruct);
+            }
+
+            for field_sig in sigs.as_ref() {
                 let (_, field) = unmarshal_with_sig(field_sig, ctx)?;
                 fields.push(field);
             }

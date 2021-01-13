@@ -40,5 +40,8 @@ fn run_artifact(path: &str) {
         Ok(msg) => msg,
         Err(_) => return,
     };
+
+    println!("Message: {:?}", msg);
+
     msg.unmarshall_all().ok();
 }

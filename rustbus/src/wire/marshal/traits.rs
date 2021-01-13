@@ -83,27 +83,11 @@ impl<P: Marshal> Marshal for &P {
     }
 }
 
-impl Signature for () {
-    fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![]))
-    }
-
-    fn alignment() -> usize {
-        8
-    }
-}
-
-impl Marshal for () {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        // always align to 8
-        ctx.align_to(8);
-        Ok(())
-    }
-}
-
 impl<E: Signature> Signature for (E,) {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![E::signature()]))
+        crate::signature::Type::Container(crate::signature::Container::Struct(
+            crate::signature::StructTypes::new(vec![E::signature()]).unwrap(),
+        ))
     }
 
     fn alignment() -> usize {
@@ -121,10 +105,9 @@ impl<E: Marshal> Marshal for (E,) {
 
 impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            E1::signature(),
-            E2::signature(),
-        ]))
+        crate::signature::Type::Container(crate::signature::Container::Struct(
+            crate::signature::StructTypes::new(vec![E1::signature(), E2::signature()]).unwrap(),
+        ))
     }
 
     fn alignment() -> usize {
@@ -143,11 +126,14 @@ impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
 
 impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            E1::signature(),
-            E2::signature(),
-            E3::signature(),
-        ]))
+        crate::signature::Type::Container(crate::signature::Container::Struct(
+            crate::signature::StructTypes::new(vec![
+                E1::signature(),
+                E2::signature(),
+                E3::signature(),
+            ])
+            .unwrap(),
+        ))
     }
 
     fn alignment() -> usize {
@@ -167,12 +153,15 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
 
 impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (E1, E2, E3, E4) {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            E1::signature(),
-            E2::signature(),
-            E3::signature(),
-            E4::signature(),
-        ]))
+        crate::signature::Type::Container(crate::signature::Container::Struct(
+            crate::signature::StructTypes::new(vec![
+                E1::signature(),
+                E2::signature(),
+                E3::signature(),
+                E4::signature(),
+            ])
+            .unwrap(),
+        ))
     }
 
     fn alignment() -> usize {
@@ -195,13 +184,16 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> 
     for (E1, E2, E3, E4, E5)
 {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-            E1::signature(),
-            E2::signature(),
-            E3::signature(),
-            E4::signature(),
-            E5::signature(),
-        ]))
+        crate::signature::Type::Container(crate::signature::Container::Struct(
+            crate::signature::StructTypes::new(vec![
+                E1::signature(),
+                E2::signature(),
+                E3::signature(),
+                E4::signature(),
+                E5::signature(),
+            ])
+            .unwrap(),
+        ))
     }
 
     fn alignment() -> usize {

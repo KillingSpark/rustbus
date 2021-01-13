@@ -521,10 +521,10 @@ fn test_marshal_trait() {
     use crate::wire::marshal::MarshalContext;
     impl Signature for &MyStruct {
         fn signature() -> crate::signature::Type {
-            crate::signature::Type::Container(crate::signature::Container::Struct(vec![
-                u64::signature(),
-                String::signature(),
-            ]))
+            crate::signature::Type::Container(crate::signature::Container::Struct(
+                crate::signature::StructTypes::new(vec![u64::signature(), String::signature()])
+                    .unwrap(),
+            ))
         }
 
         fn alignment() -> usize {

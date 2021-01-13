@@ -169,13 +169,6 @@ fn test_generic_unmarshal() {
     x(arg);
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for () {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(8)?;
-        Ok((padding, ()))
-    }
-}
-
 impl<'r, 'buf: 'r, 'fds, E1> Unmarshal<'r, 'buf, 'fds> for (E1,)
 where
     E1: Unmarshal<'r, 'buf, 'fds> + Sized,

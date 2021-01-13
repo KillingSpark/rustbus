@@ -681,9 +681,10 @@ impl<'a, 'e> std::convert::From<&Container<'a, 'e>> for signature::Container {
             Container::Dict(dict) => {
                 signature::Container::Dict(dict.key_sig, Box::new(dict.value_sig.clone()))
             }
-            Container::Struct(params) => {
-                signature::Container::Struct(params.iter().map(|param| param.into()).collect())
-            }
+            Container::Struct(params) => signature::Container::Struct(
+                signature::StructTypes::new(params.iter().map(|param| param.into()).collect())
+                    .unwrap(),
+            ),
             Container::Variant(_) => signature::Container::Variant,
             Container::ArrayRef(arr) => {
                 signature::Container::Array(Box::new(arr.element_sig.clone()))
@@ -691,9 +692,10 @@ impl<'a, 'e> std::convert::From<&Container<'a, 'e>> for signature::Container {
             Container::DictRef(dict) => {
                 signature::Container::Dict(dict.key_sig, Box::new(dict.value_sig.clone()))
             }
-            Container::StructRef(params) => {
-                signature::Container::Struct(params.iter().map(|param| param.into()).collect())
-            }
+            Container::StructRef(params) => signature::Container::Struct(
+                signature::StructTypes::new(params.iter().map(|param| param.into()).collect())
+                    .unwrap(),
+            ),
         }
     }
 }
