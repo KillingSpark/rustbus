@@ -163,7 +163,13 @@ fn struct_field_unmarshal(fields: &syn::Fields) -> TokenStream {
     }
 }
 fn struct_field_sigs(fields: &syn::Fields) -> TokenStream {
-    let field_types = fields.iter().map(|field| field.ty.to_token_stream());
+    let field_types = fields
+        .iter()
+        .map(|field| field.ty.to_token_stream())
+        .collect::<Vec<_>>();
+    if field_types.is_empty() {
+        panic!("Signature can not be derived for empty structs!")
+    }
 
     quote! {
             let mut sigs = vec![];
@@ -172,6 +178,8 @@ fn struct_field_sigs(fields: &syn::Fields) -> TokenStream {
                 sigs.push(<#field_types as rustbus::Signature>::signature());
             )*
 
-            ::rustbus::signature::Type::Container(::rustbus::signature::Container::Struct(sigs))
+            ::rustbus::signature::Type::Container(::rustbus::signature::Container::Struct(
+                ::rustbus::signature::StructTypes::new(sigs).unwrap()
+            ))
     }
 }

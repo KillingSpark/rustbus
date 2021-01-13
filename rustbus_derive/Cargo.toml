@@ -1,6 +1,6 @@
 [package]
 name = "rustbus_derive"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Moritz Borcherding <moritz.borcherding@web.de>"]
 edition = "2018"
 license = "MIT"
