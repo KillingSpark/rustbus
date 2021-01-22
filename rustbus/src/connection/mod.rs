@@ -74,11 +74,18 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
             Err(Error::PathDoesNotExist(ps.to_owned()))
         }
     } else if addr.starts_with("unix:abstract=") {
-        let mut ps = addr.trim_start_matches("unix:abstract=").to_string();
-        let end_path_offset = ps.find(',').unwrap_or_else(|| ps.len());
-        let ps: String = ps.drain(..end_path_offset).collect();
-        let path_buf = ps.as_bytes();
-        Ok(UnixAddr::new_abstract(&path_buf)?)
+        #[cfg(not(target_os = "linux"))]
+        {
+            Err(Error::AddressTypeNotSupported(addr.to_owned()))
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let mut ps = addr.trim_start_matches("unix:abstract=").to_string();
+            let end_path_offset = ps.find(',').unwrap_or_else(|| ps.len());
+            let ps: String = ps.drain(..end_path_offset).collect();
+            let path_buf = ps.as_bytes();
+            Ok(UnixAddr::new_abstract(&path_buf)?)
+        }
     } else {
         Err(Error::AddressTypeNotSupported(addr.to_owned()))
     }
@@ -122,9 +129,9 @@ pub(crate) fn calc_timeout_left(start_time: &time::Instant, timeout: Timeout) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use nix::sys::socket::UnixAddr;
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_get_session_bus_path() {
         let path = "unix:path=/tmp/dbus-test-not-exist";
@@ -139,5 +146,13 @@ mod tests {
 
         let addr = parse_dbus_addr_str(abstract_path_with_keys).unwrap();
         assert_eq!(addr, UnixAddr::new_abstract(b"/tmp/dbus-test").unwrap());
+    }
+    #[cfg(not(target_os = "linux"))]
+    #[test]
+    fn test_get_session_bus_path() {
+        let path = "unix:path=/tmp/dbus-test-not-exist";
+
+        let addr = parse_dbus_addr_str(path);
+        assert!(addr.is_err());
     }
 }
