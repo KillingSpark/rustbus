@@ -2,7 +2,8 @@
 
 use crate::params::message;
 use crate::wire::marshal::traits::Marshal;
-use crate::wire::marshal::MarshalContext;
+use crate::wire::marshal::{Error as MarshalError, MarshalContext};
+use crate::wire::unixfd::UnixFd;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 
@@ -17,7 +18,7 @@ pub enum MessageType {
 }
 
 /// Flags that can be set in the message header
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HeaderFlags {
     NoReplyExpected,
     NoAutoStart,
@@ -355,7 +356,19 @@ impl MarshalledMessageBody {
             byteorder,
         }
     }
-
+    /// Attempt to get a copy of all the fds in the messsage.
+    ///
+    /// If one has been taken then this method will fail.
+    pub fn get_duped_fds(&self) -> Result<Vec<UnixFd>, MarshalError> {
+        let mut ret = Vec::with_capacity(self.raw_fds.len());
+        for fd in self.raw_fds.iter().map(|fd| fd.dup()) {
+            match fd {
+                Some(fd) => ret.push(fd.map_err(|e| MarshalError::DupUnixFd(e))?),
+                None => break,
+            }
+        }
+        Ok(ret)
+    }
     /// Clears the buffer and signature but holds on to the memory allocations. You can now start pushing new
     /// params as if this were a new message. This allows to reuse the OutMessage for the same dbus-message with different
     /// parameters without allocating the buffer every time.
