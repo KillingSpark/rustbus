@@ -8,7 +8,7 @@ use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 
 /// Types a message might have
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MessageType {
     Signal,
     Error,
