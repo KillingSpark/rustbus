@@ -3,11 +3,12 @@
 use crate::params::message;
 use crate::wire::marshal::traits::Marshal;
 use crate::wire::marshal::MarshalContext;
+use crate::wire::unixfd::UnixFd;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 
 /// Types a message might have
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MessageType {
     Signal,
     Error,
@@ -17,7 +18,7 @@ pub enum MessageType {
 }
 
 /// Flags that can be set in the message header
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HeaderFlags {
     NoReplyExpected,
     NoAutoStart,
@@ -355,7 +356,12 @@ impl MarshalledMessageBody {
             byteorder,
         }
     }
-
+    /// Get a clone of all the `UnixFd`s in the body.
+    ///
+    /// Some of the `UnixFd`s may already have their `RawFd`s taken.
+    pub fn get_fds(&self) -> Vec<UnixFd> {
+        self.raw_fds.clone()
+    }
     /// Clears the buffer and signature but holds on to the memory allocations. You can now start pushing new
     /// params as if this were a new message. This allows to reuse the OutMessage for the same dbus-message with different
     /// parameters without allocating the buffer every time.

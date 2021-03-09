@@ -21,7 +21,7 @@ pub mod traits;
 
 use container::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Header {
     pub byteorder: ByteOrder,
     pub typ: MessageType,
