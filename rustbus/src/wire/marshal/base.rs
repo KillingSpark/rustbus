@@ -6,46 +6,38 @@ use crate::wire::marshal::MarshalContext;
 use crate::wire::util::*;
 use crate::ByteOrder;
 
-fn marshal_boolean(b: bool, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_boolean(b: bool, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     if b {
         write_u32(1, byteorder, buf);
     } else {
         write_u32(0, byteorder, buf);
     }
-    Ok(())
 }
 
-fn marshal_byte(i: u8, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_byte(i: u8, buf: &mut Vec<u8>) {
     buf.push(i);
-    Ok(())
 }
 
-fn marshal_i16(i: i16, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_i16(i: i16, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     write_u16(i as u16, byteorder, buf);
-    Ok(())
 }
 
-fn marshal_u16(i: u16, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_u16(i: u16, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     write_u16(i, byteorder, buf);
-    Ok(())
 }
-fn marshal_i32(i: i32, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_i32(i: i32, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     write_u32(i as u32, byteorder, buf);
-    Ok(())
 }
 
-fn marshal_u32(i: u32, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_u32(i: u32, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     write_u32(i, byteorder, buf);
-    Ok(())
 }
-fn marshal_i64(i: i64, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_i64(i: i64, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     write_u64(i as u64, byteorder, buf);
-    Ok(())
 }
 
-fn marshal_u64(i: u64, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_u64(i: u64, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     write_u64(i, byteorder, buf);
-    Ok(())
 }
 
 fn marshal_string(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
@@ -89,13 +81,14 @@ pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> message
         params::Base::Uint64Ref(i) => marshal_u64(**i, ctx.byteorder, ctx.buf),
         params::Base::Double(i) => marshal_u64(*i, ctx.byteorder, ctx.buf),
         params::Base::DoubleRef(i) => marshal_u64(**i, ctx.byteorder, ctx.buf),
-        params::Base::StringRef(s) => marshal_string(s, ctx.byteorder, ctx.buf),
-        params::Base::String(s) => marshal_string(s, ctx.byteorder, ctx.buf),
-        params::Base::Signature(s) => marshal_signature(s, ctx.buf),
-        params::Base::SignatureRef(s) => marshal_signature(s, ctx.buf),
-        params::Base::ObjectPath(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf),
-        params::Base::ObjectPathRef(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf),
-        params::Base::UnixFd(i) => marshal_unixfd(i, ctx),
-        params::Base::UnixFdRef(i) => marshal_unixfd(i, ctx),
+        params::Base::StringRef(s) => marshal_string(s, ctx.byteorder, ctx.buf)?,
+        params::Base::String(s) => marshal_string(s, ctx.byteorder, ctx.buf)?,
+        params::Base::Signature(s) => marshal_signature(s, ctx.buf)?,
+        params::Base::SignatureRef(s) => marshal_signature(s, ctx.buf)?,
+        params::Base::ObjectPath(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf)?,
+        params::Base::ObjectPathRef(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf)?,
+        params::Base::UnixFd(i) => marshal_unixfd(i, ctx)?,
+        params::Base::UnixFdRef(i) => marshal_unixfd(i, ctx)?,
     }
+    Ok(())
 }

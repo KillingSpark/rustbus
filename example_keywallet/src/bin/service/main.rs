@@ -19,6 +19,7 @@ pub struct Context {
 }
 pub type MyHandleEnv<'a, 'b> = HandleEnvironment<&'b mut Context, ()>;
 
+#[allow(clippy::unnecessary_wraps)]
 fn default_handler(
     _ctx: &mut &mut Context,
     _matches: Matches,
@@ -146,6 +147,8 @@ fn item_handler(
         }
     }
 }
+
+#[allow(clippy::unnecessary_wraps)]
 fn session_handler(
     ctx: &mut &mut Context,
     matches: Matches,
