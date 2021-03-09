@@ -5,6 +5,13 @@ use std::os::unix::io::RawFd;
 
 use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DupError {
+    Nix(nix::Error),
+    AlreadyTaken,
+}
+
 #[derive(Debug)]
 struct UnixFdInner {
     inner: AtomicI32,
@@ -25,19 +32,20 @@ impl UnixFdInner {
     /// This is kinda like Cell::take it takes the FD and resets the atomic int to FD_INVALID which represents the invalid / taken state here.
     fn take(&self) -> Option<RawFd> {
         // load fd and see if it is already been taken
-        let fd: RawFd = self.inner.load(std::sync::atomic::Ordering::Relaxed);
-        if fd == Self::FD_INVALID {
+        let loaded_fd: RawFd = self.inner.load(std::sync::atomic::Ordering::SeqCst);
+        if loaded_fd == Self::FD_INVALID {
             None
         } else {
             //try to swap with FD_INVALID
-            let swapped_fd = self.inner.compare_and_swap(
-                fd,
+            let swapped_fd = self.inner.compare_exchange(
+                loaded_fd,
                 Self::FD_INVALID,
-                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::SeqCst,
+                std::sync::atomic::Ordering::SeqCst,
             );
             //  If swapped_fd == fd then we did a sucessful swap and we actually took the value
-            if swapped_fd == fd {
-                Some(fd as i32)
+            if let Ok(taken_fd) = swapped_fd {
+                Some(taken_fd as i32)
             } else {
                 None
             }
@@ -46,7 +54,7 @@ impl UnixFdInner {
 
     /// This is kinda like Cell::get it returns the FD, FD_INVALID represents the invalid / taken state here.
     fn get(&self) -> Option<RawFd> {
-        let loaded = self.inner.load(std::sync::atomic::Ordering::Relaxed);
+        let loaded = self.inner.load(std::sync::atomic::Ordering::SeqCst);
         if loaded == Self::FD_INVALID {
             None
         } else {
@@ -55,13 +63,16 @@ impl UnixFdInner {
     }
 
     /// Dup the underlying FD
-    fn dup(&self) -> Option<Result<Self, nix::Error>> {
-        let fd = self.get()?;
+    fn dup(&self) -> Result<Self, DupError> {
+        let fd = match self.get() {
+            Some(fd) => fd,
+            None => return Err(DupError::AlreadyTaken),
+        };
         match nix::unistd::dup(fd) {
-            Ok(new_fd) => Some(Ok(Self {
+            Ok(new_fd) => Ok(Self {
                 inner: AtomicI32::new(new_fd),
-            })),
-            Err(e) => Some(Err(e)),
+            }),
+            Err(e) => Err(DupError::Nix(e)),
         }
     }
 }
@@ -102,11 +113,8 @@ impl UnixFd {
 
     /// Duplicate the underlying FD so you can use it as you will. This is different from just calling
     /// clone(). Clone only makes a new ref to the same underlying FD.
-    pub fn dup(&self) -> Option<Result<Self, nix::Error>> {
-        match self.0.dup()? {
-            Ok(inner) => Some(Ok(Self(Arc::new(inner)))),
-            Err(e) => Some(Err(e)),
-        }
+    pub fn dup(&self) -> Result<Self, DupError> {
+        self.0.dup().map(|new_inner| Self(Arc::new(new_inner)))
     }
 }
 /// Allow for the comparison of `UnixFd` even after the `RawFd`
@@ -237,4 +245,14 @@ fn test_races_in_unixfd() {
         let result_iter = result.lock().unwrap();
         assert_eq!(result_iter.iter().filter(|b| **b).count(), 1)
     }
+}
+
+#[test]
+fn test_unixfd_dup() {
+    let fd = UnixFd::new(nix::unistd::dup(1).unwrap());
+    let fd2 = fd.dup().unwrap();
+    assert_ne!(fd.get_raw_fd().unwrap(), fd2.get_raw_fd().unwrap());
+
+    let _raw = fd.clone().take_raw_fd();
+    assert_eq!(fd.dup(), Err(DupError::AlreadyTaken));
 }
