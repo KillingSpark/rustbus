@@ -313,3 +313,11 @@ fn test_raw_validation() {
     )
     .unwrap();
 }
+#[test]
+fn test_array_element_overflow() {
+    let mut buf = vec![10, 0, 0, 0, 10, 0, 0, 0];
+    buf.resize(18, 0x61);
+    buf.push(0);
+    let typ = &signature::Type::parse_description("as").unwrap();
+    validate_marshalled(ByteOrder::LittleEndian, 0, &buf, &typ[0]).unwrap_err();
+}
