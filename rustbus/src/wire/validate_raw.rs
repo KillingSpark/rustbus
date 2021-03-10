@@ -150,14 +150,24 @@ pub fn validate_marshalled_container(
                 return Err((offset, Error::NotEnoughBytesForCollection));
             }
 
-            let mut bytes_used_counter = 0;
-            while bytes_used_counter < bytes_in_array as usize {
-                let bytes_used =
-                    validate_marshalled(byteorder, offset + bytes_used_counter, buf, &elem_sig)?;
-                bytes_used_counter += bytes_used;
+            let total_bytes_used = padding + 4 + first_elem_padding + bytes_in_array as usize;
+            if elem_sig.bytes_always_valid() {
+                if bytes_in_array as usize % elem_sig.get_alignment() != 0 {
+                    return Err((offset, Error::NotEnoughBytes));
+                }
+            } else {
+                let mut bytes_used_counter = 0;
+                let array_end = total_bytes_used + offset;
+                while bytes_used_counter < bytes_in_array as usize {
+                    let bytes_used = validate_marshalled(
+                        byteorder,
+                        offset + bytes_used_counter,
+                        &buf[..array_end],
+                        &elem_sig,
+                    )?;
+                    bytes_used_counter += bytes_used;
+                }
             }
-            let total_bytes_used = padding + 4 + first_elem_padding + bytes_used_counter;
-
             Ok(total_bytes_used)
         }
         signature::Container::Dict(key_sig, val_sig) => {
