@@ -213,18 +213,17 @@ impl Base {
     /// and the length of the type is equal to its alignment
     /// return true.
     pub(crate) fn bytes_always_valid(&self) -> bool {
-        match self {
-            Base::Byte => true,
-            Base::Int16 => true,
-            Base::Uint16 => true,
-            Base::Int32 => true,
-            Base::Uint32 => true,
-            Base::Int64 => true,
-            Base::Uint64 => true,
-            Base::UnixFd => true,
-            Base::Double => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Base::Byte
+                | Base::Int16
+                | Base::Uint16
+                | Base::Uint32
+                | Base::Int64
+                | Base::Uint64
+                | Base::UnixFd
+                | Base::Double
+        )
     }
 }
 
