@@ -482,7 +482,7 @@ impl MarshalledMessageBody {
     }
     /// Validate the all the marshalled elements of the body.
     pub fn validate(&self) -> Result<(), crate::wire::unmarshal::Error> {
-        if self.sig.len() == 0 {
+        if self.sig.is_empty() && self.buf.is_empty() {
             return Ok(());
         }
         let types = crate::signature::Type::parse_description(&self.sig)?;
