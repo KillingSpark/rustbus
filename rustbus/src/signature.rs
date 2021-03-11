@@ -210,8 +210,8 @@ impl Base {
         }
     }
     /// If every bit-pattern is valid for a type and
-    /// and the length of the type is a multiple of its
-    /// alignment then this will return true.
+    /// and the length of the type is equal to its alignment
+    /// return true.
     pub(crate) fn bytes_always_valid(&self) -> bool {
         match self {
             Base::Byte => true,
@@ -284,6 +284,9 @@ impl Type {
             Type::Container(c) => c.get_alignment(),
         }
     }
+    /// If every bit-pattern is valid for a type and
+    /// and the length of the type is equal to its alignment
+    /// return true.
     pub(crate) fn bytes_always_valid(&self) -> bool {
         match self {
             Type::Base(b) => b.bytes_always_valid(),

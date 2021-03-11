@@ -152,7 +152,10 @@ pub fn validate_marshalled_container(
 
             let total_bytes_used = padding + 4 + first_elem_padding + bytes_in_array as usize;
             if elem_sig.bytes_always_valid() {
+                // bytes_always_valid() only returns true for types whose
+                // length is equal to their alignment
                 if bytes_in_array as usize % elem_sig.get_alignment() != 0 {
+                    // there is not a whole number of elements in the array.
                     return Err((offset, Error::NotEnoughBytes));
                 }
             } else {
