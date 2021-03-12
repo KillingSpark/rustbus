@@ -192,7 +192,6 @@ impl Base {
             Base::Signature => buf.push('g'),
         }
     }
-
     pub fn get_alignment(self) -> usize {
         match self {
             Base::Boolean => 4,
@@ -209,6 +208,22 @@ impl Base {
             Base::ObjectPath => 4,
             Base::Signature => 1,
         }
+    }
+    /// If every bit-pattern is valid for a type and
+    /// and the length of the type is equal to its alignment
+    /// return true.
+    pub(crate) fn bytes_always_valid(&self) -> bool {
+        matches!(
+            self,
+            Base::Byte
+                | Base::Int16
+                | Base::Uint16
+                | Base::Uint32
+                | Base::Int64
+                | Base::Uint64
+                | Base::UnixFd
+                | Base::Double
+        )
     }
 }
 
@@ -268,7 +283,15 @@ impl Type {
             Type::Container(c) => c.get_alignment(),
         }
     }
-
+    /// If every bit-pattern is valid for a type and
+    /// and the length of the type is equal to its alignment
+    /// return true.
+    pub(crate) fn bytes_always_valid(&self) -> bool {
+        match self {
+            Type::Base(b) => b.bytes_always_valid(),
+            Type::Container(_) => false,
+        }
+    }
     fn parse_next_type<I: Iterator<Item = Result<Token>>>(
         tokens: &mut I,
         delim: Option<Token>,
