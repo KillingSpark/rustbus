@@ -5,6 +5,7 @@ use crate::wire::marshal::traits::Marshal;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unixfd::UnixFd;
 use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::validate_raw;
 use crate::ByteOrder;
 
 /// Types a message might have
@@ -479,7 +480,23 @@ impl MarshalledMessageBody {
         self.sig.push('v');
         marshal_as_variant(p, self.byteorder, &mut self.buf, &mut self.raw_fds)
     }
-
+    /// Validate the all the marshalled elements of the body.
+    pub fn validate(&self) -> Result<(), crate::wire::unmarshal::Error> {
+        if self.sig.is_empty() && self.buf.is_empty() {
+            return Ok(());
+        }
+        let types = crate::signature::Type::parse_description(&self.sig)?;
+        let mut used = 0;
+        for typ in types {
+            used += validate_raw::validate_marshalled(self.byteorder, used, &self.buf, &typ)
+                .map_err(|(_, e)| e)?;
+        }
+        if used == self.buf.len() {
+            Ok(())
+        } else {
+            Err(crate::wire::unmarshal::Error::NotAllBytesUsed)
+        }
+    }
     /// Create a parser to retrieve parameters from the body.
     #[inline]
     pub fn parser(&self) -> MessageBodyParser {
