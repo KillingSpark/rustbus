@@ -170,10 +170,8 @@ impl Marshal for &dyn std::os::unix::io::AsRawFd {
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for UnixFd {
-    fn unmarshal(
-        ctx: &mut UnmarshalContext<'fds, 'buf>,
-    ) -> crate::wire::unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for UnixFd {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> crate::wire::unmarshal::UnmarshalResult<Self> {
         let (bytes, idx) = u32::unmarshal(ctx)?;
 
         if ctx.fds.len() <= idx as usize {

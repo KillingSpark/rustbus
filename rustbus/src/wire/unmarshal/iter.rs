@@ -49,13 +49,8 @@ impl<'a> MessageIter<'a> {
         }
     }
 
-    pub fn unmarshal_next<
-        'r,
-        'buf: 'r,
-        'fds,
-        T: crate::wire::unmarshal::traits::Unmarshal<'r, 'buf, 'fds>,
-    >(
-        &'buf mut self,
+    pub fn unmarshal_next<'r, T: crate::wire::unmarshal::traits::Unmarshal<'r>>(
+        &'r mut self,
     ) -> Option<Result<T, Error>> {
         if self.counter >= self.sig.len() {
             None

@@ -90,9 +90,9 @@ macro_rules! dbus_variant_sig_marshal {
 #[macro_export]
 macro_rules! dbus_variant_sig_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'ret, 'buf: 'ret, 'fds> rustbus::Unmarshal<'ret, 'buf, 'fds> for $vname {
+        impl<'ret> rustbus::Unmarshal<'ret> for $vname {
             fn unmarshal(
-                ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'fds, 'buf>,
+                ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'ret>,
             ) -> rustbus::wire::unmarshal::UnmarshalResult<Self> {
                 use rustbus::Signature;
 
@@ -288,7 +288,7 @@ macro_rules! dbus_variant_var {
             $name => $typ
         )+);
 
-        impl<'fds, 'buf> rustbus::Signature for $vname <'fds, 'buf> {
+        impl rustbus::Signature for $vname <'_> {
             fn signature() -> rustbus::signature::Type {
                 rustbus::signature::Type::Container(rustbus::signature::Container::Variant)
             }
@@ -311,11 +311,11 @@ macro_rules! dbus_variant_var {
 macro_rules! dbus_variant_var_type {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         #[derive(Debug)]
-        pub enum $vname <'fds, 'buf> {
+        pub enum $vname <'buf> {
             $(
                 $name($typ),
             )+
-            Catchall(rustbus::wire::unmarshal::traits::Variant<'fds, 'buf>)
+            Catchall(rustbus::wire::unmarshal::traits::Variant<'buf>)
         }
     };
 }
@@ -324,7 +324,7 @@ macro_rules! dbus_variant_var_type {
 #[macro_export]
 macro_rules! dbus_variant_var_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'fds, 'buf> rustbus::Marshal for $vname <'fds, 'buf> {
+        impl<'fds, 'buf> rustbus::Marshal for $vname <'buf> {
             fn marshal(&self, ctx: &mut rustbus::wire::marshal::MarshalContext) -> Result<(), rustbus::Error> {
                 use rustbus::Signature;
 
@@ -353,9 +353,9 @@ macro_rules! dbus_variant_var_marshal {
 #[macro_export]
 macro_rules! dbus_variant_var_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'ret, 'buf: 'ret, 'fds> rustbus::Unmarshal<'ret, 'buf,'fds> for $vname <'fds, 'ret> {
+        impl<'buf> rustbus::Unmarshal<'buf> for $vname <'buf> {
             fn unmarshal(
-                ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'fds, 'buf>
+                ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'buf>
             ) -> rustbus::wire::unmarshal::UnmarshalResult<Self> {
                 use rustbus::Signature;
                 use rustbus::Unmarshal;
@@ -454,10 +454,9 @@ fn test_variant_var_macro() {
         _ => false,
     });
 
-    type Map<'fds, 'buf> =
-        std::collections::HashMap<String, (i32, u8, (u64, MyVariant<'fds, 'buf>))>;
-    type Struct<'fds, 'buf> = (u32, u32, MyVariant<'fds, 'buf>);
-    dbus_variant_var!(MyVariant2, CaseMap => Map<'fds, 'buf>; CaseStruct => Struct<'fds, 'buf>);
+    type Map<'buf> = std::collections::HashMap<String, (i32, u8, (u64, MyVariant<'buf>))>;
+    type Struct<'buf> = (u32, u32, MyVariant<'buf>);
+    dbus_variant_var!(MyVariant2, CaseMap => Map<'buf>; CaseStruct => Struct<'buf>);
 
     let mut map = Map::new();
     map.insert(

@@ -52,14 +52,14 @@ pub enum Error {
     BadFdIndex(usize),
 }
 
-pub struct UnmarshalContext<'fds, 'buf> {
-    pub fds: &'fds [crate::wire::UnixFd],
+pub struct UnmarshalContext<'buf> {
+    pub fds: &'buf [crate::wire::UnixFd],
     pub buf: &'buf [u8],
     pub byteorder: ByteOrder,
     pub offset: usize,
 }
 
-impl UnmarshalContext<'_, '_> {
+impl UnmarshalContext<'_> {
     pub fn align_to(&mut self, alignment: usize) -> Result<usize, crate::wire::unmarshal::Error> {
         let padding = crate::wire::util::align_offset(alignment, self.buf, self.offset)?;
 

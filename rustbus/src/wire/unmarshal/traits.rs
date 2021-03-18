@@ -45,8 +45,8 @@ use crate::ByteOrder;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
 /// use rustbus::wire::util;
 /// use rustbus::ByteOrder;
-/// impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for MyStruct {
-///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+/// impl<'r> Unmarshal<'r> for MyStruct {
+///    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
 ///         let start_offset = ctx.offset;
 ///         // check that we are aligned properly!
 ///         // This is necessary at the start of each struct! They need to be aligned to 8 bytes!
@@ -78,8 +78,8 @@ use crate::ByteOrder;
 /// As an example, lets assume your message contains a byte-array that is actually json data. Then you can use serde_json to unmarshal that array
 /// directly here without having to do a separate step for that.
 /// ```rust,ignore
-/// impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for MyStruct {
-///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+/// impl<'r> Unmarshal<'r> for MyStruct {
+///    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
 ///         let start_offset = ctx.offset;
 ///         // check that we are aligned properly
 ///         let padding = ctx.align_to(Self::alignment())?;
@@ -95,12 +95,12 @@ use crate::ByteOrder;
 /// }
 /// ```
 
-pub trait Unmarshal<'r, 'buf: 'r, 'fds>: Sized + Signature {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self>;
+pub trait Unmarshal<'r>: Sized + Signature {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self>;
 }
 
-pub fn unmarshal<'r, 'buf: 'r, 'fds, T: Unmarshal<'r, 'buf, 'fds>>(
-    ctx: &mut UnmarshalContext<'fds, 'buf>,
+pub fn unmarshal<'r, T: Unmarshal<'r>>(
+    ctx: &mut UnmarshalContext<'r>,
 ) -> unmarshal::UnmarshalResult<T> {
     T::unmarshal(ctx)
 }
@@ -169,23 +169,23 @@ fn test_generic_unmarshal() {
     x(arg);
 }
 
-impl<'r, 'buf: 'r, 'fds, E1> Unmarshal<'r, 'buf, 'fds> for (E1,)
+impl<'r, E1> Unmarshal<'r> for (E1,)
 where
-    E1: Unmarshal<'r, 'buf, 'fds> + Sized,
+    E1: Unmarshal<'r> + Sized,
 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(8)?;
         let (bytes, val1) = E1::unmarshal(ctx)?;
         Ok((bytes + padding, (val1,)))
     }
 }
 
-impl<'r, 'buf: 'r, 'fds, E1, E2> Unmarshal<'r, 'buf, 'fds> for (E1, E2)
+impl<'r, E1, E2> Unmarshal<'r> for (E1, E2)
 where
-    E1: Unmarshal<'r, 'buf, 'fds> + Sized,
-    E2: Unmarshal<'r, 'buf, 'fds> + Sized,
+    E1: Unmarshal<'r> + Sized,
+    E2: Unmarshal<'r> + Sized,
 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let start_offset = ctx.offset;
         ctx.align_to(8)?;
         let (_bytes, val1) = E1::unmarshal(ctx)?;
@@ -198,13 +198,13 @@ where
     }
 }
 
-impl<'r, 'buf: 'r, 'fds, E1, E2, E3> Unmarshal<'r, 'buf, 'fds> for (E1, E2, E3)
+impl<'r, E1, E2, E3> Unmarshal<'r> for (E1, E2, E3)
 where
-    E1: Unmarshal<'r, 'buf, 'fds> + Sized,
-    E2: Unmarshal<'r, 'buf, 'fds> + Sized,
-    E3: Unmarshal<'r, 'buf, 'fds> + Sized,
+    E1: Unmarshal<'r> + Sized,
+    E2: Unmarshal<'r> + Sized,
+    E3: Unmarshal<'r> + Sized,
 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let start_offset = ctx.offset;
 
         ctx.align_to(8)?;
@@ -221,14 +221,14 @@ where
     }
 }
 
-impl<'r, 'buf: 'r, 'fds, E1, E2, E3, E4> Unmarshal<'r, 'buf, 'fds> for (E1, E2, E3, E4)
+impl<'r, E1, E2, E3, E4> Unmarshal<'r> for (E1, E2, E3, E4)
 where
-    E1: Unmarshal<'r, 'buf, 'fds> + Sized,
-    E2: Unmarshal<'r, 'buf, 'fds> + Sized,
-    E3: Unmarshal<'r, 'buf, 'fds> + Sized,
-    E4: Unmarshal<'r, 'buf, 'fds> + Sized,
+    E1: Unmarshal<'r> + Sized,
+    E2: Unmarshal<'r> + Sized,
+    E3: Unmarshal<'r> + Sized,
+    E4: Unmarshal<'r> + Sized,
 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let start_offset = ctx.offset;
 
         ctx.align_to(8)?;
@@ -248,32 +248,32 @@ where
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for u64 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for u64 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::parse_u64(&ctx.buf[ctx.offset..], ctx.byteorder)?;
         ctx.offset += bytes;
         Ok((bytes + padding, val))
     }
 }
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for u32 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for u32 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)?;
         ctx.offset += bytes;
         Ok((bytes + padding, val))
     }
 }
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for u16 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for u16 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::parse_u16(&ctx.buf[ctx.offset..], ctx.byteorder)?;
         ctx.offset += bytes;
         Ok((bytes + padding, val))
     }
 }
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for i64 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for i64 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::parse_u64(&ctx.buf[ctx.offset..], ctx.byteorder)
             .map(|(bytes, val)| (bytes, val as i64))?;
@@ -281,8 +281,8 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for i64 {
         Ok((bytes + padding, val))
     }
 }
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for i32 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for i32 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)
             .map(|(bytes, val)| (bytes, val as i32))?;
@@ -290,8 +290,8 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for i32 {
         Ok((bytes + padding, val))
     }
 }
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for i16 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for i16 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::parse_u16(&ctx.buf[ctx.offset..], ctx.byteorder)
             .map(|(bytes, val)| (bytes, val as i16))?;
@@ -300,8 +300,8 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for i16 {
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for u8 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for u8 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         if ctx.buf[ctx.offset..].is_empty() {
             return Err(crate::wire::unmarshal::Error::NotEnoughBytes);
         }
@@ -311,8 +311,8 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for u8 {
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for bool {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for bool {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)?;
         ctx.offset += bytes;
@@ -324,8 +324,8 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for bool {
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for &'r str {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for &'r str {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::unmarshal_str(ctx.byteorder, &ctx.buf[ctx.offset..])?;
         ctx.offset += bytes;
@@ -333,8 +333,8 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for &'r str {
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for String {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for String {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (bytes, val) = util::unmarshal_string(ctx.byteorder, &ctx.buf[ctx.offset..])?;
         ctx.offset += bytes;
@@ -343,8 +343,8 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for String {
 }
 
 /// for byte arrays we can give an efficient method of decoding. This will bind the returned slice to the lifetime of the buffer.
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for &'r [u8] {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for &'r [u8] {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
         let (_, bytes_in_array) = u32::unmarshal(ctx)?;
 
@@ -426,8 +426,8 @@ impl<E: Signature> Signature for Vec<E> {
     }
 }
 
-impl<'r, 'buf: 'r, 'fds, E: Unmarshal<'r, 'buf, 'fds>> Unmarshal<'r, 'buf, 'fds> for Vec<E> {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r, E: Unmarshal<'r>> Unmarshal<'r> for Vec<E> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let start_offset = ctx.offset;
         ctx.align_to(4)?;
         let (_, bytes_in_array) = u32::unmarshal(ctx)?;
@@ -457,15 +457,10 @@ impl<'r, 'buf: 'r, 'fds, E: Unmarshal<'r, 'buf, 'fds>> Unmarshal<'r, 'buf, 'fds>
     }
 }
 
-impl<
-        'r,
-        'buf: 'r,
-        'fds,
-        K: Unmarshal<'r, 'buf, 'fds> + std::hash::Hash + Eq,
-        V: Unmarshal<'r, 'buf, 'fds>,
-    > Unmarshal<'r, 'buf, 'fds> for std::collections::HashMap<K, V>
+impl<'r, 'buf: 'r, 'fds, K: Unmarshal<'r> + std::hash::Hash + Eq, V: Unmarshal<'r>> Unmarshal<'r>
+    for std::collections::HashMap<K, V>
 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let start_offset = ctx.offset;
         ctx.align_to(4)?;
         let (_, bytes_in_array) = u32::unmarshal(ctx)?;
@@ -503,10 +498,8 @@ impl<
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds>
-    for crate::wire::marshal::traits::SignatureWrapper<'r>
-{
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for crate::wire::marshal::traits::SignatureWrapper<'r> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         // No alignment needed. Signature is aligned to 1
         let (bytes, val) = util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
         ctx.offset += bytes;
@@ -514,10 +507,10 @@ impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds>
         Ok((bytes, sig))
     }
 }
-impl<'r, 'buf: 'r, 'fds, S: AsRef<str> + Unmarshal<'r, 'buf, 'fds>> Unmarshal<'r, 'buf, 'fds>
+impl<'r, S: AsRef<str> + Unmarshal<'r>> Unmarshal<'r>
     for crate::wire::marshal::traits::ObjectPath<S>
 {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let (bytes, val) = <S as Unmarshal>::unmarshal(ctx)?;
         let path = crate::wire::marshal::traits::ObjectPath::new(val)?;
         Ok((bytes, path))
@@ -525,14 +518,14 @@ impl<'r, 'buf: 'r, 'fds, S: AsRef<str> + Unmarshal<'r, 'buf, 'fds>> Unmarshal<'r
 }
 
 #[derive(Debug)]
-pub struct Variant<'fds, 'buf> {
+pub struct Variant<'buf> {
     pub(crate) sig: signature::Type,
     pub(crate) byteorder: ByteOrder,
     pub(crate) offset: usize,
     pub(crate) buf: &'buf [u8],
-    pub(crate) fds: &'fds [crate::wire::UnixFd],
+    pub(crate) fds: &'buf [crate::wire::UnixFd],
 }
-impl<'r, 'buf: 'r, 'fds> Variant<'fds, 'buf> {
+impl<'r> Variant<'r> {
     /// Get the [`Type`] of the value contained by the variant.
     ///
     /// [`Type`]: /rustbus/signature/enum.Type.html
@@ -543,7 +536,7 @@ impl<'r, 'buf: 'r, 'fds> Variant<'fds, 'buf> {
     /// Unmarshal the variant's value. This method is used in the same way as [`MessageBodyParser::get()`].
     ///
     /// [`MessageBodyParser::get()`]: /rustbus/message_builder/struct.MessageBodyParser.html#method.get
-    pub fn get<T: Unmarshal<'r, 'buf, 'fds>>(&self) -> Result<T, unmarshal::Error> {
+    pub fn get<T: Unmarshal<'r>>(&self) -> Result<T, unmarshal::Error> {
         if self.sig != T::signature() {
             return Err(unmarshal::Error::WrongSignature);
         }
@@ -556,7 +549,7 @@ impl<'r, 'buf: 'r, 'fds> Variant<'fds, 'buf> {
         T::unmarshal(&mut ctx).map(|r| r.1)
     }
 }
-impl Signature for Variant<'_, '_> {
+impl Signature for Variant<'_> {
     fn signature() -> signature::Type {
         signature::Type::Container(signature::Container::Variant)
     }
@@ -564,8 +557,8 @@ impl Signature for Variant<'_, '_> {
         Variant::signature().get_alignment()
     }
 }
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for Variant<'fds, 'buf> {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'r> Unmarshal<'r> for Variant<'r> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'r>) -> unmarshal::UnmarshalResult<Self> {
         let start_offset = ctx.offset;
         let (sig_bytes, desc) = util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
         ctx.offset += sig_bytes;

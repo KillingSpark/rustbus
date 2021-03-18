@@ -65,44 +65,31 @@ fn make_struct_unmarshal_impl(
         colon_token: None,
         bounds: syn::punctuated::Punctuated::new(),
     };
-    let mut bufdef = syn::LifetimeDef {
-        attrs: Vec::new(),
-        lifetime: syn::Lifetime::new("'__internal_buf", proc_macro2::Span::call_site()),
-        colon_token: None,
-        bounds: syn::punctuated::Punctuated::new(),
-    };
-    bufdef.bounds.push(rdef.lifetime.clone());
-
-    let fdsdef = syn::LifetimeDef {
-        attrs: Vec::new(),
-        lifetime: syn::Lifetime::new("'__internal_fds", proc_macro2::Span::call_site()),
-        colon_token: None,
-        bounds: syn::punctuated::Punctuated::new(),
-    };
-
+    for lt in generics.lifetimes() {
+        rdef.bounds.push(lt.lifetime.clone());
+    }
     let mut new_generics = generics.clone();
-    new_generics
-        .lifetimes()
-        .for_each(|lt| rdef.bounds.push(lt.lifetime.clone()));
-
-    let typ_generics = new_generics.clone();
-    let (_, typ_gen, _) = typ_generics.split_for_impl();
-
-    new_generics.params = vec![
-        syn::GenericParam::Lifetime(rdef),
-        syn::GenericParam::Lifetime(bufdef),
-        syn::GenericParam::Lifetime(fdsdef),
-    ]
-    .into_iter()
-    .chain(new_generics.params)
-    .collect();
-
+    let first_param = syn::GenericParam::Lifetime(rdef.clone());
+    new_generics.params.insert(0, first_param);
+    for lt in new_generics.lifetimes_mut().skip(1) {
+        lt.bounds.push(rdef.lifetime.clone());
+    }
+    /*
+    let mut first = true;
+    new_generics.params = new_generics.params.into_iter().filter(|p| {
+        if first {
+            first = false;
+            return true;
+        }
+        !matches!(p, syn::GenericParam::Lifetime(_))
+    }).collect();
+    */
+    let (_, typ_gen, _) = generics.split_for_impl();
     let (impl_gen, _, clause_gen) = new_generics.split_for_impl();
-
     quote! {
-        impl #impl_gen ::rustbus::Unmarshal<'__internal_r, '__internal_buf, '__internal_fds> for #ident #typ_gen #clause_gen {
+        impl #impl_gen ::rustbus::Unmarshal<'__internal_r> for #ident #typ_gen #clause_gen {
             #[inline]
-            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'__internal_fds,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::unmarshal::Error> {
+            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'__internal_r>) -> Result<(usize,Self), ::rustbus::wire::unmarshal::Error> {
                 #marshal
             }
         }

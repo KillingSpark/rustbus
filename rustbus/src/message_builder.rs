@@ -734,9 +734,7 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
 
     /// Get the next param, use get::<TYPE> to specify what type you expect. For example `let s = parser.get::<String>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get<T: Unmarshal<'ret, 'body, 'fds>>(
-        &mut self,
-    ) -> Result<T, crate::wire::unmarshal::Error> {
+    pub fn get<T: Unmarshal<'ret>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
         if self.sig_idx >= self.sigs.len() {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
@@ -787,8 +785,8 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body, 'fds>,
-        T2: Unmarshal<'ret, 'body, 'fds>,
+        T1: Unmarshal<'ret>,
+        T2: Unmarshal<'ret>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -802,9 +800,9 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body, 'fds>,
-        T2: Unmarshal<'ret, 'body, 'fds>,
-        T3: Unmarshal<'ret, 'body, 'fds>,
+        T1: Unmarshal<'ret>,
+        T2: Unmarshal<'ret>,
+        T3: Unmarshal<'ret>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -821,10 +819,10 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
         &mut self,
     ) -> Result<(T1, T2, T3, T4), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body, 'fds>,
-        T2: Unmarshal<'ret, 'body, 'fds>,
-        T3: Unmarshal<'ret, 'body, 'fds>,
-        T4: Unmarshal<'ret, 'body, 'fds>,
+        T1: Unmarshal<'ret>,
+        T2: Unmarshal<'ret>,
+        T3: Unmarshal<'ret>,
+        T4: Unmarshal<'ret>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
@@ -842,11 +840,11 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
         &mut self,
     ) -> Result<(T1, T2, T3, T4, T5), crate::wire::unmarshal::Error>
     where
-        T1: Unmarshal<'ret, 'body, 'fds>,
-        T2: Unmarshal<'ret, 'body, 'fds>,
-        T3: Unmarshal<'ret, 'body, 'fds>,
-        T4: Unmarshal<'ret, 'body, 'fds>,
-        T5: Unmarshal<'ret, 'body, 'fds>,
+        T1: Unmarshal<'ret>,
+        T2: Unmarshal<'ret>,
+        T3: Unmarshal<'ret>,
+        T4: Unmarshal<'ret>,
+        T5: Unmarshal<'ret>,
     {
         let get_calls = |parser: &mut Self| {
             let ret1 = parser.get()?;
