@@ -193,8 +193,8 @@ impl CallBuilder {
 }
 
 impl SignalBuilder {
-    pub fn to(mut self, destination: String) -> Self {
-        self.msg.dynheader.destination = Some(destination);
+    pub fn to<S: Into<String>>(mut self, destination: S) -> Self {
+        self.msg.dynheader.destination = Some(destination.into());
         self
     }
 
