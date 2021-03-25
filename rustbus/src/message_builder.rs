@@ -72,10 +72,10 @@ pub struct DynamicHeader {
 
 impl DynamicHeader {
     /// Make a correctly addressed error response with the correct response serial
-    pub fn make_error_response<S: Into<String>, O: Into<String>>(
+    pub fn make_error_response<S: Into<String>>(
         &self,
         error_name: S,
-        error_msg: Option<O>,
+        error_msg: Option<String>,
     ) -> crate::message_builder::MarshalledMessage {
         let mut err_resp = crate::message_builder::MarshalledMessage {
             typ: MessageType::Reply,
@@ -95,7 +95,7 @@ impl DynamicHeader {
             body: crate::message_builder::MarshalledMessageBody::new(),
         };
         if let Some(text) = error_msg {
-            err_resp.body.push_param(text.into()).unwrap();
+            err_resp.body.push_param(text).unwrap();
         }
         err_resp
     }
@@ -157,7 +157,7 @@ impl MessageBuilder {
         self.msg.dynheader.member = Some(member.into());
         CallBuilder { msg: self.msg }
     }
-    pub fn signal<S1, S2, S3>(mut self, interface: S1, member: S2, object: S3) -> SignalBuilder 
+    pub fn signal<S1, S2, S3>(mut self, interface: S1, member: S2, object: S3) -> SignalBuilder
     where
         S1: Into<String>,
         S2: Into<String>,

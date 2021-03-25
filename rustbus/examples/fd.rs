@@ -59,11 +59,7 @@ fn send_fd() -> Result<(), rustbus::connection::Error> {
     let mut con = rustbus::DuplexConn::connect_to_bus(session_path, true)?;
     con.send_hello(Timeout::Infinite).unwrap();
     let mut sig = MessageBuilder::new()
-        .signal(
-            "io.killing.spark",
-            "TestSignal",
-            "/io/killing/spark",
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
 
     use std::os::unix::io::AsRawFd;
@@ -73,11 +69,7 @@ fn send_fd() -> Result<(), rustbus::connection::Error> {
     con.send.send_message(&mut sig)?.write_all().unwrap();
 
     let mut sig = MessageBuilder::new()
-        .signal(
-            "io.killing.spark",
-            "TestSignal",
-            "/io/killing/spark",
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
     con.send.send_message(&mut sig)?.write_all().unwrap();
 

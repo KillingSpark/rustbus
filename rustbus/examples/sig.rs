@@ -6,11 +6,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
     con.send_hello(Timeout::Infinite)?;
 
     let mut sig = MessageBuilder::new()
-        .signal(
-            "io.killing.spark",
-            "TestSignal",
-            "/io/killing/spark",
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
 
     let mut dict1 = std::collections::HashMap::new();
