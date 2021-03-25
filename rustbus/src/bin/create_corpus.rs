@@ -51,10 +51,10 @@ fn make_and_dump<P1: Marshal, P2: Marshal>(path: &str, p1: P1, p2: P2) {
 // creating multiple message headers
 fn make_message() -> MarshalledMessage {
     MessageBuilder::new()
-        .call("ABCD".into())
-        .on("/A/B/C".into())
-        .with_interface("ABCD.ABCD".into())
-        .at("ABCD.ABCD".into())
+        .call("ABCD")
+        .on("/A/B/C")
+        .with_interface("ABCD.ABCD")
+        .at("ABCD.ABCD")
         .build()
 }
 

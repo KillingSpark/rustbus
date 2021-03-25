@@ -7,9 +7,9 @@ fn main() -> Result<(), rustbus::connection::Error> {
 
     let mut sig = MessageBuilder::new()
         .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
+            "io.killing.spark",
+            "TestSignal",
+            "/io/killing/spark",
         )
         .build();
 

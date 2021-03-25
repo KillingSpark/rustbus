@@ -6,36 +6,36 @@ use crate::message_builder::MessageBuilder;
 
 pub fn hello() -> MarshalledMessage {
     MessageBuilder::new()
-        .call("Hello".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
+        .call("Hello")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus")
+        .at("org.freedesktop.DBus")
         .build()
 }
 
 pub fn ping(dest: String) -> MarshalledMessage {
     MessageBuilder::new()
-        .call("Ping".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus.Peer".into())
+        .call("Ping")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus.Peer")
         .at(dest)
         .build()
 }
 
 pub fn ping_bus() -> MarshalledMessage {
     MessageBuilder::new()
-        .call("Ping".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus.Peer".into())
+        .call("Ping")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus.Peer")
         .build()
 }
 
 pub fn list_names() -> MarshalledMessage {
     MessageBuilder::new()
-        .call("ListNames".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
+        .call("ListNames")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus")
+        .at("org.freedesktop.DBus")
         .build()
 }
 
@@ -51,10 +51,10 @@ pub const DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER: u32 = 4;
 /// Request a name on the bus
 pub fn request_name(name: String, flags: u32) -> MarshalledMessage {
     let mut msg = MessageBuilder::new()
-        .call("RequestName".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
+        .call("RequestName")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus")
+        .at("org.freedesktop.DBus")
         .build();
 
     msg.body.push_param(name.as_str()).unwrap();
@@ -65,10 +65,10 @@ pub fn request_name(name: String, flags: u32) -> MarshalledMessage {
 /// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
 pub fn add_match(match_rule: String) -> MarshalledMessage {
     let mut msg = MessageBuilder::new()
-        .call("AddMatch".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
+        .call("AddMatch")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus")
+        .at("org.freedesktop.DBus")
         .build();
 
     msg.body.push_param(match_rule).unwrap();

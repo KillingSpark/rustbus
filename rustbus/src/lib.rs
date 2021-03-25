@@ -14,9 +14,9 @@
 //!     // Next you will probably want to create a new message to send out to the world
 //!     let mut sig = MessageBuilder::new()
 //!         .signal(
-//!             "io.killing.spark".into(),
-//!             "TestSignal".into(),
-//!             "/io/killing/spark".into(),
+//!             "io.killing.spark",
+//!             "TestSignal",
+//!             "/io/killing/spark",
 //!         )
 //!         .build();
 //!     

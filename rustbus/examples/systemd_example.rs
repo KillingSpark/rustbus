@@ -14,10 +14,10 @@ const SD1_PATH: &str = "/org/freedesktop/systemd1";
 
 fn systemd_sd1_call(method: &str) -> MarshalledMessage {
     message_builder::MessageBuilder::new()
-        .call(method.into())
-        .with_interface("org.freedesktop.systemd1.Manager".into())
-        .on(SD1_PATH.into())
-        .at(SD1_DST.into())
+        .call(method)
+        .with_interface("org.freedesktop.systemd1.Manager")
+        .on(SD1_PATH)
+        .at(SD1_DST)
         .build()
 }
 
