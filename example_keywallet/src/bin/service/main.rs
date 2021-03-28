@@ -210,7 +210,7 @@ fn main() {
 
     con.send
         .send_message(&rustbus::standard_messages::request_name(
-            "io.killingspark.secrets".into(),
+            "io.killingspark.secrets",
             rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
         ))
         .unwrap()
