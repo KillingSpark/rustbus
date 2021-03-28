@@ -63,7 +63,7 @@ pub fn request_name(name: String, flags: u32) -> MarshalledMessage {
 }
 
 /// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
-pub fn add_match(match_rule: String) -> MarshalledMessage {
+pub fn add_match(match_rule: &str) -> MarshalledMessage {
     let mut msg = MessageBuilder::new()
         .call("AddMatch")
         .on("/org/freedesktop/DBus")
