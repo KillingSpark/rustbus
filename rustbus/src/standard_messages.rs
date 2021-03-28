@@ -5,38 +5,28 @@ use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MessageBuilder;
 
 pub fn hello() -> MarshalledMessage {
-    MessageBuilder::new()
-        .call("Hello".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
-        .build()
+    make_standard_msg("Hello")
 }
 
 pub fn ping(dest: String) -> MarshalledMessage {
     MessageBuilder::new()
-        .call("Ping".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus.Peer".into())
+        .call("Ping")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus.Peer")
         .at(dest)
         .build()
 }
 
 pub fn ping_bus() -> MarshalledMessage {
     MessageBuilder::new()
-        .call("Ping".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus.Peer".into())
+        .call("Ping")
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus.Peer")
         .build()
 }
 
 pub fn list_names() -> MarshalledMessage {
-    MessageBuilder::new()
-        .call("ListNames".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
-        .build()
+    make_standard_msg("ListNames")
 }
 
 pub const DBUS_NAME_FLAG_ALLOW_REPLACEMENT: u32 = 1;
@@ -48,33 +38,41 @@ pub const DBUS_REQUEST_NAME_REPLY_IN_QUEUE: u32 = 2;
 pub const DBUS_REQUEST_NAME_REPLY_EXISTS: u32 = 3;
 pub const DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER: u32 = 4;
 
+fn make_standard_msg(name: &str) -> MarshalledMessage {
+    MessageBuilder::new()
+        .call(name)
+        .on("/org/freedesktop/DBus")
+        .with_interface("org.freedesktop.DBus")
+        .at("org.freedesktop.DBus")
+        .build()
+}
 /// Request a name on the bus
-pub fn request_name(name: String, flags: u32) -> MarshalledMessage {
-    let mut msg = MessageBuilder::new()
-        .call("RequestName".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
-        .build();
-
-    msg.body.push_param(name.as_str()).unwrap();
+pub fn request_name(name: &str, flags: u32) -> MarshalledMessage {
+    let mut msg = make_standard_msg("RequestName");
+    msg.body.push_param(name).unwrap();
     msg.body.push_param(flags).unwrap();
     msg
 }
 
-/// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
-pub fn add_match(match_rule: String) -> MarshalledMessage {
-    let mut msg = MessageBuilder::new()
-        .call("AddMatch".into())
-        .on("/org/freedesktop/DBus".into())
-        .with_interface("org.freedesktop.DBus".into())
-        .at("org.freedesktop.DBus".into())
-        .build();
-
-    msg.body.push_param(match_rule).unwrap();
+/// Release a name on the bus
+pub fn release_name(name: &str) -> MarshalledMessage {
+    let mut msg = make_standard_msg("ReleaseName");
+    msg.body.push_param(name).unwrap();
     msg
 }
 
+/// Add a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
+pub fn add_match(match_rule: &str) -> MarshalledMessage {
+    let mut msg = make_standard_msg("AddMatch");
+    msg.body.push_param(match_rule).unwrap();
+    msg
+}
+/// Remove a match rule to receive signals. e.g. match_rule = "type='signal'" to get all signals
+pub fn remove_match(match_rule: &str) -> MarshalledMessage {
+    let mut msg = make_standard_msg("RemoveMatch");
+    msg.body.push_param(match_rule).unwrap();
+    msg
+}
 /// Error message to tell the caller that this method is not known by your server
 pub fn unknown_method(call: &DynamicHeader) -> MarshalledMessage {
     let text = format!(

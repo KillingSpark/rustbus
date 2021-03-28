@@ -70,11 +70,7 @@ fn send_fd(
     fd: crate::wire::UnixFd,
 ) -> Result<(), connection::Error> {
     let mut sig = MessageBuilder::new()
-        .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
 
     sig.dynheader.num_fds = Some(1);
@@ -89,11 +85,7 @@ fn send_fd(
         .unwrap();
 
     let mut sig = MessageBuilder::new()
-        .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
     con.send_message(&mut sig)?
         .write_all()
@@ -111,11 +103,7 @@ fn test_fd_marshalling() {
     let test_fd3: UnixFd = UnixFd::new(nix::unistd::dup(1).unwrap());
 
     let mut sig = MessageBuilder::new()
-        .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
 
     sig.body

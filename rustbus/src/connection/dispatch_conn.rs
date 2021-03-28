@@ -141,14 +141,15 @@ pub enum HandleError<UserError: std::fmt::Debug> {
     Connection(crate::connection::Error),
     User(UserError),
 }
-impl<UserError: std::fmt::Debug> Into<HandleError<UserError>> for crate::Error {
-    fn into(self) -> HandleError<UserError> {
-        HandleError::Rustbus(self)
+impl<UserError: std::fmt::Debug> From<crate::Error> for HandleError<UserError> {
+    fn from(err: crate::Error) -> Self {
+        HandleError::Rustbus(err)
     }
 }
-impl<UserError: std::fmt::Debug> Into<HandleError<UserError>> for crate::connection::Error {
-    fn into(self) -> HandleError<UserError> {
-        HandleError::Connection(self)
+
+impl<UserError: std::fmt::Debug> From<crate::connection::Error> for HandleError<UserError> {
+    fn from(err: crate::connection::Error) -> Self {
+        HandleError::Connection(err)
     }
 }
 

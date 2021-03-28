@@ -156,7 +156,7 @@ fn test_generic_unmarshal() {
 
     // No type info on let arg = unmarshal(...) is needed if it can be derived by other means
     ctx.buf.clear();
-    fn x(_arg: (i32, i32, &str)) {};
+    fn x(_arg: (i32, i32, &str)) {}
     (0, 0, "ABCD").marshal(ctx).unwrap();
     let arg = unmarshal(&mut UnmarshalContext {
         buf: &ctx.buf,

@@ -19,10 +19,10 @@ fn main() {
 
     let mut rpc_conn = rustbus::connection::rpc_conn::RpcConn::new(con);
     let mut msg = rustbus::message_builder::MessageBuilder::new()
-        .call("SearchItems".into())
-        .on("/org/freedesktop/secrets".into())
-        .with_interface("org.freedesktop.Secret.Service".into())
-        .at("io.killingspark.secrets".into())
+        .call("SearchItems")
+        .on("/org/freedesktop/secrets")
+        .with_interface("org.freedesktop.Secret.Service")
+        .at("io.killingspark.secrets")
         .build();
 
     let attrs = std::collections::HashMap::<String, String>::new();

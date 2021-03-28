@@ -72,9 +72,9 @@ pub struct DynamicHeader {
 
 impl DynamicHeader {
     /// Make a correctly addressed error response with the correct response serial
-    pub fn make_error_response(
+    pub fn make_error_response<S: Into<String>>(
         &self,
-        error_name: String,
+        error_name: S,
         error_msg: Option<String>,
     ) -> crate::message_builder::MarshalledMessage {
         let mut err_resp = crate::message_builder::MarshalledMessage {
@@ -89,7 +89,7 @@ impl DynamicHeader {
                 sender: None,
                 signature: None,
                 response_serial: self.serial,
-                error_name: Some(error_name),
+                error_name: Some(error_name.into()),
             },
             flags: 0,
             body: crate::message_builder::MarshalledMessageBody::new(),
@@ -152,33 +152,38 @@ impl MessageBuilder {
         }
     }
 
-    pub fn call(mut self, member: String) -> CallBuilder {
+    pub fn call<S: Into<String>>(mut self, member: S) -> CallBuilder {
         self.msg.typ = MessageType::Call;
-        self.msg.dynheader.member = Some(member);
+        self.msg.dynheader.member = Some(member.into());
         CallBuilder { msg: self.msg }
     }
-    pub fn signal(mut self, interface: String, member: String, object: String) -> SignalBuilder {
+    pub fn signal<S1, S2, S3>(mut self, interface: S1, member: S2, object: S3) -> SignalBuilder
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+        S3: Into<String>,
+    {
         self.msg.typ = MessageType::Signal;
-        self.msg.dynheader.member = Some(member);
-        self.msg.dynheader.interface = Some(interface);
-        self.msg.dynheader.object = Some(object);
+        self.msg.dynheader.member = Some(member.into());
+        self.msg.dynheader.interface = Some(interface.into());
+        self.msg.dynheader.object = Some(object.into());
         SignalBuilder { msg: self.msg }
     }
 }
 
 impl CallBuilder {
-    pub fn on(mut self, object_path: String) -> Self {
-        self.msg.dynheader.object = Some(object_path);
+    pub fn on<S: Into<String>>(mut self, object_path: S) -> Self {
+        self.msg.dynheader.object = Some(object_path.into());
         self
     }
 
-    pub fn with_interface(mut self, interface: String) -> Self {
-        self.msg.dynheader.interface = Some(interface);
+    pub fn with_interface<S: Into<String>>(mut self, interface: S) -> Self {
+        self.msg.dynheader.interface = Some(interface.into());
         self
     }
 
-    pub fn at(mut self, destination: String) -> Self {
-        self.msg.dynheader.destination = Some(destination);
+    pub fn at<S: Into<String>>(mut self, destination: S) -> Self {
+        self.msg.dynheader.destination = Some(destination.into());
         self
     }
 
@@ -188,8 +193,8 @@ impl CallBuilder {
 }
 
 impl SignalBuilder {
-    pub fn to(mut self, destination: String) -> Self {
-        self.msg.dynheader.destination = Some(destination);
+    pub fn to<S: Into<String>>(mut self, destination: S) -> Self {
+        self.msg.dynheader.destination = Some(destination.into());
         self
     }
 

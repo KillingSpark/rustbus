@@ -103,9 +103,9 @@ fn main() {
 
         // default handler
         let mut msg1 = rustbus::message_builder::MessageBuilder::new()
-            .call("ABCD".into())
-            .at("killing.spark.io".into())
-            .on("/ABCD".into())
+            .call("ABCD")
+            .at("killing.spark.io")
+            .on("/ABCD")
             .build();
         con.send
             .send_message(&mut msg1)
@@ -115,9 +115,9 @@ fn main() {
 
         // pick up the name
         let mut msg2 = rustbus::message_builder::MessageBuilder::new()
-            .call("ABCD".into())
-            .at("killing.spark.io".into())
-            .on("/A/B/moritz".into())
+            .call("ABCD")
+            .at("killing.spark.io")
+            .on("/A/B/moritz")
             .build();
         con.send
             .send_message(&mut msg2)
@@ -127,9 +127,9 @@ fn main() {
 
         // call new handler for that name
         let mut msg3 = rustbus::message_builder::MessageBuilder::new()
-            .call("ABCD".into())
-            .at("killing.spark.io".into())
-            .on("/moritz".into())
+            .call("ABCD")
+            .at("killing.spark.io")
+            .on("/moritz")
             .build();
         con.send
             .send_message(&mut msg3)

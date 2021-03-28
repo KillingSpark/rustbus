@@ -26,11 +26,7 @@ fn test_marshal_unmarshal() {
     params.push(Base::ObjectPath("/this/object/path".into()).into());
 
     let mut msg = crate::message_builder::MessageBuilder::new()
-        .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
 
     // mixing old and new style of params and check that they are unmarshalled correctly
@@ -64,11 +60,7 @@ fn test_marshal_unmarshal() {
 fn test_invalid_stuff() {
     // invalid signature
     let mut msg = crate::message_builder::MessageBuilder::new()
-        .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
 
     let err = msg
@@ -85,11 +77,7 @@ fn test_invalid_stuff() {
 
     // invalid objectpath
     let mut msg = crate::message_builder::MessageBuilder::new()
-        .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
     let err = msg
         .body
@@ -103,11 +91,7 @@ fn test_invalid_stuff() {
 
     // invalid interface
     let mut msg = crate::message_builder::MessageBuilder::new()
-        .signal(
-            ".......io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal(".......io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
@@ -121,9 +105,9 @@ fn test_invalid_stuff() {
     // invalid member
     let mut msg = crate::message_builder::MessageBuilder::new()
         .signal(
-            "io.killing.spark".into(),
-            "Members.have.no.dots".into(),
-            "/io/killing/spark".into(),
+            "io.killing.spark",
+            "Members.have.no.dots",
+            "/io/killing/spark",
         )
         .build();
     msg.dynheader.serial = Some(1);
