@@ -282,7 +282,7 @@ fn test_variant_sig_macro() {
 ///     * `type StrRef<'buf> = &'buf str;`
 ///     * `dbus_variant_var!(MyVariant, String => StrRef<'buf>; V2 => i32; Integer => u32);`
 macro_rules! dbus_variant_var {
-    ($vname: ident, $($name: ident => $typ: path);+) => {
+    ($vname: ident, $($name: ident => $typ: ty);+) => {
         dbus_variant_var_type!($vname, $(
             $name => $typ
         )+);
@@ -308,7 +308,7 @@ macro_rules! dbus_variant_var {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! dbus_variant_var_type {
-    ($vname: ident, $($name: ident => $typ: path)+) => {
+    ($vname: ident, $($name: ident => $typ: ty)+) => {
         #[derive(Debug)]
         pub enum $vname <'fds, 'buf> {
             $(
@@ -322,7 +322,7 @@ macro_rules! dbus_variant_var_type {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! dbus_variant_var_marshal {
-    ($vname: ident, $($name: ident => $typ: path)+) => {
+    ($vname: ident, $($name: ident => $typ: ty)+) => {
         impl<'fds, 'buf> $crate::Marshal for $vname <'fds, 'buf> {
             fn marshal(&self, ctx: &mut $crate::wire::marshal::MarshalContext) -> Result<(), $crate::Error> {
                 use $crate::Signature;
@@ -351,7 +351,7 @@ macro_rules! dbus_variant_var_marshal {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! dbus_variant_var_unmarshal {
-    ($vname: ident, $($name: ident => $typ: path)+) => {
+    ($vname: ident, $($name: ident => $typ: ty)+) => {
         impl<'buf, 'fds> $crate::Unmarshal<'buf,'fds> for $vname <'fds, 'buf> {
             fn unmarshal(
                 ctx: &mut $crate::wire::unmarshal::UnmarshalContext<'fds, 'buf>
