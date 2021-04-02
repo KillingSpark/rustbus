@@ -170,7 +170,7 @@ impl Marshal for &dyn std::os::unix::io::AsRawFd {
     }
 }
 
-impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for UnixFd {
+impl<'buf, 'fds> Unmarshal<'buf, 'fds> for UnixFd {
     fn unmarshal(
         ctx: &mut UnmarshalContext<'fds, 'buf>,
     ) -> crate::wire::unmarshal::UnmarshalResult<Self> {

@@ -90,7 +90,7 @@ macro_rules! dbus_variant_sig_marshal {
 #[macro_export]
 macro_rules! dbus_variant_sig_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'ret, 'buf: 'ret, 'fds> rustbus::Unmarshal<'ret, 'buf, 'fds> for $vname {
+        impl<'buf, 'fds> rustbus::Unmarshal<'buf, 'fds> for $vname {
             fn unmarshal(
                 ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'fds, 'buf>,
             ) -> rustbus::wire::unmarshal::UnmarshalResult<Self> {
@@ -353,7 +353,7 @@ macro_rules! dbus_variant_var_marshal {
 #[macro_export]
 macro_rules! dbus_variant_var_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
-        impl<'ret, 'buf: 'ret, 'fds> rustbus::Unmarshal<'ret, 'buf,'fds> for $vname <'fds, 'ret> {
+        impl<'buf, 'fds> rustbus::Unmarshal<'buf,'fds> for $vname <'fds, 'buf> {
             fn unmarshal(
                 ctx: &mut rustbus::wire::unmarshal::UnmarshalContext<'fds, 'buf>
             ) -> rustbus::wire::unmarshal::UnmarshalResult<Self> {
