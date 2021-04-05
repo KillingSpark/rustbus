@@ -401,12 +401,16 @@ fn test_variant_var_macro() {
     // so the macro is able to use rustbus, like it would have to when importet into other crates
 
     type StrRef<'buf> = &'buf str;
-    dbus_variant_var!(MyVariant, String => StrRef<'buf>; V2 => i32; Integer => u32);
+    // The point of the Path variant is to make sure types from other modules can be used. Do NOT change it to use a use-statement.
+    dbus_variant_var!(MyVariant, String => StrRef<'buf>; V2 => i32; Integer => u32; Path => rustbus::wire::marshal::traits::ObjectPath<&'buf str>);
     let v1 = MyVariant::String("ABCD");
     let v2 = MyVariant::V2(0);
     let v3 = MyVariant::Integer(100);
+    let object_path =
+        rustbus::wire::marshal::traits::ObjectPath::new("/org/freedesktop/DBus").unwrap();
+    let v4 = MyVariant::Path(object_path);
 
-    (&v1, &v2, &v3).marshal(ctx).unwrap();
+    (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     // add a unknown variant here
     crate::message_builder::marshal_as_variant(
         0xFFFFu64,
@@ -416,13 +420,15 @@ fn test_variant_var_macro() {
     )
     .unwrap();
 
-    let (bytes, (uv1, uv2, uv3)) =
-        <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+    let (bytes, (uv1, uv2, uv3, uv4)) =
+        <(MyVariant, MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
+            &mut UnmarshalContext {
+                buf: ctx.buf,
+                fds: ctx.fds,
+                byteorder: ctx.byteorder,
+                offset: 0,
+            },
+        )
         .unwrap();
     assert!(match uv1 {
         MyVariant::String(s) => s.eq("ABCD"),
@@ -434,6 +440,10 @@ fn test_variant_var_macro() {
     });
     assert!(match uv3 {
         MyVariant::Integer(s) => s.eq(&100),
+        _ => false,
+    });
+    assert!(match uv4 {
+        MyVariant::Path(p) => p.eq(&object_path),
         _ => false,
     });
 
