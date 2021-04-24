@@ -150,7 +150,6 @@ pub fn validate_marshalled_container(
                 return Err((offset, Error::NotEnoughBytesForCollection));
             }
 
-            let total_bytes_used = padding + 4 + first_elem_padding + bytes_in_array as usize;
             if elem_sig.bytes_always_valid() {
                 // bytes_always_valid() only returns true for types whose
                 // length is equal to their alignment
@@ -160,7 +159,7 @@ pub fn validate_marshalled_container(
                 }
             } else {
                 let mut bytes_used_counter = 0;
-                let array_end = total_bytes_used + offset;
+                let array_end = offset + first_elem_padding + bytes_in_array as usize;
                 while bytes_used_counter < bytes_in_array as usize {
                     let bytes_used = validate_marshalled(
                         byteorder,
@@ -171,6 +170,7 @@ pub fn validate_marshalled_container(
                     bytes_used_counter += bytes_used;
                 }
             }
+            let total_bytes_used = padding + 4 + first_elem_padding + bytes_in_array as usize;
             Ok(total_bytes_used)
         }
         signature::Container::Dict(key_sig, val_sig) => {
@@ -323,6 +323,22 @@ fn test_raw_validation() {
         0,
         &valid_buf,
         &signature::Type::parse_description("(a(yubt)a{s(yx)})").unwrap()[0],
+    )
+    .unwrap();
+    fds.clear();
+    valid_buf.clear();
+
+    let mut ctx = MarshalContext {
+        buf: &mut valid_buf,
+        fds: &mut fds,
+        byteorder: ByteOrder::LittleEndian,
+    };
+    ["Hello, ", "World!"].marshal(&mut ctx).unwrap();
+    validate_marshalled(
+        ByteOrder::LittleEndian,
+        0,
+        &valid_buf,
+        &signature::Type::parse_description("as").unwrap()[0],
     )
     .unwrap();
 }
