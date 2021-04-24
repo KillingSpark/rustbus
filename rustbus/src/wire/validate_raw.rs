@@ -197,8 +197,9 @@ pub fn validate_marshalled_container(
 
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_dict as usize {
-                let element_padding = util::align_offset(8, buf_for_dict, offset + bytes_used_counter)
-                    .map_err(|err| (offset + bytes_used_counter, err))?;
+                let element_padding =
+                    util::align_offset(8, buf_for_dict, offset + bytes_used_counter)
+                        .map_err(|err| (offset + bytes_used_counter, err))?;
                 bytes_used_counter += element_padding;
                 let key_bytes = validate_marshalled_base(
                     byteorder,
