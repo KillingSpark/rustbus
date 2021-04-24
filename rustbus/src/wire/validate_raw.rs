@@ -192,20 +192,27 @@ pub fn validate_marshalled_container(
                 return Err((offset, Error::NotEnoughBytesForCollection));
             }
 
+            // don't let the contents of the dict see anything beyond the dicts claimed end.
+            let buf_for_dict = &buf[..offset + bytes_in_dict as usize];
+
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_dict as usize {
-                let element_padding = util::align_offset(8, buf, offset + bytes_used_counter)
+                let element_padding = util::align_offset(8, buf_for_dict, offset + bytes_used_counter)
                     .map_err(|err| (offset + bytes_used_counter, err))?;
                 bytes_used_counter += element_padding;
                 let key_bytes = validate_marshalled_base(
                     byteorder,
                     offset + bytes_used_counter,
-                    buf,
+                    buf_for_dict,
                     *key_sig,
                 )?;
                 bytes_used_counter += key_bytes;
-                let val_bytes =
-                    validate_marshalled(byteorder, offset + bytes_used_counter, buf, val_sig)?;
+                let val_bytes = validate_marshalled(
+                    byteorder,
+                    offset + bytes_used_counter,
+                    buf_for_dict,
+                    val_sig,
+                )?;
                 bytes_used_counter += val_bytes;
             }
             Ok(padding + before_elements_padding + 4 + bytes_used_counter)
