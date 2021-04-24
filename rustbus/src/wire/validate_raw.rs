@@ -159,7 +159,7 @@ pub fn validate_marshalled_container(
                 }
             } else {
                 let mut bytes_used_counter = 0;
-                let array_end = offset + first_elem_padding + bytes_in_array as usize;
+                let array_end = offset + bytes_in_array as usize;
                 while bytes_used_counter < bytes_in_array as usize {
                     let bytes_used = validate_marshalled(
                         byteorder,
@@ -333,12 +333,15 @@ fn test_raw_validation() {
         fds: &mut fds,
         byteorder: ByteOrder::LittleEndian,
     };
-    ["Hello, ", "World!"].marshal(&mut ctx).unwrap();
+
+    // make sure there is a padding between bytecount and start of the first element in the array
+    let array: &[(&str,)] = &[("Hello, ",), ("World!",)];
+    array.marshal(&mut ctx).unwrap();
     validate_marshalled(
         ByteOrder::LittleEndian,
         0,
         &valid_buf,
-        &signature::Type::parse_description("as").unwrap()[0],
+        &signature::Type::parse_description("a(s)").unwrap()[0],
     )
     .unwrap();
 }
