@@ -89,7 +89,6 @@ impl<E: Signature> Signature for (E,) {
             crate::signature::StructTypes::new(vec![E::signature()]).unwrap(),
         ))
     }
-
     fn alignment() -> usize {
         8
     }
@@ -501,8 +500,8 @@ impl Signature for u32 {
 impl Marshal for u32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        crate::wire::util::write_u32(*self, ctx.byteorder, ctx.buf);
+        Ok(())
     }
 }
 
@@ -517,8 +516,8 @@ impl Signature for i32 {
 impl Marshal for i32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        crate::wire::util::write_u32(*self as u32, ctx.byteorder, ctx.buf);
+        Ok(())
     }
 }
 
@@ -564,9 +563,8 @@ impl Signature for u8 {
 }
 impl Marshal for u8 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        ctx.buf.push(*self);
+        Ok(())
     }
 }
 
@@ -580,9 +578,7 @@ impl Signature for bool {
 }
 impl Marshal for bool {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        (*self as u32).marshal(ctx)
     }
 }
 
@@ -596,18 +592,17 @@ impl Signature for String {
 }
 impl Marshal for String {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        ctx.align_to(Self::alignment());
-        crate::wire::util::write_string(self.as_str(), ctx.byteorder, ctx.buf);
-        Ok(())
+        self.as_str().marshal(ctx)
     }
 }
 
 impl Signature for &str {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::String)
+        String::signature()
     }
+    #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        String::alignment()
     }
 }
 impl Marshal for &str {
