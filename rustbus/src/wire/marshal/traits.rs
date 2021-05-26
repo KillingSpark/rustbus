@@ -500,6 +500,10 @@ impl Signature for u64 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "t"
+    }
 }
 impl Marshal for u64 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -515,6 +519,10 @@ impl Signature for i64 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "x"
     }
 }
 impl Marshal for i64 {
@@ -572,6 +580,10 @@ impl Signature for u16 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "q"
+    }
 }
 impl Marshal for u16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -587,6 +599,10 @@ impl Signature for i16 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "n"
     }
 }
 impl Marshal for i16 {
