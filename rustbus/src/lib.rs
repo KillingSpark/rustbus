@@ -119,6 +119,13 @@ pub enum ByteOrder {
     BigEndian,
 }
 
+impl ByteOrder {
+    const NATIVE: Self = match cfg!(target_endian = "little") {
+        true => ByteOrder::LittleEndian,
+        false => ByteOrder::BigEndian,
+    };
+}
+
 /// The different errors that can occur when dealing with messages
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {

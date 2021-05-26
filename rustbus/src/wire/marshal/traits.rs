@@ -66,6 +66,17 @@ pub trait Marshal: Signature {
 pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
+    /// If this returns `true`,
+    /// it indicates that Rust's `[T]` is identical to DBus's array format
+    /// and can be copied into a message after aligning the first element,
+    /// Generally this only applies to integer types.
+    ///
+    /// The default implementation is `false` but should be overridden for a performance gain
+    /// if it is valid.
+    #[inline]
+    fn valid_slice(_bo: crate::ByteOrder) -> bool {
+        false
+    }
 }
 
 impl<S: Signature> Signature for &S {
@@ -247,25 +258,38 @@ impl<E: Signature> Signature for &[E] {
         4
     }
 }
+use crate::wire::util::write_u32;
 impl<E: Marshal> Marshal for &[E] {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 4
         ctx.align_to(4);
+        let alignment = E::alignment();
+        if E::valid_slice(ctx.byteorder) {
+            debug_assert_eq!(alignment, std::mem::size_of::<E>());
+            let len = alignment * self.len();
+            assert!(len <= u32::MAX as usize);
+            write_u32(len as u32, ctx.byteorder, ctx.buf);
+            ctx.align_to(alignment);
+            let slice = unsafe {
+                let ptr = *self as *const [E] as *const u8;
+                std::slice::from_raw_parts(ptr, len)
+            };
+            ctx.buf.extend_from_slice(slice);
+            return Ok(());
+        }
 
         let size_pos = ctx.buf.len();
-        ctx.buf.push(0);
-        ctx.buf.push(0);
-        ctx.buf.push(0);
-        ctx.buf.push(0);
+        ctx.buf.extend_from_slice(&[0; 4]);
 
-        ctx.align_to(E::alignment());
+        ctx.align_to(alignment);
 
         if self.is_empty() {
             return Ok(());
         }
 
-        // we can reserve at least one byte per entry without wasting memory, and save at least a few reallocations of buf
-        ctx.buf.reserve(self.len());
+        // In an array each entry, except the last  will take up at least its alignment in space.
+        // The last may take less (like type '(yy)') but this is small and worth it.
+        ctx.buf.reserve(self.len() * alignment);
         let size_before = ctx.buf.len();
         for p in self.iter() {
             p.marshal(ctx)?;
@@ -465,6 +489,10 @@ impl Signature for u64 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
 }
 impl Marshal for u64 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -480,6 +508,10 @@ impl Signature for i64 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
     }
 }
 impl Marshal for i64 {
@@ -497,6 +529,10 @@ impl Signature for u32 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
 }
 impl Marshal for u32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -512,6 +548,10 @@ impl Signature for i32 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
     }
 }
 impl Marshal for i32 {
@@ -529,6 +569,10 @@ impl Signature for u16 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
 }
 impl Marshal for u16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -545,6 +589,10 @@ impl Signature for i16 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
 }
 impl Marshal for i16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -560,6 +608,10 @@ impl Signature for u8 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn valid_slice(_: crate::ByteOrder) -> bool {
+        true
     }
 }
 impl Marshal for u8 {
