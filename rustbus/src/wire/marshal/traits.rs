@@ -62,18 +62,19 @@ use crate::wire::marshal::MarshalContext;
 pub trait Marshal: Signature {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error>;
     fn marshal_as_variant(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        let mut sig_buf = String::new();
-        let sig = Self::sig_str(&mut sig_buf);
+        let mut sig = Cow::Borrowed("");
+        Self::sig_str(&mut sig);
         if sig.len() > 255 {
             let sig_err = crate::signature::Error::SignatureTooLong;
             return Err(sig_err.into());
         }
         debug_assert!(crate::params::validation::validate_signature(&sig).is_ok());
-        crate::wire::util::write_signature(sig, ctx.buf);
+        crate::wire::util::write_signature(&sig, ctx.buf);
         self.marshal(ctx)
     }
 }
 
+use std::borrow::Cow;
 pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
@@ -85,11 +86,10 @@ pub trait Signature {
     ///
     /// When implementing `Signature` if your struct always has the same type, then you should override
     /// this method by returning a `&'static str`
-    fn sig_str<'a>(s_buf: &'a mut String) -> &'a str {
-        s_buf.clear();
+    fn sig_str(s_buf: &mut Cow<str>) {
+        let s_buf = s_buf.to_mut();
         let typ = Self::signature();
         typ.to_str(s_buf);
-        &s_buf[..]
     }
 }
 
@@ -137,16 +137,11 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
     fn alignment() -> usize {
         8
     }
-    fn sig_str<'a>(s_buf: &'a mut String) -> &'a str {
-        s_buf.clear();
-        s_buf.push('(');
-        let mut work = String::new();
-        let e1_s = E1::sig_str(&mut work);
-        s_buf.push_str(e1_s);
-        let e2_s = E2::sig_str(&mut work);
-        s_buf.push_str(e2_s);
-        s_buf.push(')');
-        &s_buf[..]
+    fn sig_str(s_buf: &mut Cow<str>) {
+        s_buf.to_mut().push('(');
+        E1::sig_str(s_buf);
+        E2::sig_str(s_buf);
+        s_buf.to_mut().push(')');
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
@@ -501,8 +496,11 @@ impl Signature for u64 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "t"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("t"),
+            _ => sig.to_mut().push('t'),
+        }
     }
 }
 impl Marshal for u64 {
@@ -521,8 +519,11 @@ impl Signature for i64 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "x"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("x"),
+            _ => sig.to_mut().push('x'),
+        }
     }
 }
 impl Marshal for i64 {
@@ -541,8 +542,11 @@ impl Signature for u32 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "u"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("u"),
+            _ => sig.to_mut().push('u'),
+        }
     }
 }
 impl Marshal for u32 {
@@ -561,8 +565,11 @@ impl Signature for i32 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(_: &mut String) -> &str {
-        "i"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("i"),
+            _ => sig.to_mut().push('i'),
+        }
     }
 }
 impl Marshal for i32 {
@@ -581,8 +588,11 @@ impl Signature for u16 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "q"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("q"),
+            _ => sig.to_mut().push('q'),
+        }
     }
 }
 impl Marshal for u16 {
@@ -601,8 +611,11 @@ impl Signature for i16 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "n"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("n"),
+            _ => sig.to_mut().push('n'),
+        }
     }
 }
 impl Marshal for i16 {
@@ -621,8 +634,11 @@ impl Signature for u8 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "y"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("y"),
+            _ => sig.to_mut().push('y'),
+        }
     }
 }
 impl Marshal for u8 {
@@ -641,8 +657,11 @@ impl Signature for bool {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "b"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("b"),
+            _ => sig.to_mut().push('b'),
+        }
     }
 }
 impl Marshal for bool {
@@ -661,8 +680,11 @@ impl Signature for String {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(_: &'a mut String) -> &'a str {
-        "s"
+    fn sig_str(sig: &mut Cow<str>) {
+        match sig {
+            Cow::Borrowed("") => *sig = Cow::Borrowed("s"),
+            _ => sig.to_mut().push('s'),
+        }
     }
 }
 impl Marshal for String {
@@ -681,8 +703,8 @@ impl Signature for &str {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str<'a>(s_buf: &'a mut String) -> &'a str {
-        String::sig_str(s_buf)
+    fn sig_str(sig: &mut Cow<str>) {
+        String::sig_str(sig);
     }
 }
 impl Marshal for &str {
