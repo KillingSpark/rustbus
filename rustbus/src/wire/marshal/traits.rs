@@ -61,11 +61,36 @@ use crate::wire::marshal::MarshalContext;
 ///     the signature() function returns. If you are not sure, just use Self::signature().get_alignment().
 pub trait Marshal: Signature {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error>;
+    fn marshal_as_variant(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+        let mut sig_buf = String::new();
+        let sig = Self::sig_str(&mut sig_buf);
+        if sig.len() > 255 {
+            let sig_err = crate::signature::Error::SignatureTooLong;
+            return Err(sig_err.into());
+        }
+        debug_assert!(crate::params::validation::validate_signature(&sig).is_ok());
+        crate::wire::util::write_signature(sig, ctx.buf);
+        self.marshal(ctx)
+    }
 }
 
 pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
+    /// Retreives the signature as a `&str`.
+    ///
+    /// `s_buf` is used to repeated allocations.
+    /// The returned string will either be a reference to `s_buf` or will
+    /// be a static string. In the latter case `s_buf` will may remain unchanged.
+    ///
+    /// When implementing `Signature` if your struct always has the same type, then you should override
+    /// this method by returning a `&'static str`
+    fn sig_str<'a>(s_buf: &'a mut String) -> &'a str {
+        s_buf.clear();
+        let typ = Self::signature();
+        typ.to_str(s_buf);
+        &s_buf[..]
+    }
 }
 
 impl<S: Signature> Signature for &S {
@@ -109,9 +134,19 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
             crate::signature::StructTypes::new(vec![E1::signature(), E2::signature()]).unwrap(),
         ))
     }
-
     fn alignment() -> usize {
         8
+    }
+    fn sig_str<'a>(s_buf: &'a mut String) -> &'a str {
+        s_buf.clear();
+        s_buf.push('(');
+        let mut work = String::new();
+        let e1_s = E1::sig_str(&mut work);
+        s_buf.push_str(e1_s);
+        let e2_s = E2::sig_str(&mut work);
+        s_buf.push_str(e2_s);
+        s_buf.push(')');
+        &s_buf[..]
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
@@ -497,6 +532,10 @@ impl Signature for u32 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "u"
+    }
 }
 impl Marshal for u32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -512,6 +551,10 @@ impl Signature for i32 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(_: &mut String) -> &str {
+        "i"
     }
 }
 impl Marshal for i32 {
@@ -561,6 +604,10 @@ impl Signature for u8 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "y"
+    }
 }
 impl Marshal for u8 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -576,6 +623,10 @@ impl Signature for bool {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "b"
     }
 }
 impl Marshal for bool {
@@ -593,6 +644,10 @@ impl Signature for String {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str<'a>(_: &'a mut String) -> &'a str {
+        "s"
+    }
 }
 impl Marshal for String {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -608,6 +663,10 @@ impl Signature for &str {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str<'a>(s_buf: &'a mut String) -> &'a str {
+        String::sig_str(s_buf)
     }
 }
 impl Marshal for &str {

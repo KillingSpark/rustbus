@@ -325,19 +325,10 @@ macro_rules! dbus_variant_var_marshal {
     ($vname: ident, $($name: ident => $typ: ty)+) => {
         impl<'fds, 'buf> $crate::Marshal for $vname <'fds, 'buf> {
             fn marshal(&self, ctx: &mut $crate::wire::marshal::MarshalContext) -> Result<(), $crate::Error> {
-                use $crate::Signature;
-
                 match self {
                     $(
                         Self::$name(v) => {
-                            let mut sig_str = String::new();
-                            <$typ as Signature>::signature().to_str(&mut sig_str);
-                            $crate::wire::marshal::base::marshal_base_param(
-                                &$crate::params::Base::Signature(sig_str),
-                                ctx,
-                            )
-                            .unwrap();
-                            v.marshal(ctx)?;
+							v.marshal_as_variant(ctx)?;
                         }
                     )+
                     Self::Catchall(_) => unimplemented!("Do not use Catchall for Marshal cases!"),
@@ -360,15 +351,9 @@ macro_rules! dbus_variant_var_unmarshal {
                 use $crate::Unmarshal;
 
                 let (sig_bytes, sig_str) = $crate::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
-                let mut sig = $crate::signature::Type::parse_description(&sig_str)?;
-                let sig = if sig.len() == 1 {
-                    sig.remove(0)
-                } else {
-                    return Err($crate::wire::unmarshal::Error::WrongSignature);
-                };
-
+				let mut sig_buf = String::new();
                 $(
-                if sig == <$typ as Signature>::signature() {
+                if sig_str == <$typ as Signature>::sig_str(&mut sig_buf) {
                     ctx.offset += sig_bytes;
                     let (vbytes, v) = <$typ as $crate::Unmarshal>::unmarshal(ctx)?;
                     return Ok((sig_bytes + vbytes, Self::$name(v)));
