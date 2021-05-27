@@ -67,14 +67,30 @@ pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
     /// If this returns `true`,
-    /// it indicates that Rust's `[T]` is identical to DBus's array format
-    /// and can be copied into a message after aligning the first element,
-    /// Generally this only applies to integer types.
+    /// it indicates that for implementing type `T`,
+    /// Rust's `[T]` is identical to DBus's array format
+    /// and can be copied into a message after aligning the first element.
     ///
-    /// The default implementation is `false` but should be overridden for a performance gain
+    /// The default implementation is `false` but can be overridden for a performance gain
     /// if it is valid.
+    ///
+    /// # Safety
+    /// Calls to this function should always be safe. Implementors should respect this property.
+    /// The reason this method is `unsafe` is to indicate to people implementing `Signature` that
+    /// overriding it has the potential to induce unsound behavior
+    /// if the following rules aren't followed:
+    /// 1. The type `T` implementing `Signature` must be `Copy`.
+    /// 2. The size of `T` must be **equivalent** to it's DBus alignment (see [here]).
+    /// 3. Every possible bit-pattern must represent a valid instance of `T`.
+    /// For example `std::num::NonZeroU32` does not meet this requirement `0` is invalid.
+    ///
+    /// # Notes
+    /// * This method exists because of limitiation with Rust type system.
+    ///   Should `#[feature(specialization)]` ever become stablized this will hopefully be unnecessary.
+    /// * This method should use the `ByteOrder` to check if it matches native order before returning `true`.
+    ///   `ByteOrder::NATIVE` can be used to detect the native order.
     #[inline]
-    fn valid_slice(_bo: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(_bo: crate::ByteOrder) -> bool {
         false
     }
 }
@@ -264,18 +280,18 @@ impl<E: Marshal> Marshal for &[E] {
         // always align to 4
         ctx.align_to(4);
         let alignment = E::alignment();
-        if E::valid_slice(ctx.byteorder) {
-            debug_assert_eq!(alignment, std::mem::size_of::<E>());
-            let len = alignment * self.len();
-            assert!(len <= u32::MAX as usize);
-            write_u32(len as u32, ctx.byteorder, ctx.buf);
-            ctx.align_to(alignment);
-            let slice = unsafe {
+        unsafe {
+            if E::valid_slice(ctx.byteorder) {
+                debug_assert_eq!(alignment, std::mem::size_of::<E>());
+                let len = alignment * self.len();
+                assert!(len <= u32::MAX as usize);
+                write_u32(len as u32, ctx.byteorder, ctx.buf);
+                ctx.align_to(alignment);
                 let ptr = *self as *const [E] as *const u8;
-                std::slice::from_raw_parts(ptr, len)
-            };
-            ctx.buf.extend_from_slice(slice);
-            return Ok(());
+                let slice = std::slice::from_raw_parts(ptr, len);
+                ctx.buf.extend_from_slice(slice);
+                return Ok(());
+            }
         }
 
         let size_pos = ctx.buf.len();
@@ -490,7 +506,7 @@ impl Signature for u64 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn valid_slice(bo: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
 }
@@ -510,7 +526,7 @@ impl Signature for i64 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn valid_slice(bo: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
 }
@@ -530,7 +546,7 @@ impl Signature for u32 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn valid_slice(bo: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
 }
@@ -550,7 +566,7 @@ impl Signature for i32 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn valid_slice(bo: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
 }
@@ -570,7 +586,7 @@ impl Signature for u16 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn valid_slice(bo: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
 }
@@ -590,7 +606,7 @@ impl Signature for i16 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn valid_slice(bo: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
 }
@@ -610,7 +626,7 @@ impl Signature for u8 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn valid_slice(_: crate::ByteOrder) -> bool {
+    unsafe fn valid_slice(_: crate::ByteOrder) -> bool {
         true
     }
 }

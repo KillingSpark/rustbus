@@ -6,6 +6,7 @@ use crate::wire::unmarshal;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::util;
 use crate::ByteOrder;
+use std::borrow::Cow;
 
 /// This trait has to be supported to get parameters ergonomically out of a MarshalledMessage.
 /// There are implementations for the base types, Vecs, Hashmaps, and tuples of up to 5 elements
@@ -341,7 +342,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for String {
         Ok((bytes + padding, val))
     }
 }
-
+/*
 /// for byte arrays we can give an efficient method of decoding. This will bind the returned slice to the lifetime of the buffer.
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf [u8] {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
@@ -355,7 +356,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf [u8] {
 
         Ok((total_bytes_used, elements))
     }
-}
+}*/
 
 #[test]
 fn test_unmarshal_byte_array() {
@@ -426,6 +427,52 @@ impl<E: Signature> Signature for Vec<E> {
     }
 }
 
+impl<E: Signature + Clone> Signature for Cow<'_, [E]> {
+    fn signature() -> crate::signature::Type {
+        let e_type = Box::new(E::signature());
+        crate::signature::Type::Container(crate::signature::Container::Array(e_type))
+    }
+    fn alignment() -> usize {
+        4
+    }
+}
+
+impl<'buf, 'fds, E: Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for &[E] {
+    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+        unsafe {
+            if E::valid_slice(ctx.byteorder) {
+                let start_offset = ctx.offset;
+                ctx.align_to(4)?;
+                let (_, bytes_in_array) = u32::unmarshal(ctx)?;
+                let bytes_in_array = bytes_in_array as usize;
+                let alignment = E::alignment();
+                ctx.align_to(alignment)?;
+
+                if bytes_in_array % alignment != 0 {
+                    return Err(super::Error::NotAllBytesUsed);
+                }
+                let elem_cnt = bytes_in_array / alignment;
+                let ptr = &ctx.buf[ctx.offset..] as *const [u8] as *const E;
+                let slice = std::slice::from_raw_parts(ptr, elem_cnt);
+                ctx.offset += bytes_in_array;
+                Ok((ctx.offset - start_offset, slice))
+            } else {
+                Err(super::Error::InvalidType)
+            }
+        }
+    }
+}
+
+impl<'buf, 'fds, E: Unmarshal<'buf, 'fds> + Clone> Unmarshal<'buf, 'fds> for Cow<'buf, [E]> {
+    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+        unsafe {
+            if E::valid_slice(ctx.byteorder) {
+                return <&[E]>::unmarshal(ctx).map(|(used, v)| (used, Cow::Borrowed(v)));
+            }
+        }
+        Vec::unmarshal(ctx).map(|o| (o.0, Cow::Owned(o.1)))
+    }
+}
 impl<'buf, 'fds, E: Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for Vec<E> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         let start_offset = ctx.offset;
