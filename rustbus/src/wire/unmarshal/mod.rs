@@ -156,10 +156,10 @@ pub fn unmarshal_body<'a, 'e>(
     let mut params = Vec::new();
     let mut body_bytes_used = 0;
     let mut ctx = UnmarshalContext {
-        byteorder,
-        buf,
-        offset,
         fds,
+        buf,
+        byteorder,
+        offset,
     };
     for param_sig in sigs {
         let (bytes, new_param) = unmarshal_with_sig(&param_sig, &mut ctx)?;

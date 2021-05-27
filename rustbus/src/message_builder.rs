@@ -313,8 +313,8 @@ pub fn marshal_as_variant<P: Marshal>(
     fds: &mut Vec<crate::wire::UnixFd>,
 ) -> Result<(), crate::Error> {
     let mut ctx = MarshalContext {
-        buf,
         fds,
+        buf,
         byteorder,
     };
     let ctx = &mut ctx;
@@ -403,14 +403,17 @@ impl MarshalledMessageBody {
         }
         Ok(())
     }
-
-    /// Append something that is Marshal to the message body
-    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
-        let mut ctx = MarshalContext {
+    fn create_ctx(&mut self) -> MarshalContext {
+        MarshalContext {
             buf: &mut self.buf,
             fds: &mut self.raw_fds,
             byteorder: self.byteorder,
-        };
+        }
+    }
+
+    /// Append something that is Marshal to the message body
+    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
+        let mut ctx = self.create_ctx();
         p.marshal(&mut ctx)?;
         P::signature().to_str(&mut self.sig);
         Ok(())
@@ -483,7 +486,8 @@ impl MarshalledMessageBody {
     /// Append something that is Marshal to the body but use a dbus Variant in the signature. This is necessary for some APIs
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
         self.sig.push('v');
-        marshal_as_variant(p, self.byteorder, &mut self.buf, &mut self.raw_fds)
+        let mut ctx = self.create_ctx();
+        p.marshal_as_variant(&mut ctx)
     }
     /// Validate the all the marshalled elements of the body.
     pub fn validate(&self) -> Result<(), crate::wire::unmarshal::Error> {
