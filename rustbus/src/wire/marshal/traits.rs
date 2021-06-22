@@ -25,6 +25,7 @@ use crate::wire::marshal::MarshalContext;
 /// use rustbus::wire::util;
 /// use rustbus::Marshal;
 /// use rustbus::wire::marshal::MarshalContext;
+/// use rustbus::wire::marshal::traits::SignatureBuffer;
 /// use rustbus::Signature;
 /// impl Signature for &MyStruct {
 ///     fn signature() -> signature::Type {
@@ -36,6 +37,9 @@ use crate::wire::marshal::MarshalContext;
 ///
 ///     fn alignment() -> usize {
 ///         8
+///     }
+///     fn sig_str(s_buf: &mut SignatureBuffer) {
+///         s_buf.push_static("(ts)");
 ///     }
 /// }    
 /// impl Marshal for &MyStruct {
@@ -62,7 +66,7 @@ use crate::wire::marshal::MarshalContext;
 pub trait Marshal: Signature {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error>;
     fn marshal_as_variant(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        let mut sig = Cow::Borrowed("");
+        let mut sig = SignatureBuffer::new();
         Self::sig_str(&mut sig);
         if sig.len() > 255 {
             let sig_err = crate::signature::Error::SignatureTooLong;
@@ -74,20 +78,93 @@ pub trait Marshal: Signature {
     }
 }
 
+/// `SignatureBuffer` is used to store static or dynamic signatures and avoid allocations if possible.
+/// It is a wrapper around Cow.
+pub struct SignatureBuffer(Cow<'static, str>);
+
+impl SignatureBuffer {
+    #[inline]
+    pub fn new() -> Self {
+        Self(Cow::Borrowed(""))
+    }
+    /// Pushes a `&str` into the signature buffer.
+    ///
+    /// Avoids an allocation if the `self` was empty and was not allocated already,
+    /// by storing the `&'static str` inside a `Cow::Borrowed` variant.
+    #[inline]
+    pub fn push_static(&mut self, sig: &'static str) {
+        match &mut self.0 {
+            Cow::Borrowed("") => self.0 = Cow::Borrowed(sig),
+            // Cow::Owned(s) if s.capacity() == 0 => self.0 = Cow::Borrowed(sig), // TODO: is this even reachable?
+            cow => cow.to_mut().push_str(sig),
+        }
+    }
+
+    /// Pushes a `&str` into the signature buffer.
+    ///
+    /// If `sig` has a `'static` lifetime then [`SignatureBuffer::push_static`] should always be used
+    /// instead of this, because it can provide a performance benefit by avoiding allocation.
+    #[inline]
+    pub fn push_str(&mut self, sig: &str) {
+        self.0.to_mut().push_str(sig);
+    }
+
+    /// Return a `&mut String` which can be used to modify the signature.
+    ///
+    /// Internally this is just a call to `Cow::to_mut`.
+    #[allow(clippy::wrong_self_convention)]
+    #[inline]
+    pub fn to_string_mut(&mut self) -> &mut String {
+        self.0.to_mut()
+    }
+
+    /// Clear the signature.
+    ///
+    /// If an allocation was already made it is retained for future use.
+    /// If you wish to deallocate when clearing, then simply use [`SignatureBuffer::new`].
+    #[inline]
+    pub fn clear(&mut self) {
+        match &mut self.0 {
+            Cow::Borrowed(_) => *self = Self::new(),
+            Cow::Owned(s) => s.clear(),
+        }
+    }
+}
+impl std::ops::Deref for SignatureBuffer {
+    type Target = str;
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl AsRef<str> for SignatureBuffer {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+impl Default for SignatureBuffer {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 use std::borrow::Cow;
 pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
-    /// Retreives the signature as a `&str`.
+    /// Retreives the signature by storing it inside a [`SignatureBuffer`].
     ///
-    /// `s_buf` is used to repeated allocations.
-    /// The returned string will either be a reference to `s_buf` or will
-    /// be a static string. In the latter case `s_buf` will may remain unchanged.
+    /// By using `SignatureBuffer`, implementations of this method can avoid unnecessary allocations
+    /// by only allocating if a signature is dynamic.
     ///
-    /// When implementing `Signature` if your struct always has the same type, then you should override
-    /// this method by returning a `&'static str`
-    fn sig_str(s_buf: &mut Cow<str>) {
-        let s_buf = s_buf.to_mut();
+    /// The default implementation of `sig_str` can be pretty slow.
+    /// If type, that `Signature` is being implemented for, has a static (unchanging) signature
+    /// then overriding this method can have a significant performance benefit when marshal/unmarshalling
+    /// the type inside variants.
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        let s_buf = s_buf.to_string_mut();
         let typ = Self::signature();
         typ.to_str(s_buf);
     }
@@ -137,11 +214,11 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
     fn alignment() -> usize {
         8
     }
-    fn sig_str(s_buf: &mut Cow<str>) {
-        s_buf.to_mut().push('(');
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_str("(");
         E1::sig_str(s_buf);
         E2::sig_str(s_buf);
-        s_buf.to_mut().push(')');
+        s_buf.push_str(")");
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
@@ -496,11 +573,8 @@ impl Signature for u64 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("t"),
-            _ => sig.to_mut().push('t'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("t");
     }
 }
 impl Marshal for u64 {
@@ -519,11 +593,8 @@ impl Signature for i64 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("x"),
-            _ => sig.to_mut().push('x'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("x");
     }
 }
 impl Marshal for i64 {
@@ -542,11 +613,8 @@ impl Signature for u32 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("u"),
-            _ => sig.to_mut().push('u'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("u");
     }
 }
 impl Marshal for u32 {
@@ -565,11 +633,8 @@ impl Signature for i32 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("i"),
-            _ => sig.to_mut().push('i'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("i");
     }
 }
 impl Marshal for i32 {
@@ -588,11 +653,8 @@ impl Signature for u16 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("q"),
-            _ => sig.to_mut().push('q'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("q");
     }
 }
 impl Marshal for u16 {
@@ -611,11 +673,8 @@ impl Signature for i16 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("n"),
-            _ => sig.to_mut().push('n'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("n");
     }
 }
 impl Marshal for i16 {
@@ -634,11 +693,8 @@ impl Signature for u8 {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("y"),
-            _ => sig.to_mut().push('y'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("y");
     }
 }
 impl Marshal for u8 {
@@ -657,11 +713,8 @@ impl Signature for bool {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("b"),
-            _ => sig.to_mut().push('b'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("b");
     }
 }
 impl Marshal for bool {
@@ -680,11 +733,8 @@ impl Signature for String {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
-        match sig {
-            Cow::Borrowed("") => *sig = Cow::Borrowed("s"),
-            _ => sig.to_mut().push('s'),
-        }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("s");
     }
 }
 impl Marshal for String {
@@ -703,7 +753,7 @@ impl Signature for &str {
         Self::signature().get_alignment()
     }
     #[inline]
-    fn sig_str(sig: &mut Cow<str>) {
+    fn sig_str(sig: &mut SignatureBuffer) {
         String::sig_str(sig);
     }
 }

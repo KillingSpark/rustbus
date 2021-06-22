@@ -349,18 +349,14 @@ macro_rules! dbus_variant_var_unmarshal {
             ) -> $crate::wire::unmarshal::UnmarshalResult<Self> {
                 use $crate::Signature;
                 use $crate::Unmarshal;
-                use std::borrow::Cow;
+                use $crate::wire::marshal::traits::SignatureBuffer;
 
                 let (sig_bytes, sig_str) = $crate::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
-                let mut var_sig = Cow::Borrowed("");
-                let clear = |s: &mut Cow<str>| match s {
-                    Cow::Borrowed(_) => *s = Cow::Borrowed(""),
-                    Cow::Owned(o) => o.clear()
-                };
+                let mut var_sig = SignatureBuffer::new();
                 $(
-                clear(&mut var_sig);
+                var_sig.clear();
                 <$typ as Signature>::sig_str(&mut var_sig);
-                if sig_str == var_sig {
+                if sig_str == var_sig.as_ref() {
                     ctx.offset += sig_bytes;
                     let (vbytes, v) = <$typ as $crate::Unmarshal>::unmarshal(ctx)?;
                     return Ok((sig_bytes + vbytes, Self::$name(v)));
