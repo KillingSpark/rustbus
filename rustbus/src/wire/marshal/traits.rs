@@ -112,7 +112,6 @@ impl SignatureBuffer {
     /// Return a `&mut String` which can be used to modify the signature.
     ///
     /// Internally this is just a call to `Cow::to_mut`.
-    #[allow(clippy::wrong_self_convention)]
     #[inline]
     pub fn to_string_mut(&mut self) -> &mut String {
         self.0.to_mut()

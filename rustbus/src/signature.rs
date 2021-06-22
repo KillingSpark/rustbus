@@ -125,11 +125,7 @@ impl<I: Iterator<Item = char>> Iterator for TokenIter<I> {
     type Item = Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(c) = self.chars.next() {
-            Some(char_to_token(c))
-        } else {
-            None
-        }
+        self.chars.next().map(char_to_token)
     }
 }
 

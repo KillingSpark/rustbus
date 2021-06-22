@@ -176,9 +176,9 @@ pub fn unmarshal_next_message(
     offset: usize,
 ) -> UnmarshalResult<MarshalledMessage> {
     let sig = dynheader.signature.clone().unwrap_or_else(|| "".to_owned());
+    let padding = align_offset(8, buf, offset)?;
 
     if header.body_len == 0 {
-        let padding = align_offset(8, buf, offset)?;
         let msg = MarshalledMessage {
             dynheader,
             body: MarshalledMessageBody::from_parts(vec![], vec![], sig, header.byteorder),
@@ -187,7 +187,6 @@ pub fn unmarshal_next_message(
         };
         Ok((padding, msg))
     } else {
-        let padding = align_offset(8, buf, offset)?;
         let offset = offset + padding;
 
         if buf[offset..].len() < (header.body_len as usize) {
