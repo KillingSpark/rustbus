@@ -80,6 +80,7 @@ pub trait Marshal: Signature {
 
 /// `SignatureBuffer` is used to store static or dynamic signatures and avoid allocations if possible.
 /// It is a wrapper around Cow.
+#[derive(Debug)]
 pub struct SignatureBuffer(Cow<'static, str>);
 
 impl SignatureBuffer {
@@ -95,7 +96,7 @@ impl SignatureBuffer {
     pub fn push_static(&mut self, sig: &'static str) {
         match &mut self.0 {
             Cow::Borrowed("") => self.0 = Cow::Borrowed(sig),
-            // Cow::Owned(s) if s.capacity() == 0 => self.0 = Cow::Borrowed(sig), // TODO: is this even reachable?
+            Cow::Owned(s) if s.capacity() == 0 => self.0 = Cow::Borrowed(sig),
             cow => cow.to_mut().push_str(sig),
         }
     }
@@ -128,18 +129,26 @@ impl SignatureBuffer {
             Cow::Owned(s) => s.clear(),
         }
     }
+    #[inline]
+    pub fn from_string(sig: String) -> Self {
+        Self(Cow::Owned(sig))
+    }
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 impl std::ops::Deref for SignatureBuffer {
     type Target = str;
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.as_str()
     }
 }
 impl AsRef<str> for SignatureBuffer {
     #[inline]
     fn as_ref(&self) -> &str {
-        &self.0
+        self.as_str()
     }
 }
 impl Default for SignatureBuffer {
@@ -153,7 +162,7 @@ use std::borrow::Cow;
 pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
-    /// Retreives the signature by storing it inside a [`SignatureBuffer`].
+    /// Appends the signature of the type to the `SignatureBuffer`.
     ///
     /// By using `SignatureBuffer`, implementations of this method can avoid unnecessary allocations
     /// by only allocating if a signature is dynamic.
