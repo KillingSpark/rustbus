@@ -25,6 +25,7 @@ use crate::wire::marshal::MarshalContext;
 /// use rustbus::wire::util;
 /// use rustbus::Marshal;
 /// use rustbus::wire::marshal::MarshalContext;
+/// use rustbus::wire::marshal::traits::SignatureBuffer;
 /// use rustbus::Signature;
 /// impl Signature for &MyStruct {
 ///     fn signature() -> signature::Type {
@@ -36,6 +37,9 @@ use crate::wire::marshal::MarshalContext;
 ///
 ///     fn alignment() -> usize {
 ///         8
+///     }
+///     fn sig_str(s_buf: &mut SignatureBuffer) {
+///         s_buf.push_static("(ts)");
 ///     }
 /// }    
 /// impl Marshal for &MyStruct {
@@ -61,11 +65,117 @@ use crate::wire::marshal::MarshalContext;
 ///     the signature() function returns. If you are not sure, just use Self::signature().get_alignment().
 pub trait Marshal: Signature {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error>;
+    fn marshal_as_variant(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+        let mut sig = SignatureBuffer::new();
+        Self::sig_str(&mut sig);
+        if sig.len() > 255 {
+            let sig_err = crate::signature::Error::SignatureTooLong;
+            return Err(sig_err.into());
+        }
+        debug_assert!(crate::params::validation::validate_signature(&sig).is_ok());
+        crate::wire::util::write_signature(&sig, ctx.buf);
+        self.marshal(ctx)
+    }
 }
 
+/// `SignatureBuffer` is used to store static or dynamic signatures and avoid allocations if possible.
+/// It is a wrapper around Cow.
+#[derive(Debug)]
+pub struct SignatureBuffer(Cow<'static, str>);
+
+impl SignatureBuffer {
+    #[inline]
+    pub fn new() -> Self {
+        Self(Cow::Borrowed(""))
+    }
+    /// Pushes a `&str` into the signature buffer.
+    ///
+    /// Avoids an allocation if the `self` was empty and was not allocated already,
+    /// by storing the `&'static str` inside a `Cow::Borrowed` variant.
+    #[inline]
+    pub fn push_static(&mut self, sig: &'static str) {
+        match &mut self.0 {
+            Cow::Borrowed("") => self.0 = Cow::Borrowed(sig),
+            Cow::Owned(s) if s.capacity() == 0 => self.0 = Cow::Borrowed(sig),
+            cow => cow.to_mut().push_str(sig),
+        }
+    }
+
+    /// Pushes a `&str` into the signature buffer.
+    ///
+    /// If `sig` has a `'static` lifetime then [`SignatureBuffer::push_static`] should almost always be used
+    /// instead of this, because it can provide a performance benefit by avoiding allocation.
+    #[inline]
+    pub fn push_str(&mut self, sig: &str) {
+        self.0.to_mut().push_str(sig);
+    }
+
+    /// Return a `&mut String` which can be used to modify the signature.
+    ///
+    /// Internally this is just a call to `Cow::to_mut`.
+    #[inline]
+    pub fn to_string_mut(&mut self) -> &mut String {
+        self.0.to_mut()
+    }
+
+    /// Clear the signature.
+    ///
+    /// If an allocation was already made it is retained for future use.
+    /// If you wish to deallocate when clearing, then simply use [`SignatureBuffer::new`].
+    #[inline]
+    pub fn clear(&mut self) {
+        match &mut self.0 {
+            Cow::Borrowed(_) => *self = Self::new(),
+            Cow::Owned(s) => s.clear(),
+        }
+    }
+    #[inline]
+    pub fn from_string(sig: String) -> Self {
+        Self(Cow::Owned(sig))
+    }
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+impl std::ops::Deref for SignatureBuffer {
+    type Target = str;
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+impl AsRef<str> for SignatureBuffer {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+impl Default for SignatureBuffer {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+use std::borrow::Cow;
 pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
+    /// Appends the signature of the type to the `SignatureBuffer`.
+    ///
+    /// By using `SignatureBuffer`, implementations of this method can avoid unnecessary allocations
+    /// by only allocating if a signature is dynamic.
+    ///
+    /// The default implementation of `sig_str` can be pretty slow.
+    /// If type, that `Signature` is being implemented for, has a static (unchanging) signature
+    /// then overriding this method can have a significant performance benefit when marshal/unmarshalling
+    /// the type inside variants.
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        let s_buf = s_buf.to_string_mut();
+        let typ = Self::signature();
+        typ.to_str(s_buf);
+    }
 }
 
 impl<S: Signature> Signature for &S {
@@ -109,9 +219,14 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
             crate::signature::StructTypes::new(vec![E1::signature(), E2::signature()]).unwrap(),
         ))
     }
-
     fn alignment() -> usize {
         8
+    }
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_str("(");
+        E1::sig_str(s_buf);
+        E2::sig_str(s_buf);
+        s_buf.push_str(")");
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
@@ -135,9 +250,16 @@ impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
             .unwrap(),
         ))
     }
-
     fn alignment() -> usize {
         8
+    }
+
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_str("(");
+        E1::sig_str(s_buf);
+        E2::sig_str(s_buf);
+        E3::sig_str(s_buf);
+        s_buf.push_str(")");
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
@@ -163,9 +285,16 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (
             .unwrap(),
         ))
     }
-
     fn alignment() -> usize {
         8
+    }
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_str("(");
+        E1::sig_str(s_buf);
+        E2::sig_str(s_buf);
+        E3::sig_str(s_buf);
+        E4::sig_str(s_buf);
+        s_buf.push_str(")");
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
@@ -195,9 +324,17 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> 
             .unwrap(),
         ))
     }
-
     fn alignment() -> usize {
         8
+    }
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_str("(");
+        E1::sig_str(s_buf);
+        E2::sig_str(s_buf);
+        E3::sig_str(s_buf);
+        E4::sig_str(s_buf);
+        E5::sig_str(s_buf);
+        s_buf.push_str(")");
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
@@ -227,8 +364,13 @@ impl<E: Signature> Signature for [E] {
             E::signature(),
         )))
     }
+    #[inline]
     fn alignment() -> usize {
         4
+    }
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_str("a");
+        E::sig_str(s_buf);
     }
 }
 impl<E: Marshal> Marshal for [E] {
@@ -238,13 +380,17 @@ impl<E: Marshal> Marshal for [E] {
 }
 
 impl<E: Signature> Signature for &[E] {
+    #[inline]
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Container(crate::signature::Container::Array(Box::new(
-            E::signature(),
-        )))
+        <[E]>::signature()
     }
+    #[inline]
     fn alignment() -> usize {
-        4
+        <[E]>::alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        <[E]>::sig_str(s_buf)
     }
 }
 impl<E: Marshal> Marshal for &[E] {
@@ -465,6 +611,10 @@ impl Signature for u64 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("t");
+    }
 }
 impl Marshal for u64 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -480,6 +630,10 @@ impl Signature for i64 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("x");
     }
 }
 impl Marshal for i64 {
@@ -497,6 +651,10 @@ impl Signature for u32 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("u");
+    }
 }
 impl Marshal for u32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -512,6 +670,10 @@ impl Signature for i32 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("i");
     }
 }
 impl Marshal for i32 {
@@ -529,6 +691,10 @@ impl Signature for u16 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("q");
+    }
 }
 impl Marshal for u16 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -544,6 +710,10 @@ impl Signature for i16 {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("n");
     }
 }
 impl Marshal for i16 {
@@ -561,6 +731,10 @@ impl Signature for u8 {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("y");
+    }
 }
 impl Marshal for u8 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -576,6 +750,10 @@ impl Signature for bool {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("b");
     }
 }
 impl Marshal for bool {
@@ -593,6 +771,10 @@ impl Signature for String {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("s");
+    }
 }
 impl Marshal for String {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -608,6 +790,10 @@ impl Signature for &str {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(sig: &mut SignatureBuffer) {
+        String::sig_str(sig);
     }
 }
 impl Marshal for &str {
@@ -666,6 +852,10 @@ impl Signature for SignatureWrapper<'_> {
     }
     fn alignment() -> usize {
         Self::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_static("g");
     }
 }
 impl Marshal for SignatureWrapper<'_> {

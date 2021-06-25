@@ -1,7 +1,7 @@
 //! Build new messages that you want to send over a connection
 
 use crate::params::message;
-use crate::wire::marshal::traits::Marshal;
+use crate::wire::marshal::traits::{Marshal, SignatureBuffer};
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unixfd::UnixFd;
 use crate::wire::unmarshal::UnmarshalContext;
@@ -294,7 +294,7 @@ pub struct MarshalledMessageBody {
     // out of band data
     pub(crate) raw_fds: Vec<crate::wire::UnixFd>,
 
-    sig: String,
+    sig: SignatureBuffer,
     pub(crate) byteorder: ByteOrder,
 }
 
@@ -313,8 +313,8 @@ pub fn marshal_as_variant<P: Marshal>(
     fds: &mut Vec<crate::wire::UnixFd>,
 ) -> Result<(), crate::Error> {
     let mut ctx = MarshalContext {
-        buf,
         fds,
+        buf,
         byteorder,
     };
     let ctx = &mut ctx;
@@ -334,7 +334,7 @@ impl MarshalledMessageBody {
         MarshalledMessageBody {
             buf: Vec::new(),
             raw_fds: Vec::new(),
-            sig: String::new(),
+            sig: SignatureBuffer::new(),
             byteorder: ByteOrder::LittleEndian,
         }
     }
@@ -344,7 +344,7 @@ impl MarshalledMessageBody {
         MarshalledMessageBody {
             buf: Vec::new(),
             raw_fds: Vec::new(),
-            sig: String::new(),
+            sig: SignatureBuffer::new(),
             byteorder: b,
         }
     }
@@ -355,6 +355,7 @@ impl MarshalledMessageBody {
         sig: String,
         byteorder: ByteOrder,
     ) -> Self {
+        let sig = SignatureBuffer::from_string(sig);
         Self {
             buf,
             raw_fds,
@@ -392,7 +393,7 @@ impl MarshalledMessageBody {
         };
         let ctx = &mut ctx;
         crate::wire::marshal::container::marshal_param(p, ctx)?;
-        p.sig().to_str(&mut self.sig);
+        p.sig().to_str(self.sig.to_string_mut());
         Ok(())
     }
 
@@ -403,16 +404,19 @@ impl MarshalledMessageBody {
         }
         Ok(())
     }
-
-    /// Append something that is Marshal to the message body
-    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
-        let mut ctx = MarshalContext {
+    fn create_ctx(&mut self) -> MarshalContext {
+        MarshalContext {
             buf: &mut self.buf,
             fds: &mut self.raw_fds,
             byteorder: self.byteorder,
-        };
+        }
+    }
+
+    /// Append something that is Marshal to the message body
+    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
+        let mut ctx = self.create_ctx();
         p.marshal(&mut ctx)?;
-        P::signature().to_str(&mut self.sig);
+        P::sig_str(&mut self.sig);
         Ok(())
     }
 
@@ -482,8 +486,9 @@ impl MarshalledMessageBody {
 
     /// Append something that is Marshal to the body but use a dbus Variant in the signature. This is necessary for some APIs
     pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
-        self.sig.push('v');
-        marshal_as_variant(p, self.byteorder, &mut self.buf, &mut self.raw_fds)
+        self.sig.push_static("v");
+        let mut ctx = self.create_ctx();
+        p.marshal_as_variant(&mut ctx)
     }
     /// Validate the all the marshalled elements of the body.
     pub fn validate(&self) -> Result<(), crate::wire::unmarshal::Error> {
