@@ -8,7 +8,7 @@ pub fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
     let padding_needed = align_to - (buf.len() % align_to);
     if padding_needed != align_to {
         buf.resize(buf.len() + padding_needed, 0);
-        assert!(buf.len() % align_to == 0);
+        debug_assert!(buf.len() % align_to == 0);
     }
 }
 

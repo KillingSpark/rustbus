@@ -302,7 +302,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for i16 {
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for u8 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        if ctx.buf[ctx.offset..].is_empty() {
+        if ctx.offset >= ctx.buf.len() {
             return Err(crate::wire::unmarshal::Error::NotEnoughBytes);
         }
         let val = ctx.buf[ctx.offset];

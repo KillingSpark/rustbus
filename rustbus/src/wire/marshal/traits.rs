@@ -199,7 +199,6 @@ impl<E: Signature> Signature for (E,) {
             crate::signature::StructTypes::new(vec![E::signature()]).unwrap(),
         ))
     }
-
     fn alignment() -> usize {
         8
     }
@@ -645,9 +644,11 @@ impl Marshal for i64 {
 }
 
 impl Signature for u32 {
+    #[inline]
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Uint32)
     }
+    #[inline]
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
@@ -659,8 +660,8 @@ impl Signature for u32 {
 impl Marshal for u32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        crate::wire::util::write_u32(*self, ctx.byteorder, ctx.buf);
+        Ok(())
     }
 }
 
@@ -679,8 +680,8 @@ impl Signature for i32 {
 impl Marshal for i32 {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        crate::wire::util::write_u32(*self as u32, ctx.byteorder, ctx.buf);
+        Ok(())
     }
 }
 
@@ -725,9 +726,11 @@ impl Marshal for i16 {
 }
 
 impl Signature for u8 {
+    #[inline]
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Byte)
     }
+    #[inline]
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
@@ -737,17 +740,19 @@ impl Signature for u8 {
     }
 }
 impl Marshal for u8 {
+    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        ctx.buf.push(*self);
+        Ok(())
     }
 }
 
 impl Signature for bool {
+    #[inline]
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Boolean)
     }
+    #[inline]
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
@@ -757,17 +762,18 @@ impl Signature for bool {
     }
 }
 impl Marshal for bool {
+    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        ctx.align_to(Self::alignment());
-        let b: params::Base = self.into();
-        marshal_base_param(&b, ctx)
+        (*self as u32).marshal(ctx)
     }
 }
 
 impl Signature for String {
+    #[inline]
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::String)
     }
+    #[inline]
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
@@ -778,18 +784,18 @@ impl Signature for String {
 }
 impl Marshal for String {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
-        ctx.align_to(Self::alignment());
-        crate::wire::util::write_string(self.as_str(), ctx.byteorder, ctx.buf);
-        Ok(())
+        self.as_str().marshal(ctx)
     }
 }
 
 impl Signature for &str {
+    #[inline]
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::String)
+        String::signature()
     }
+    #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        String::alignment()
     }
     #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
