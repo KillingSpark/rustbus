@@ -178,6 +178,9 @@ pub trait Signature {
     /// 1. The type `T` implementing `Signature` must be `Copy`.
     /// 2. The size of `T` must be **equivalent** to it's DBus alignment (see [here]).
     /// 3. Every possible bit-pattern must represent a valid instance of `T`.
+    /// 4. The type should not contain an Fd receieved from the message.
+    ///    When implementing `Unmarshal` the type should only dependent the `'buf` lifetime.
+    ///    It should never require the use of `'fds`.
     /// For example `std::num::NonZeroU32` does not meet this requirement `0` is invalid.
     ///
     /// # Notes
