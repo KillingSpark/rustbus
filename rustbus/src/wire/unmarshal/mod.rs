@@ -156,10 +156,10 @@ pub fn unmarshal_body<'a, 'e>(
     let mut params = Vec::new();
     let mut body_bytes_used = 0;
     let mut ctx = UnmarshalContext {
-        byteorder,
-        buf,
-        offset,
         fds,
+        buf,
+        byteorder,
+        offset,
     };
     for param_sig in sigs {
         let (bytes, new_param) = unmarshal_with_sig(&param_sig, &mut ctx)?;
@@ -176,9 +176,9 @@ pub fn unmarshal_next_message(
     offset: usize,
 ) -> UnmarshalResult<MarshalledMessage> {
     let sig = dynheader.signature.clone().unwrap_or_else(|| "".to_owned());
+    let padding = align_offset(8, buf, offset)?;
 
     if header.body_len == 0 {
-        let padding = align_offset(8, buf, offset)?;
         let msg = MarshalledMessage {
             dynheader,
             body: MarshalledMessageBody::from_parts(vec![], vec![], sig, header.byteorder),
@@ -187,7 +187,6 @@ pub fn unmarshal_next_message(
         };
         Ok((padding, msg))
     } else {
-        let padding = align_offset(8, buf, offset)?;
         let offset = offset + padding;
 
         if buf[offset..].len() < (header.body_len as usize) {

@@ -50,61 +50,52 @@ pub fn validate_object_path(op: &str) -> Result<()> {
     Ok(())
 }
 pub fn validate_interface(int: &str) -> Result<()> {
-    if int.len() < 3 {
-        return Err(Error::InvalidInterface);
-    }
-    if !int.contains('.') {
-        return Err(Error::InvalidInterface);
-    }
-
-    let split = int.split('.').collect::<Vec<_>>();
-    if split.len() < 2 {
-        return Err(Error::InvalidInterface);
-    }
-    for element in split {
-        if element.is_empty() {
-            return Err(Error::InvalidInterface);
-        }
-        if let Some(true) = element.chars().next().map(|c| c.is_numeric()) {
+    let split = int.split('.');
+    let mut cnt = 0;
+    for (i, element) in split.enumerate() {
+        if element
+            .chars()
+            .next()
+            .ok_or(Error::InvalidInterface)?
+            .is_numeric()
+        {
             return Err(Error::InvalidInterface);
         }
         let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
         if !alphanum_or_underscore {
             return Err(Error::InvalidInterface);
         }
+        cnt = i + 1;
     }
-
-    Ok(())
+    if cnt >= 2 {
+        Ok(())
+    } else {
+        Err(Error::InvalidInterface)
+    }
 }
 
+#[inline]
 pub fn validate_errorname(en: &str) -> Result<()> {
     validate_interface(en).map_err(|_| Error::InvalidErrorname)
 }
 
 pub fn validate_busname(bn: &str) -> Result<()> {
-    if bn.len() < 3 {
-        return Err(Error::InvalidBusname);
-    }
-    if !bn.contains('.') {
-        return Err(Error::InvalidBusname);
-    }
-
     let (unique, bus_name) = if let Some(unique_name) = bn.strip_prefix(':') {
         (true, unique_name)
     } else {
         (false, bn)
     };
 
-    let split = bus_name.split('.').collect::<Vec<_>>();
-    if split.len() < 2 {
-        return Err(Error::InvalidBusname);
-    }
-
-    for element in split {
-        if element.is_empty() {
-            return Err(Error::InvalidBusname);
-        }
-        if !unique && element.chars().next().map(|c| c.is_numeric()) == Some(true) {
+    let split = bus_name.split('.');
+    let mut cnt = 0;
+    for (i, element) in split.enumerate() {
+        if element
+            .chars()
+            .next()
+            .ok_or(Error::InvalidBusname)?
+            .is_numeric()
+            && !unique
+        {
             return Err(Error::InvalidBusname);
         }
         let alphanum_or_underscore_or_dash = element
@@ -113,9 +104,13 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         if !alphanum_or_underscore_or_dash {
             return Err(Error::InvalidBusname);
         }
+        cnt = i + 1;
     }
-
-    Ok(())
+    if cnt >= 2 {
+        Ok(())
+    } else {
+        Err(Error::InvalidBusname)
+    }
 }
 
 pub fn validate_membername(mem: &str) -> Result<()> {
