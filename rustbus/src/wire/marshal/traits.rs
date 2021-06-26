@@ -178,16 +178,18 @@ pub trait Signature {
     /// 1. The type `T` implementing `Signature` must be `Copy`.
     /// 2. The size of `T` must be **equivalent** to it's DBus alignment (see [here]).
     /// 3. Every possible bit-pattern must represent a valid instance of `T`.
+    ///    For example `std::num::NonZeroU32` does not meet this requirement `0` is invalid.
     /// 4. The type should not contain an Fd receieved from the message.
     ///    When implementing `Unmarshal` the type should only dependent the `'buf` lifetime.
     ///    It should never require the use of `'fds`.
-    /// For example `std::num::NonZeroU32` does not meet this requirement `0` is invalid.
     ///
     /// # Notes
     /// * This method exists because of limitiation with Rust type system.
     ///   Should `#[feature(specialization)]` ever become stablized this will hopefully be unnecessary.
     /// * This method should use the `ByteOrder` to check if it matches native order before returning `true`.
     ///   `ByteOrder::NATIVE` can be used to detect the native order.
+    ///
+    /// [here]: https://dbus.freedesktop.org/doc/dbus-specification.html#idm702
     #[inline]
     unsafe fn valid_slice(_bo: crate::ByteOrder) -> bool {
         false
