@@ -342,21 +342,6 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for String {
         Ok((bytes + padding, val))
     }
 }
-/*
-/// for byte arrays we can give an efficient method of decoding. This will bind the returned slice to the lifetime of the buffer.
-impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf [u8] {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (_, bytes_in_array) = u32::unmarshal(ctx)?;
-
-        let elements = &ctx.buf[ctx.offset..ctx.offset + bytes_in_array as usize];
-        ctx.offset += bytes_in_array as usize;
-
-        let total_bytes_used = padding + 4 + bytes_in_array as usize;
-
-        Ok((total_bytes_used, elements))
-    }
-}*/
 
 #[test]
 fn test_unmarshal_byte_array() {
