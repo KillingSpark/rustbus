@@ -162,6 +162,38 @@ use std::borrow::Cow;
 pub trait Signature {
     fn signature() -> crate::signature::Type;
     fn alignment() -> usize;
+    /// If this returns `true`,
+    /// it indicates that for implementing type `T`,
+    /// Rust's `[T]` is identical to DBus's array format
+    /// and can be copied into a message after aligning the first element.
+    ///
+    /// The default implementation is `false` but can be overridden for a performance gain
+    /// if it is valid.
+    ///
+    /// # Safety
+    /// Calls to this function should always be safe. Implementors should respect this property.
+    /// The reason this method is `unsafe` is to indicate to people implementing `Signature` that
+    /// overriding it has the potential to induce unsound behavior
+    /// if the following rules aren't followed:
+    /// 1. The type `T` implementing `Signature` must be `Copy`.
+    /// 2. The size of `T` must be **equivalent** to it's DBus alignment (see [here]).
+    /// 3. Every possible bit-pattern must represent a valid instance of `T`.
+    ///    For example `std::num::NonZeroU32` does not meet this requirement `0` is invalid.
+    /// 4. The type should not contain an Fd receieved from the message.
+    ///    When implementing `Unmarshal` the type should only dependent the `'buf` lifetime.
+    ///    It should never require the use of `'fds`.
+    ///
+    /// # Notes
+    /// * This method exists because of limitiation with Rust type system.
+    ///   Should `#[feature(specialization)]` ever become stablized this will hopefully be unnecessary.
+    /// * This method should use the `ByteOrder` to check if it matches native order before returning `true`.
+    ///   `ByteOrder::NATIVE` can be used to detect the native order.
+    ///
+    /// [here]: https://dbus.freedesktop.org/doc/dbus-specification.html#idm702
+    #[inline]
+    unsafe fn valid_slice(_bo: crate::ByteOrder) -> bool {
+        false
+    }
     /// Appends the signature of the type to the `SignatureBuffer`.
     ///
     /// By using `SignatureBuffer`, implementations of this method can avoid unnecessary allocations
@@ -392,25 +424,38 @@ impl<E: Signature> Signature for &[E] {
         <[E]>::sig_str(s_buf)
     }
 }
+use crate::wire::util::write_u32;
 impl<E: Marshal> Marshal for &[E] {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         // always align to 4
         ctx.align_to(4);
+        let alignment = E::alignment();
+        unsafe {
+            if E::valid_slice(ctx.byteorder) {
+                debug_assert_eq!(alignment, std::mem::size_of::<E>());
+                let len = alignment * self.len();
+                assert!(len <= u32::MAX as usize);
+                write_u32(len as u32, ctx.byteorder, ctx.buf);
+                ctx.align_to(alignment);
+                let ptr = *self as *const [E] as *const u8;
+                let slice = std::slice::from_raw_parts(ptr, len);
+                ctx.buf.extend_from_slice(slice);
+                return Ok(());
+            }
+        }
 
         let size_pos = ctx.buf.len();
-        ctx.buf.push(0);
-        ctx.buf.push(0);
-        ctx.buf.push(0);
-        ctx.buf.push(0);
+        ctx.buf.extend_from_slice(&[0; 4]);
 
-        ctx.align_to(E::alignment());
+        ctx.align_to(alignment);
 
         if self.is_empty() {
             return Ok(());
         }
 
-        // we can reserve at least one byte per entry without wasting memory, and save at least a few reallocations of buf
-        ctx.buf.reserve(self.len());
+        // In an array each entry, except the last  will take up at least its alignment in space.
+        // The last may take less (like type '(yy)') but this is small and worth it.
+        ctx.buf.reserve(self.len() * alignment);
         let size_before = ctx.buf.len();
         for p in self.iter() {
             p.marshal(ctx)?;
@@ -611,6 +656,9 @@ impl Signature for u64 {
         Self::signature().get_alignment()
     }
     #[inline]
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("t");
     }
@@ -631,6 +679,9 @@ impl Signature for i64 {
         Self::signature().get_alignment()
     }
     #[inline]
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("x");
     }
@@ -653,6 +704,9 @@ impl Signature for u32 {
         Self::signature().get_alignment()
     }
     #[inline]
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("u");
     }
@@ -673,6 +727,9 @@ impl Signature for i32 {
         Self::signature().get_alignment()
     }
     #[inline]
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("i");
     }
@@ -693,6 +750,9 @@ impl Signature for u16 {
         Self::signature().get_alignment()
     }
     #[inline]
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("q");
     }
@@ -713,6 +773,9 @@ impl Signature for i16 {
         Self::signature().get_alignment()
     }
     #[inline]
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("n");
     }
@@ -735,6 +798,9 @@ impl Signature for u8 {
         Self::signature().get_alignment()
     }
     #[inline]
+    unsafe fn valid_slice(_: crate::ByteOrder) -> bool {
+        true
+    }
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("y");
     }

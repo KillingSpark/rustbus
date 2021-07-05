@@ -18,6 +18,7 @@ pub fn write_u16(val: u16, byteorder: ByteOrder, buf: &mut Vec<u8>) {
         ByteOrder::BigEndian => buf.extend(&val.to_be_bytes()[..]),
     }
 }
+#[inline]
 pub fn write_u32(val: u32, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     match byteorder {
         ByteOrder::LittleEndian => buf.extend(&val.to_le_bytes()[..]),
