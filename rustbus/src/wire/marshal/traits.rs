@@ -536,7 +536,7 @@ fn verify_optimized_arrays() {
     let mut ctx = MarshalContext {
         buf: &mut buf,
         fds: &mut fds,
-        byteorder: ByteOrder::LittleEndian,
+        byteorder: ByteOrder::NATIVE,
     };
     let ctx = &mut ctx;
 
@@ -554,7 +554,7 @@ fn verify_optimized_arrays() {
     let mut ctx = MarshalContext {
         buf: &mut buf,
         fds: &mut fds,
-        byteorder: ByteOrder::LittleEndian,
+        byteorder: ByteOrder::NATIVE,
     };
     let ctx = &mut ctx;
 
@@ -572,7 +572,7 @@ fn verify_optimized_arrays() {
     let mut ctx = MarshalContext {
         buf: &mut buf,
         fds: &mut fds,
-        byteorder: ByteOrder::LittleEndian,
+        byteorder: ByteOrder::NATIVE,
     };
     let ctx = &mut ctx;
 
