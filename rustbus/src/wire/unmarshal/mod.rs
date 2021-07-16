@@ -338,7 +338,7 @@ fn unmarshal_header_field(
             signature::Type::Base(signature::Base::Signature) => {
                 let (b, sig) = unmarshal_signature(&buf[offset..])?;
                 // empty signature is allowed here
-                if sig.len() > 0 {
+                if !sig.is_empty() {
                     crate::params::validate_signature(&sig)?;
                 }
                 (b, Ok(HeaderField::Signature(sig.to_owned())))
