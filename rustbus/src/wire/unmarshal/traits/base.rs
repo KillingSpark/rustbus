@@ -3,6 +3,8 @@
 use crate::wire::unmarshal;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::util;
+use crate::wire::ObjectPath;
+use crate::wire::SignatureWrapper;
 use crate::Signature;
 use crate::Unmarshal;
 
@@ -100,21 +102,19 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for String {
     }
 }
 
-impl<'buf, 'fds> Unmarshal<'buf, 'fds> for crate::wire::marshal::traits::SignatureWrapper<'buf> {
+impl<'buf, 'fds> Unmarshal<'buf, 'fds> for SignatureWrapper<'buf> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         // No alignment needed. Signature is aligned to 1
         let (bytes, val) = util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
         ctx.offset += bytes;
-        let sig = crate::wire::marshal::traits::SignatureWrapper::new(val)?;
+        let sig = SignatureWrapper::new(val)?;
         Ok((bytes, sig))
     }
 }
-impl<'buf, 'fds, S: AsRef<str> + Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds>
-    for crate::wire::marshal::traits::ObjectPath<S>
-{
+impl<'buf, 'fds, S: AsRef<str> + Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for ObjectPath<S> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         let (bytes, val) = <S as Unmarshal>::unmarshal(ctx)?;
-        let path = crate::wire::marshal::traits::ObjectPath::new(val)?;
+        let path = ObjectPath::new(val)?;
         Ok((bytes, path))
     }
 }

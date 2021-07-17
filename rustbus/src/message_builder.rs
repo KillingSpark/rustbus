@@ -3,9 +3,9 @@
 use crate::params::message;
 use crate::wire::marshal::traits::{Marshal, SignatureBuffer};
 use crate::wire::marshal::MarshalContext;
-use crate::wire::unixfd::UnixFd;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::validate_raw;
+use crate::wire::UnixFd;
 use crate::ByteOrder;
 
 /// Types a message might have

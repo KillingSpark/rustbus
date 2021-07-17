@@ -107,7 +107,7 @@ fn verify_padding() {
     );
     ctx.buf.clear();
     0xFFu8.marshal(ctx).unwrap();
-    crate::wire::marshal::traits::ObjectPath::new("/A/B")
+    crate::wire::ObjectPath::new("/A/B")
         .unwrap()
         .marshal(ctx)
         .unwrap();
@@ -126,7 +126,7 @@ fn verify_padding() {
     );
     ctx.buf.clear();
     0xFFu8.marshal(ctx).unwrap();
-    crate::wire::marshal::traits::ObjectPath::new("/A/B")
+    crate::wire::ObjectPath::new("/A/B")
         .unwrap()
         .marshal(ctx)
         .unwrap();

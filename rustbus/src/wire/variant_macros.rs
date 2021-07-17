@@ -388,12 +388,11 @@ fn test_variant_var_macro() {
 
     type StrRef<'buf> = &'buf str;
     // The point of the Path variant is to make sure types from other modules can be used. Do NOT change it to use a use-statement.
-    dbus_variant_var!(MyVariant, String => StrRef<'buf>; V2 => i32; Integer => u32; Path => crate::wire::marshal::traits::ObjectPath<&'buf str>);
+    dbus_variant_var!(MyVariant, String => StrRef<'buf>; V2 => i32; Integer => u32; Path => crate::wire::ObjectPath<&'buf str>);
     let v1 = MyVariant::String("ABCD");
     let v2 = MyVariant::V2(0);
     let v3 = MyVariant::Integer(100);
-    let object_path =
-        crate::wire::marshal::traits::ObjectPath::new("/org/freedesktop/DBus").unwrap();
+    let object_path = crate::wire::ObjectPath::new("/org/freedesktop/DBus").unwrap();
     let v4 = MyVariant::Path(object_path);
 
     (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();

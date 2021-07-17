@@ -300,8 +300,8 @@ mod test {
 
         ctx.buf.clear();
 
-        use crate::wire::marshal::traits::{ObjectPath, SignatureWrapper};
         use crate::wire::UnixFd;
+        use crate::wire::{ObjectPath, SignatureWrapper};
         let orig_fd = UnixFd::new(nix::unistd::dup(1).unwrap());
         let orig = (
             ObjectPath::new("/a/b/c").unwrap(),
@@ -336,7 +336,7 @@ mod test {
         use crate::message_builder::MarshalledMessageBody;
         use crate::params::{Array, Base, Container, Dict, Param, Variant as ParamVariant};
         use crate::signature::Type;
-        use crate::wire::marshal::traits::SignatureWrapper;
+        use crate::wire::SignatureWrapper;
         use std::collections::HashMap;
 
         // inital test data

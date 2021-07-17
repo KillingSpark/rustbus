@@ -70,7 +70,7 @@ fn verify_base_marshalling() {
         &[11, b'(', b'v', b'v', b'v', b')', b'a', b'a', b'{', b'i', b'i', b'}', b'\0']
     );
     ctx.buf.clear();
-    crate::wire::marshal::traits::SignatureWrapper::new("(vvv)aa{ii}")
+    crate::wire::SignatureWrapper::new("(vvv)aa{ii}")
         .unwrap()
         .marshal(ctx)
         .unwrap();
@@ -98,7 +98,7 @@ fn verify_base_marshalling() {
     marshal_base_param(&param, ctx).unwrap();
     assert_eq!(ctx.buf, &[5, 0, 0, 0, b'/', b'p', b'a', b't', b'h', b'\0']);
     ctx.buf.clear();
-    crate::wire::marshal::traits::ObjectPath::new("/path")
+    crate::wire::ObjectPath::new("/path")
         .unwrap()
         .marshal(ctx)
         .unwrap();

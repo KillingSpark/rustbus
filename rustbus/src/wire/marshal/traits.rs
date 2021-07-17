@@ -229,9 +229,9 @@ impl<P: Marshal> Marshal for &P {
 
 #[cfg(test)]
 mod test {
-    use super::MarshalContext;
-    use super::ObjectPath;
-    use super::SignatureWrapper;
+    use crate::wire::marshal::MarshalContext;
+    use crate::wire::ObjectPath;
+    use crate::wire::SignatureWrapper;
 
     #[test]
     fn test_trait_signature_creation() {

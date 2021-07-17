@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use rustbus::connection::dispatch_conn::HandleResult;
 use rustbus::connection::dispatch_conn::Matches;
 use rustbus::message_builder::MarshalledMessage;
-use rustbus::wire::marshal::traits::ObjectPath;
 use rustbus::wire::unmarshal::traits::Variant;
+use rustbus::wire::ObjectPath;
 
 use super::service;
 use example_keywallet::messages;

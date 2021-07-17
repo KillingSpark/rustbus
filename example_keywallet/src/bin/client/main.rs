@@ -46,11 +46,12 @@ fn main() {
             println!("Error: {}", resp.body.parser().get::<&str>().unwrap());
         }
         _ => {
-            let (unlocked, locked) = resp.body.parser().get2::<Vec<
-                rustbus::wire::marshal::traits::ObjectPath<&str>,
-            >, Vec<
-                rustbus::wire::marshal::traits::ObjectPath<&str>,
-            >>().unwrap();
+            let (unlocked, locked) = resp
+                .body
+                .parser()
+                .get2::<Vec<rustbus::wire::ObjectPath<&str>>, Vec<rustbus::wire::ObjectPath<&str>>>(
+                )
+                .unwrap();
             println!("Items found: (unlocked){:?} (locked){:?}", unlocked, locked);
         }
     };

@@ -2,7 +2,7 @@ use example_keywallet::messages;
 use rustbus::connection::dispatch_conn::HandleResult;
 use rustbus::connection::dispatch_conn::Matches;
 use rustbus::message_builder::MarshalledMessage;
-use rustbus::wire::marshal::traits::ObjectPath;
+use rustbus::wire::ObjectPath;
 
 pub fn handle_item_interface(
     ctx: &mut &mut super::Context,

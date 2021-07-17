@@ -1,6 +1,6 @@
 //! Data types needed for communication between service and client
 
-use rustbus::wire::marshal::traits::ObjectPath;
+use rustbus::wire::ObjectPath;
 use rustbus::Marshal;
 use rustbus::Signature;
 use rustbus::Unmarshal;

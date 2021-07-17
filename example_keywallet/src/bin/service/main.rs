@@ -8,7 +8,7 @@ use rustbus::connection::dispatch_conn::Matches;
 use rustbus::connection::get_session_bus_path;
 use rustbus::connection::ll_conn::DuplexConn;
 use rustbus::message_builder::MarshalledMessage;
-use rustbus::wire::marshal::traits::ObjectPath;
+use rustbus::wire::ObjectPath;
 
 mod collection_interface;
 mod item_interface;
