@@ -21,10 +21,8 @@ fn marshal_array(
 ) -> message::Result<()> {
     ctx.align_to(4);
     let len_pos = ctx.buf.len();
-    ctx.buf.push(0);
-    ctx.buf.push(0);
-    ctx.buf.push(0);
-    ctx.buf.push(0);
+    // placeholder. The lenght will be written here later
+    ctx.buf.extend_from_slice(&[0, 0, 0, 0]);
 
     // we need to pad here because the padding between length and first element does not count
     // into the length
@@ -61,10 +59,8 @@ fn marshal_variant(var: &params::Variant, ctx: &mut MarshalContext) -> message::
 fn marshal_dict(dict: &params::DictMap, ctx: &mut MarshalContext) -> message::Result<()> {
     ctx.align_to(4);
     let len_pos = ctx.buf.len();
-    ctx.buf.push(0);
-    ctx.buf.push(0);
-    ctx.buf.push(0);
-    ctx.buf.push(0);
+    // placeholder. The lenght will be written here later
+    ctx.buf.extend_from_slice(&[0, 0, 0, 0]);
 
     // elements are aligned to 8
     ctx.align_to(8);

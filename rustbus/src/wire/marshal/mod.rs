@@ -11,8 +11,9 @@ use crate::ByteOrder;
 
 use crate::wire::util::*;
 
-pub mod base;
-pub mod container;
+mod param;
+pub use param::base;
+pub use param::container;
 pub mod traits;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -83,19 +84,13 @@ fn marshal_header(
     buf.push(1);
 
     // Zero bytes where the length of the message will be put
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
+    buf.extend_from_slice(&[0, 0, 0, 0]);
 
     write_u32(chosen_serial, byteorder, buf);
 
     // Zero bytes where the length of the header fields will be put
     let pos = buf.len();
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
-    buf.push(0);
+    buf.extend_from_slice(&[0, 0, 0, 0]);
 
     if let Some(serial) = &msg.dynheader.response_serial {
         marshal_header_field(byteorder, &HeaderField::ReplySerial(*serial), buf)?;

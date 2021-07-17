@@ -14,8 +14,9 @@ use crate::wire::util::*;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
 
-pub mod base;
-pub mod container;
+mod param;
+pub use param::base;
+pub use param::container;
 pub mod iter;
 pub mod traits;
 

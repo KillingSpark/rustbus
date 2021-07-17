@@ -4,6 +4,7 @@ use crate::params;
 use crate::signature;
 use crate::wire::unmarshal;
 use crate::wire::unmarshal::base::unmarshal_base;
+use crate::wire::unmarshal::Error;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::util::*;
@@ -63,7 +64,7 @@ pub fn unmarshal_container<'a, 'e>(
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_array as usize {
                 if ctx.offset >= ctx.buf.len() {
-                    return Err(super::Error::NotEnoughBytes);
+                    return Err(Error::NotEnoughBytes);
                 }
 
                 let (bytes_used, element) = unmarshal_with_sig(&elem_sig, ctx)?;
@@ -93,7 +94,7 @@ pub fn unmarshal_container<'a, 'e>(
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_dict as usize {
                 if ctx.offset >= ctx.buf.len() {
-                    return Err(super::Error::NotEnoughBytes);
+                    return Err(Error::NotEnoughBytes);
                 }
 
                 let element_padding = align_offset(8, ctx.buf, ctx.offset)?;
@@ -126,7 +127,7 @@ pub fn unmarshal_container<'a, 'e>(
             let mut fields = Vec::new();
 
             if sigs.as_ref().is_empty() {
-                return Err(super::Error::EmptyStruct);
+                return Err(Error::EmptyStruct);
             }
 
             for field_sig in sigs.as_ref() {
