@@ -249,13 +249,18 @@ impl<S: AsRef<str>> Signature for ObjectPath<S> {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_static("o");
+    }
 }
 impl<S: AsRef<str>> Marshal for ObjectPath<S> {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         self.as_ref().marshal(ctx)
     }
 }
-impl Signature for SignatureWrapper<'_> {
+
+impl<S: AsRef<str>> Signature for SignatureWrapper<S> {
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Signature)
     }
@@ -267,7 +272,7 @@ impl Signature for SignatureWrapper<'_> {
         s_buf.push_static("g");
     }
 }
-impl Marshal for SignatureWrapper<'_> {
+impl<S: AsRef<str>> Marshal for SignatureWrapper<S> {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         crate::wire::util::write_signature(self.as_ref(), ctx.buf);
         Ok(())

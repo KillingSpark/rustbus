@@ -317,7 +317,7 @@ mod test {
             ]
         );
         let (_, (p, s, _fd)) =
-            <(ObjectPath<String>, SignatureWrapper, UnixFd) as Unmarshal>::unmarshal(
+            <(ObjectPath<String>, SignatureWrapper<&str>, UnixFd) as Unmarshal>::unmarshal(
                 &mut UnmarshalContext {
                     buf: ctx.buf,
                     fds: ctx.fds,
@@ -354,7 +354,7 @@ mod test {
             ),
             (
                 Base::Signature("sy".to_string()).into(),
-                SignatureWrapper::signature(),
+                SignatureWrapper::<String>::signature(),
             ),
             (Base::Boolean(true).into(), bool::signature()),
         ];

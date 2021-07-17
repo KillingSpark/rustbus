@@ -102,15 +102,18 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for String {
     }
 }
 
-impl<'buf, 'fds> Unmarshal<'buf, 'fds> for SignatureWrapper<'buf> {
+impl<'buf, 'fds, S: AsRef<str> + From<&'buf str> + Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds>
+    for SignatureWrapper<S>
+{
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         // No alignment needed. Signature is aligned to 1
         let (bytes, val) = util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
         ctx.offset += bytes;
-        let sig = SignatureWrapper::new(val)?;
+        let sig = SignatureWrapper::new(val.into())?;
         Ok((bytes, sig))
     }
 }
+
 impl<'buf, 'fds, S: AsRef<str> + Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for ObjectPath<S> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         let (bytes, val) = <S as Unmarshal>::unmarshal(ctx)?;
