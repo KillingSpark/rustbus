@@ -83,8 +83,8 @@ impl RecvConn {
             Some(&mut cmsgspace),
             flags,
         )
-        .map_err(|e| match e.as_errno() {
-            Some(nix::errno::Errno::EAGAIN) => Error::TimedOut,
+        .map_err(|e| match e {
+            nix::errno::Errno::EAGAIN => Error::TimedOut,
             _ => Error::NixError(e),
         });
 
