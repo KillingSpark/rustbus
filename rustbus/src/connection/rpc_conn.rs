@@ -113,11 +113,12 @@ impl RpcConn {
 
     /// Return a response if one is there or block until it arrives
     pub fn wait_response(&mut self, serial: u32, timeout: Timeout) -> Result<MarshalledMessage> {
+        let start_time = time::Instant::now();
         loop {
             if let Some(msg) = self.try_get_response(serial) {
                 return Ok(msg);
             }
-            self.refill_once(timeout)?;
+            self.refill_once(calc_timeout_left(&start_time, timeout)?)?;
         }
     }
 
@@ -128,11 +129,12 @@ impl RpcConn {
 
     /// Return a sginal if one is there or block until it arrives
     pub fn wait_signal(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
+        let start_time = time::Instant::now();
         loop {
             if let Some(msg) = self.try_get_signal() {
                 return Ok(msg);
             }
-            self.refill_once(timeout)?;
+            self.refill_once(calc_timeout_left(&start_time, timeout)?)?;
         }
     }
 
@@ -143,11 +145,12 @@ impl RpcConn {
 
     /// Return a call if one is there or block until it arrives
     pub fn wait_call(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
+        let start_time = time::Instant::now();
         loop {
             if let Some(msg) = self.try_get_call() {
                 return Ok(msg);
             }
-            self.refill_once(timeout)?;
+            self.refill_once(calc_timeout_left(&start_time, timeout)?)?;
         }
     }
 
