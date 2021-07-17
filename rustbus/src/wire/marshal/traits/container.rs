@@ -268,7 +268,6 @@ impl<T: Marshal + Signature> Signature for Variant<T> {
     }
 }
 
-
 impl<T: Marshal + Signature> Marshal for Variant<T> {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         self.0.marshal_as_variant(ctx)

@@ -48,7 +48,8 @@ fn test_fd_passing() {
 
     let fd_from_signal = sig.body.parser().get::<crate::wire::UnixFd>().unwrap();
 
-    let mut writefile = unsafe { std::fs::File::from_raw_fd(fd_from_signal.take_raw_fd().unwrap()) };
+    let mut writefile =
+        unsafe { std::fs::File::from_raw_fd(fd_from_signal.take_raw_fd().unwrap()) };
     writefile.write_all(TEST_STRING.as_bytes()).unwrap();
 
     let mut line = [0u8; 30];
@@ -69,9 +70,7 @@ fn send_fd(
 
     sig.dynheader.num_fds = Some(1);
 
-    sig.body
-        .push_param(fd)
-        .unwrap();
+    sig.body.push_param(fd).unwrap();
 
     con.send_message(&mut sig)?
         .write_all()
