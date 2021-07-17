@@ -421,15 +421,38 @@ impl MarshalledMessageBody {
         Ok(())
     }
 
+    /// execute some amount of push calls and if any of them fails, reset the body
+    // to the state it was in before the push calls where executed
+    fn push_mult_helper<F>(&mut self, push_calls: F) -> Result<(), crate::Error>
+    where
+        F: FnOnce(&mut MarshalledMessageBody) -> Result<(), crate::Error>,
+    {
+        let sig_len = self.sig.len();
+        let buf_len = self.buf.len();
+        let fds_len = self.raw_fds.len();
+
+        match push_calls(self) {
+            Ok(ret) => Ok(ret),
+            Err(e) => {
+                // reset state to before any of the push calls happened
+                self.sig.truncate(sig_len)?;
+                self.buf.truncate(buf_len);
+                self.raw_fds.truncate(fds_len);
+                Err(e)
+            }
+        }
+    }
+
     /// Append two things that are Marshal to the message body
     pub fn push_param2<P1: Marshal, P2: Marshal>(
         &mut self,
         p1: P1,
         p2: P2,
     ) -> Result<(), crate::Error> {
-        self.push_param(p1)?;
-        self.push_param(p2)?;
-        Ok(())
+        self.push_mult_helper(move |msg: &mut Self| {
+            msg.push_param(p1)?;
+            msg.push_param(p2)
+        })
     }
 
     /// Append three things that are Marshal to the message body
@@ -439,10 +462,11 @@ impl MarshalledMessageBody {
         p2: P2,
         p3: P3,
     ) -> Result<(), crate::Error> {
-        self.push_param(p1)?;
-        self.push_param(p2)?;
-        self.push_param(p3)?;
-        Ok(())
+        self.push_mult_helper(move |msg: &mut Self| {
+            msg.push_param(p1)?;
+            msg.push_param(p2)?;
+            msg.push_param(p3)
+        })
     }
 
     /// Append four things that are Marshal to the message body
@@ -453,11 +477,12 @@ impl MarshalledMessageBody {
         p3: P3,
         p4: P4,
     ) -> Result<(), crate::Error> {
-        self.push_param(p1)?;
-        self.push_param(p2)?;
-        self.push_param(p3)?;
-        self.push_param(p4)?;
-        Ok(())
+        self.push_mult_helper(move |msg: &mut Self| {
+            msg.push_param(p1)?;
+            msg.push_param(p2)?;
+            msg.push_param(p3)?;
+            msg.push_param(p4)
+        })
     }
 
     /// Append five things that are Marshal to the message body
@@ -469,12 +494,13 @@ impl MarshalledMessageBody {
         p4: P4,
         p5: P5,
     ) -> Result<(), crate::Error> {
-        self.push_param(p1)?;
-        self.push_param(p2)?;
-        self.push_param(p3)?;
-        self.push_param(p4)?;
-        self.push_param(p5)?;
-        Ok(())
+        self.push_mult_helper(move |msg: &mut Self| {
+            msg.push_param(p1)?;
+            msg.push_param(p2)?;
+            msg.push_param(p3)?;
+            msg.push_param(p4)?;
+            msg.push_param(p5)
+        })
     }
 
     /// Append any number of things that have the same type that is Marshal to the message body

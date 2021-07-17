@@ -139,6 +139,14 @@ impl SignatureBuffer {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub fn truncate(&mut self, new_len: usize) -> Result<(), crate::params::validation::Error> {
+        if new_len > 0 {
+            crate::params::validate_signature(&self.0.as_ref()[0..new_len])?;
+        }
+        self.0.to_mut().truncate(new_len);
+        Ok(())
+    }
 }
 impl std::ops::Deref for SignatureBuffer {
     type Target = str;
