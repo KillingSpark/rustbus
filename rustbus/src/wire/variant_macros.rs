@@ -63,18 +63,13 @@ macro_rules! dbus_variant_sig_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl $crate::Marshal for $vname {
             fn marshal(&self, ctx: &mut $crate::wire::marshal::MarshalContext) -> Result<(), $crate::Error> {
-                use $crate::Signature;
-
                 match self {
                     $(
                         Self::$name(v) => {
-                            let mut sig_str = String::new();
-                            <$typ as Signature>::signature().to_str(&mut sig_str);
-                            $crate::wire::marshal::base::marshal_base_param(
-                                &$crate::params::Base::Signature(sig_str),
-                                ctx,
-                            )
-                            .unwrap();
+                            let mut sig_str = $crate::wire::marshal::traits::SignatureBuffer::new();
+                            <$typ as $crate::Signature>::sig_str(&mut sig_str);
+                            let sig = $crate::wire::SignatureWrapper::new(sig_str.as_ref())?;
+                            sig.marshal(ctx)?;
                             v.marshal(ctx)?;
                         }
                     )+

@@ -46,15 +46,9 @@ fn test_fd_passing() {
         }
     };
 
-    // unmarshal content into params::Param
-    let sig = sig.unmarshall_all().unwrap();
+    let fd_from_signal = sig.body.parser().get::<crate::wire::UnixFd>().unwrap();
 
-    let fd_from_signal = match &sig.params[0] {
-        crate::params::Param::Base(crate::params::Base::UnixFd(fd)) => fd.get_raw_fd().unwrap(),
-        _ => panic!("Did not receive unixfd param"),
-    };
-
-    let mut writefile = unsafe { std::fs::File::from_raw_fd(fd_from_signal) };
+    let mut writefile = unsafe { std::fs::File::from_raw_fd(fd_from_signal.take_raw_fd().unwrap()) };
     writefile.write_all(TEST_STRING.as_bytes()).unwrap();
 
     let mut line = [0u8; 30];
@@ -76,7 +70,7 @@ fn send_fd(
     sig.dynheader.num_fds = Some(1);
 
     sig.body
-        .push_old_param(&crate::params::Param::Base(crate::params::Base::UnixFd(fd)))
+        .push_param(fd)
         .unwrap();
 
     con.send_message(&mut sig)?

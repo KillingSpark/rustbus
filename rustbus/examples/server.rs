@@ -71,10 +71,10 @@ fn main() -> Result<(), rustbus::connection::Error> {
     loop {
         println!("Wait for call");
         let call = rpc_con.wait_call(Timeout::Infinite)?;
-        let call = call.unmarshall_all()?;
         if rustbus::peer::handle_peer_message(&call, rpc_con.conn_mut()).unwrap() {
             continue;
         }
+        let call = call.unmarshall_all()?;
         println!("Got call: {:?}", call);
         if let Some(member) = &call.dynheader.member {
             let cmd = match member.as_str() {

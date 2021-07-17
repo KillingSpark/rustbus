@@ -251,6 +251,30 @@ impl<E: Marshal> Marshal for &[E] {
     }
 }
 
+pub struct Variant<T: Marshal + Signature>(T);
+
+impl<T: Marshal + Signature> Signature for Variant<T> {
+    #[inline]
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Container(crate::signature::Container::Variant)
+    }
+    #[inline]
+    fn alignment() -> usize {
+        1
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_static("v")
+    }
+}
+
+
+impl<T: Marshal + Signature> Marshal for Variant<T> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+        self.0.marshal_as_variant(ctx)
+    }
+}
+
 /// **_!!! This assumes that you are marshalling to the platforms byteorder !!!_**
 ///
 /// It just memcpy's the content of the array into the message. This is fine for all integer types, but you cannot use it for structs,

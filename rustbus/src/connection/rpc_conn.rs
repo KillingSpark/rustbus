@@ -22,12 +22,10 @@ pub struct RpcConn {
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
 /// ```rust,no_run
-/// use rustbus::{get_session_bus_path, standard_messages, DuplexConn, params::Container, params::DictMap, MessageBuilder, MessageType, RpcConn};
+/// use rustbus::{connection::Timeout, standard_messages, DuplexConn, MessageBuilder, MessageType, RpcConn};
 ///
 /// fn main() -> Result<(), rustbus::connection::Error> {
-///     let session_path = get_session_bus_path()?;
-///     let con = DuplexConn::connect_to_bus(session_path, true)?;
-///     let mut rpc_con = RpcConn::new(con);
+///     let mut rpc_con = RpcConn::session_conn(Timeout::Infinite).unwrap();
 ///
 ///     rpc_con.set_filter(Box::new(|msg| match msg.typ {
 ///     MessageType::Call => {

@@ -1,6 +1,6 @@
 use crate::connection::ll_conn::DuplexConn;
 use crate::message_builder::DynamicHeader;
-use crate::params::message::Message;
+use crate::message_builder::MarshalledMessage;
 
 static MACHINE_ID_FILE_PATH: &str = "/tmp/dbus_machine_uuid";
 
@@ -62,7 +62,7 @@ fn get_machine_id() -> Result<String, std::io::Error> {
 /// Handles messages that are of the org.freedesktop.DBus.Peer interface. Returns as a bool whether the message was actually
 /// of that interface and an Error if there were any while handling the message
 pub fn handle_peer_message(
-    msg: &Message,
+    msg: &MarshalledMessage,
     con: &mut DuplexConn,
 ) -> Result<bool, crate::connection::Error> {
     if let Some(interface) = &msg.dynheader.interface {
@@ -70,7 +70,7 @@ pub fn handle_peer_message(
             if let Some(member) = &msg.dynheader.member {
                 match member.as_str() {
                     "Ping" => {
-                        let reply = msg.make_response();
+                        let reply = msg.dynheader.make_response();
                         con.send
                             .send_message(&reply)?
                             .write_all()
@@ -78,7 +78,7 @@ pub fn handle_peer_message(
                         Ok(true)
                     }
                     "GetMachineId" => {
-                        let mut reply = msg.make_response();
+                        let mut reply = msg.dynheader.make_response();
                         reply.body.push_param(get_machine_id().unwrap()).unwrap();
                         con.send
                             .send_message(&reply)?

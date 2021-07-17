@@ -1,5 +1,4 @@
 //! Build new messages that you want to send over a connection
-
 use crate::params::message;
 use crate::wire::marshal::traits::{Marshal, SignatureBuffer};
 use crate::wire::marshal::MarshalContext;
@@ -319,11 +318,13 @@ pub fn marshal_as_variant<P: Marshal>(
     };
     let ctx = &mut ctx;
 
-    let mut sig_str = String::new();
-    P::signature().to_str(&mut sig_str);
-    crate::wire::marshal::base::marshal_base_param(&crate::params::Base::Signature(sig_str), ctx)
-        .unwrap();
+    // get signature string and write it to the buffer
+    let mut sig_str = SignatureBuffer::new();
+    P::sig_str(&mut sig_str);
+    let sig = crate::wire::SignatureWrapper::new(sig_str)?;
+    sig.marshal(ctx)?;
 
+    // the write the value to the buffer
     p.marshal(ctx)?;
     Ok(())
 }

@@ -49,9 +49,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
     println!("\n");
     println!("\n");
 
-    let msg = msg.unmarshall_all()?;
-
-    if let rustbus::params::Param::Base(rustbus::params::Base::Uint32(ret)) = msg.params[0] {
+    if let Ok(ret) = msg.body.parser().get::<u32>() {
         match ret {
             standard_messages::DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER => {
                 println!("Got name");
@@ -59,7 +57,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
             _ => panic!("Got other return: {}", ret),
         }
     } else {
-        panic!("Wrong args: {:?}", msg.params);
+        panic!("Wrong args: {:?}", msg.get_sig());
     }
 
     let list_serial = rpc_con

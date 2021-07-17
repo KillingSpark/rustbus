@@ -1,7 +1,6 @@
 use rustbus::message_builder;
 use rustbus::message_builder::MarshalledMessage;
-use rustbus::params;
-use rustbus::signature;
+use rustbus::wire::marshal::traits::Variant;
 
 // a typedef for the complicated case
 type ExecStartProp = Vec<(String, Vec<String>, bool)>;
@@ -19,14 +18,6 @@ fn systemd_sd1_call(method: &str) -> MarshalledMessage {
         .on(SD1_PATH)
         .at(SD1_DST)
         .build()
-}
-
-fn dbus_param_array<'a, 'e>(param: params::Array<'a, 'e>) -> params::Param<'a, 'e> {
-    params::Param::Container(params::Container::Array(param))
-}
-
-fn dbus_sig(input: &str) -> signature::Type {
-    signature::Type::parse_description(input).as_ref().unwrap()[0].clone()
 }
 
 fn systemd_start_transient_svc_call(
@@ -79,11 +70,9 @@ fn systemd_start_transient_svc_call(
     call.body.push_param(props).unwrap();
 
     // no aux units
+    // "(sa(sv))"
     call.body
-        .push_old_param(&dbus_param_array(params::Array {
-            element_sig: dbus_sig("(sa(sv))"),
-            values: vec![],
-        }))
+        .push_param::<&[(String, &[(String, Variant<u32>)])]>(&[])
         .unwrap();
 
     call
