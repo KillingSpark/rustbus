@@ -58,9 +58,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let mut msg = rustbus::message_builder::MessageBuilder::new()
         .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
+            "io.killing.spark",
+            "TestSignal",
+            "/io/killing/spark",
         )
         .build();
 
