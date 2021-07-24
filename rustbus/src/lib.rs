@@ -7,6 +7,7 @@
 //!     connection::Timeout,
 //!     get_session_bus_path,
 //!     DuplexConn,
+//!     RpcConn,
 //!     MessageBuilder,
 //!     connection::ll_conn::force_finish_on_error
 //! };
