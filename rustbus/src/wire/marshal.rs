@@ -29,6 +29,7 @@ pub struct MarshalContext<'fds, 'buf> {
 }
 
 impl MarshalContext<'_, '_> {
+    #[inline(always)]
     pub fn align_to(&mut self, alignment: usize) {
         pad_to_align(alignment, self.buf);
     }

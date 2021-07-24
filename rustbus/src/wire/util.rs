@@ -4,6 +4,7 @@ use crate::wire::unmarshal;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::ByteOrder;
 
+#[inline(always)]
 pub fn pad_to_align(align_to: usize, buf: &mut Vec<u8>) {
     let padding_needed = align_to - (buf.len() % align_to);
     if padding_needed != align_to {
