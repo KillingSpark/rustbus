@@ -3,13 +3,25 @@
 //!
 //! ## Quickstart
 //! ```rust,no_run
-//! use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder, connection::ll_conn::force_finish_on_error};
+//! use rustbus::{
+//!     connection::Timeout,
+//!     get_session_bus_path,
+//!     DuplexConn,
+//!     MessageBuilder,
+//!     connection::ll_conn::force_finish_on_error
+//! };
 //! fn main() -> Result<(), rustbus::connection::Error> {
-//!     /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
+//!     // To get a connection going you need to connect to a bus.
+//!     // You will likely use either the session or the system bus.
 //!     let session_path = get_session_bus_path()?;
 //!     let mut con = DuplexConn::connect_to_bus(session_path, true)?;
-//!     // Dont forget to send the obligatory hello message. send_hello wraps the call and parses the response for convenience.
+//!     // Dont forget to send the obligatory hello message.
+//!     // send_hello wraps the call and parses the response for convenience.
 //!     let unique_name = con.send_hello(Timeout::Infinite)?;
+//!
+//!     // Or use the more higher level abstraction of a RpcConn.
+//!     // This builds the connection and sends the hello for you
+//!     let mut rpc_con = RpcConn::session_conn(Timeout::Infinite).unwrap();
 //!
 //!     // Next you will probably want to create a new message to send out to the world
 //!     let mut sig = MessageBuilder::new()
@@ -20,14 +32,16 @@
 //!         )
 //!         .build();
 //!     
-//!     // To put parameters into that message you use the sig.body.push_param functions. These accept anything that can be marshalled into a dbus parameter
+//!     // To put parameters into that message you use the sig.body.push_param functions.
+//!     // These accept anything that can be marshalled into a dbus parameter
 //!     // You can derive or manually implement that trait for your own types if you need that.
 //!     sig.body.push_param("My cool new Signal!").unwrap();
 //!     
 //!     // Now send you signal to all that want to hear it!
 //!     con.send.send_message(&sig)?.write_all().map_err(force_finish_on_error)?;
 //!     
-//!     // To receive messages sent to you you can call the various functions on the RecvConn. The simplest is this:
+//!     // To receive messages sent to you you can call the various functions on the RecvConn.
+//!     // The simplest is this:
 //!     let message = con.recv.get_next_message(Timeout::Infinite)?;  
 //!     
 //!     // Now you can inspect the message.dynheader for all the metadata on the message

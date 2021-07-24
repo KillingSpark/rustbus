@@ -30,9 +30,14 @@ pub use container::*;
 /// ```rust
 /// struct MyStruct{ mycoolint: u64}
 /// use rustbus::wire::marshal::traits::Signature;
-/// use rustbus::wire::unmarshal::UnmarshalContext;
-/// use rustbus::wire::unmarshal;
 /// use rustbus::signature;
+/// use rustbus::wire::unmarshal;
+/// use rustbus::wire::unmarshal::UnmarshalContext;
+/// use rustbus::wire::unmarshal::traits::Unmarshal;
+/// use rustbus::wire::unmarshal::UnmarshalResult;
+/// use rustbus::wire::util;
+/// use rustbus::ByteOrder;
+///
 /// impl Signature for MyStruct {
 ///     fn signature() -> signature::Type {
 ///         signature::Type::Container(signature::Container::Struct(signature::StructTypes::new(vec![
@@ -43,11 +48,8 @@ pub use container::*;
 ///     fn alignment() -> usize {
 ///         8
 ///     }
-/// }  
-/// use rustbus::wire::unmarshal::traits::Unmarshal;
-/// use rustbus::wire::unmarshal::UnmarshalResult;
-/// use rustbus::wire::util;
-/// use rustbus::ByteOrder;
+/// }
+///
 /// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
 ///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
 ///         let start_offset = ctx.offset;
@@ -80,20 +82,41 @@ pub use container::*;
 ///
 /// As an example, lets assume your message contains a byte-array that is actually json data. Then you can use serde_json to unmarshal that array
 /// directly here without having to do a separate step for that.
-/// ```rust,ignore
-/// impl<'r, 'buf: 'r, 'fds> Unmarshal<'r, 'buf, 'fds> for MyStruct {
-///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+/// ```rust
+/// use rustbus::Unmarshal;
+/// use rustbus::wire::unmarshal::UnmarshalResult;
+/// use rustbus::wire::unmarshal::UnmarshalContext;
+/// use rustbus::wire::marshal::traits::Signature;
+/// use rustbus::signature;
+///
+/// struct MyStruct{ mycoolint: u64}
+/// impl Signature for MyStruct {
+///     fn signature() -> signature::Type {
+///         signature::Type::Container(signature::Container::Struct(signature::StructTypes::new(vec![
+///             u64::signature(),
+///         ]).unwrap()))
+///     }
+///
+///     fn alignment() -> usize {
+///         8
+///     }
+/// }
+///
+/// fn unmarshal_stuff_from_raw(raw: &[u8]) -> u64 { 0 }
+///
+/// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
+///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> UnmarshalResult<Self> {
 ///         let start_offset = ctx.offset;
 ///         // check that we are aligned properly
 ///         let padding = ctx.align_to(Self::alignment())?;
 ///
 ///         // get the slice that contains marshalled data, and unmarshal it directly here!
 ///         let (bytes, raw_data) = <&[u8] as Unmarshal>::unmarshal(ctx)?;
-///         let unmarshalled_stuff = external_crate::unmarshal_stuff(&raw_data);
+///         let unmarshalled_stuff = unmarshal_stuff_from_raw(&raw_data);
 ///
 ///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
 ///         let total_bytes = ctx.offset - start_offset;
-///         Ok((total_bytes, MyStruct{unmarshalled_stuff}))
+///         Ok((total_bytes, MyStruct{mycoolint: unmarshalled_stuff}))
 ///     }
 /// }
 /// ```

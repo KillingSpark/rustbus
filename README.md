@@ -36,43 +36,43 @@ The API is still very much in progress and breaking changes are to be expected.
 
 
 ## Quickstart
- ```rust
- use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
- fn main() -> Result<(), rustbus::connection::Error> {
-     /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
-     let session_path = get_session_bus_path()?;
-     let mut con = DuplexConn::connect_to_bus(session_path, true)?;
-     // Dont forget to send the obligatory hello message. send_hello wraps the call and parses the response for convenience.
-     let unique_name = con.send_hello(Timeout::Infinite)?;
+```rust
+use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
+fn main() -> Result<(), rustbus::connection::Error> {
+    /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
+    let session_path = get_session_bus_path()?;
+    let mut con = DuplexConn::connect_to_bus(session_path, true)?;
+    // Dont forget to send the obligatory hello message. send_hello wraps the call and parses the response for convenience.
+    let unique_name = con.send_hello(Timeout::Infinite)?;
 
-     // Next you will probably want to create a new message to send out to the world
-     let mut sig = MessageBuilder::new()
-         .signal(
-             "io.killing.spark".into(),
-             "TestSignal".into(),
-             "/io/killing/spark".into(),
-         )
-         .build();
-     
-     // To put parameters into that message you use the sig.body.push_param functions. These accept anything that can be marshalled into a dbus parameter
-     // You can derive or manually implement that trait for your own types if you need that.
-     sig.body.push_param("My cool new Signal!").unwrap();
-     
-     // Now send you signal to all that want to hear it!
-     con.send.send_message(&mut sig, Timeout::Infinite)?;
-     
-     // To receive messages sent to you you can call the various functions on the RecvConn. The simplest is this:
-     let message = con.recv.get_next_message(Timeout::Infinite)?;  
-     
-     // Now you can inspect the message.dynheader for all the metadata on the message
-     println!("The messages dynamic header: {:?}", message.dynheader);
+    // Next you will probably want to create a new message to send out to the world
+    let mut sig = MessageBuilder::new()
+        .signal(
+            "io.killing.spark".into(),
+            "TestSignal".into(),
+            "/io/killing/spark".into(),
+        )
+        .build();
 
-     // After inspecting that dynheader you should know which content the message should contain
-     let cool_string = message.body.parser().get::<&str>().unwrap();
-     println!("Received a cool string: {}", cool_string);
-     Ok(())
- }
- ```
+    // To put parameters into that message you use the sig.body.push_param functions. These accept anything that can be marshalled into a dbus parameter
+    // You can derive or manually implement that trait for your own types if you need that.
+    sig.body.push_param("My cool new Signal!").unwrap();
+
+    // Now send you signal to all that want to hear it!
+    con.send.send_message(&mut sig, Timeout::Infinite)?;
+
+    // To receive messages sent to you you can call the various functions on the RecvConn. The simplest is this:
+    let message = con.recv.get_next_message(Timeout::Infinite)?;
+
+    // Now you can inspect the message.dynheader for all the metadata on the message
+    println!("The messages dynamic header: {:?}", message.dynheader);
+
+    // After inspecting that dynheader you should know which content the message should contain
+    let cool_string = message.body.parser().get::<&str>().unwrap();
+    println!("Received a cool string: {}", cool_string);
+    Ok(())
+}
+```
 
  ## Other connection Types
  There are some more connection types in the connection module. These are convenience wrappes around the concepts presented in the quickstart.
