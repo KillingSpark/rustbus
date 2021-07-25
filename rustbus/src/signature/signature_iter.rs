@@ -1,5 +1,4 @@
-
-/// Implements an iterator over signatures contained in a &str. 
+/// Implements an iterator over signatures contained in a &str.
 /// This does not validate the content, it expects a valid signature.
 /// ```rust
 /// use rustbus::signature::SignatureIter;

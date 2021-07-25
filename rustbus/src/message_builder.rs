@@ -936,16 +936,25 @@ mod tests {
         assert_eq!(parser.get(), Ok(100u32));
         assert_eq!(parser.get(), Ok(200i32));
         assert_eq!(parser.get(), Ok("ABCDEFGH"));
-        assert_eq!(parser.get::<String>(), Err(crate::wire::unmarshal::Error::EndOfMessage));
+        assert_eq!(
+            parser.get::<String>(),
+            Err(crate::wire::unmarshal::Error::EndOfMessage)
+        );
 
         let mut parser = sig.body.parser();
         assert_eq!(parser.get2(), Ok((100u32, 200i32)));
         assert_eq!(parser.get(), Ok("ABCDEFGH"));
-        assert_eq!(parser.get::<String>(), Err(crate::wire::unmarshal::Error::EndOfMessage));
+        assert_eq!(
+            parser.get::<String>(),
+            Err(crate::wire::unmarshal::Error::EndOfMessage)
+        );
 
         let mut parser = sig.body.parser();
         assert_eq!(parser.get3(), Ok((100u32, 200i32, "ABCDEFGH")));
-        assert_eq!(parser.get::<String>(), Err(crate::wire::unmarshal::Error::EndOfMessage));
+        assert_eq!(
+            parser.get::<String>(),
+            Err(crate::wire::unmarshal::Error::EndOfMessage)
+        );
 
         let mut sig = super::MessageBuilder::new()
             .signal("io.killingspark", "Signal", "/io/killingspark/Signaler")
@@ -956,7 +965,7 @@ mod tests {
         sig.body.push_param((100u32, 200i32, "ABCDEFGH")).unwrap();
 
         let mut parser = sig.body.parser();
-        assert!(parser.get::<(u32,i32,&str)>().is_ok());
-        assert!(parser.get2::<(u32,i32,&str), (u32,i32,&str)>().is_ok());
+        assert!(parser.get::<(u32, i32, &str)>().is_ok());
+        assert!(parser.get2::<(u32, i32, &str), (u32, i32, &str)>().is_ok());
     }
 }
