@@ -792,7 +792,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
                 Err(e) => Err(e),
             }
         } else {
-            return Err(crate::wire::unmarshal::Error::EndOfMessage);
+            Err(crate::wire::unmarshal::Error::EndOfMessage)
         }
     }
     /// Perform error handling for `get2(), get3()...` if `get_calls` fails.
@@ -917,7 +917,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
                 Err(e) => Err(e),
             }
         } else {
-            return Err(crate::wire::unmarshal::Error::EndOfMessage);
+            Err(crate::wire::unmarshal::Error::EndOfMessage)
         }
     }
 }

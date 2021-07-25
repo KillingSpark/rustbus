@@ -16,12 +16,12 @@ pub struct SignatureIter<'a> {
 impl<'a> SignatureIter<'a> {
     /// This does not validate the content, it expects a valid signature.
     pub fn new(sigs: &'a str) -> SignatureIter<'a> {
-        SignatureIter { sigs, idx: 0 }
+        SignatureIter { idx: 0, sigs }
     }
 
     /// This does not validate the content, it expects a valid signature.
     pub fn new_at_idx(sigs: &'a str, idx: usize) -> SignatureIter<'a> {
-        SignatureIter { sigs, idx }
+        SignatureIter { idx, sigs }
     }
 }
 
