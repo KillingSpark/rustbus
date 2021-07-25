@@ -1,5 +1,6 @@
 //! Build new messages that you want to send over a connection
 use crate::params::message;
+use crate::signature::SignatureIter;
 use crate::wire::marshal::traits::{Marshal, SignatureBuffer};
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal::UnmarshalContext;
@@ -738,60 +739,60 @@ use crate::wire::unmarshal::traits::Unmarshal;
 pub struct MessageBodyParser<'body> {
     buf_idx: usize,
     sig_idx: usize,
-    sigs: Vec<crate::signature::Type>,
     body: &'body MarshalledMessageBody,
 }
 
-impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
+impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
     pub fn new(body: &'body MarshalledMessageBody) -> Self {
-        let sigs = match crate::signature::Type::parse_description(&body.sig) {
-            Ok(sigs) => sigs,
-            Err(e) => match e {
-                crate::signature::Error::EmptySignature => Vec::new(),
-                _ => panic!("MarshalledMessageBody has bad signature: {:?}", e),
-            },
-        };
         Self {
             buf_idx: 0,
             sig_idx: 0,
-            sigs,
             body,
         }
     }
 
-    /// Get the next params signature (if any are left)
-    pub fn get_next_sig(&self) -> Option<&crate::signature::Type> {
-        self.sigs.get(self.sig_idx)
+    #[inline(always)]
+    fn sig_iter(&self) -> SignatureIter<'body> {
+        SignatureIter::new_at_idx(self.body.sig.as_str(), self.sig_idx)
     }
 
-    /// Get the remaining params signature (if any are left)
-    pub fn get_left_sigs(&self) -> Option<&[crate::signature::Type]> {
-        self.sigs.get(self.sig_idx..)
+    /// Get the next params signature (if any are left)
+    #[inline(always)]
+    pub fn get_next_sig(&self) -> Option<&'body str> {
+        self.sig_iter().next()
+    }
+
+    #[inline(always)]
+    pub fn sigs_left(&self) -> usize {
+        self.sig_iter().count()
     }
 
     /// Get the next param, use get::<TYPE> to specify what type you expect. For example `let s = parser.get::<String>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get<T: Unmarshal<'body, 'fds>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
-        if self.sig_idx >= self.sigs.len() {
-            return Err(crate::wire::unmarshal::Error::EndOfMessage);
-        }
-        if self.sigs[self.sig_idx] != T::signature() {
-            return Err(crate::wire::unmarshal::Error::WrongSignature);
-        }
-
-        let mut ctx = UnmarshalContext {
-            byteorder: self.body.byteorder,
-            buf: &self.body.buf,
-            offset: self.buf_idx,
-            fds: &self.body.raw_fds,
-        };
-        match T::unmarshal(&mut ctx) {
-            Ok((bytes, res)) => {
-                self.buf_idx += bytes;
-                self.sig_idx += 1;
-                Ok(res)
+        if let Some(expected_sig) = self.get_next_sig() {
+            let mut s_buf = SignatureBuffer::new();
+            T::sig_str(&mut s_buf);
+            if expected_sig != s_buf.as_str() {
+                return Err(crate::wire::unmarshal::Error::WrongSignature);
             }
-            Err(e) => Err(e),
+
+            let mut ctx = UnmarshalContext {
+                byteorder: self.body.byteorder,
+                buf: &self.body.buf,
+                offset: self.buf_idx,
+                fds: &self.body.raw_fds,
+            };
+            match T::unmarshal(&mut ctx) {
+                Ok((bytes, res)) => {
+                    self.buf_idx += bytes;
+                    self.sig_idx += expected_sig.len();
+                    Ok(res)
+                }
+                Err(e) => Err(e),
+            }
+        } else {
+            return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
     }
     /// Perform error handling for `get2(), get3()...` if `get_calls` fails.
@@ -803,7 +804,7 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
     where
         F: FnOnce(&mut Self) -> Result<T, crate::wire::unmarshal::Error>,
     {
-        if self.sig_idx + count > self.sigs.len() {
+        if count > self.sigs_left() {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
         let start_sig_idx = self.sig_idx;
@@ -897,27 +898,65 @@ impl<'ret, 'fds, 'body: 'ret + 'fds> MessageBodyParser<'body> {
     /// Get the next (old_style) param.
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get_param(&mut self) -> Result<crate::params::Param, crate::wire::unmarshal::Error> {
-        if self.sig_idx >= self.sigs.len() {
+        if let Some(sig_str) = self.get_next_sig() {
+            let mut ctx = UnmarshalContext {
+                byteorder: self.body.byteorder,
+                buf: &self.body.buf,
+                offset: self.buf_idx,
+                fds: &self.body.raw_fds,
+            };
+
+            let sig = &crate::signature::Type::parse_description(sig_str).unwrap()[0];
+
+            match crate::wire::unmarshal::container::unmarshal_with_sig(sig, &mut ctx) {
+                Ok((bytes, res)) => {
+                    self.buf_idx += bytes;
+                    self.sig_idx += sig_str.len();
+                    Ok(res)
+                }
+                Err(e) => Err(e),
+            }
+        } else {
             return Err(crate::wire::unmarshal::Error::EndOfMessage);
         }
+    }
+}
 
-        let mut ctx = UnmarshalContext {
-            byteorder: self.body.byteorder,
-            buf: &self.body.buf,
-            offset: self.buf_idx,
-            fds: &self.body.raw_fds,
-        };
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn parser_get() {
+        let mut sig = super::MessageBuilder::new()
+            .signal("io.killingspark", "Signal", "/io/killingspark/Signaler")
+            .build();
 
-        match crate::wire::unmarshal::container::unmarshal_with_sig(
-            &self.sigs[self.sig_idx],
-            &mut ctx,
-        ) {
-            Ok((bytes, res)) => {
-                self.buf_idx += bytes;
-                self.sig_idx += 1;
-                Ok(res)
-            }
-            Err(e) => Err(e),
-        }
+        sig.body.push_param3(100u32, 200i32, "ABCDEFGH").unwrap();
+
+        let mut parser = sig.body.parser();
+        assert_eq!(parser.get(), Ok(100u32));
+        assert_eq!(parser.get(), Ok(200i32));
+        assert_eq!(parser.get(), Ok("ABCDEFGH"));
+        assert_eq!(parser.get::<String>(), Err(crate::wire::unmarshal::Error::EndOfMessage));
+
+        let mut parser = sig.body.parser();
+        assert_eq!(parser.get2(), Ok((100u32, 200i32)));
+        assert_eq!(parser.get(), Ok("ABCDEFGH"));
+        assert_eq!(parser.get::<String>(), Err(crate::wire::unmarshal::Error::EndOfMessage));
+
+        let mut parser = sig.body.parser();
+        assert_eq!(parser.get3(), Ok((100u32, 200i32, "ABCDEFGH")));
+        assert_eq!(parser.get::<String>(), Err(crate::wire::unmarshal::Error::EndOfMessage));
+
+        let mut sig = super::MessageBuilder::new()
+            .signal("io.killingspark", "Signal", "/io/killingspark/Signaler")
+            .build();
+
+        sig.body.push_param((100u32, 200i32, "ABCDEFGH")).unwrap();
+        sig.body.push_param((100u32, 200i32, "ABCDEFGH")).unwrap();
+        sig.body.push_param((100u32, 200i32, "ABCDEFGH")).unwrap();
+
+        let mut parser = sig.body.parser();
+        assert!(parser.get::<(u32,i32,&str)>().is_ok());
+        assert!(parser.get2::<(u32,i32,&str), (u32,i32,&str)>().is_ok());
     }
 }

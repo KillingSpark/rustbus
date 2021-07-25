@@ -1,5 +1,8 @@
 //! Everything needed to deal with dbus signatures
 
+mod signature_iter;
+pub use signature_iter::*;
+
 /// Base types that might occur in a signature
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Base {
