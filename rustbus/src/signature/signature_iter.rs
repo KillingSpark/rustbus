@@ -1,13 +1,26 @@
+
+/// Implements an iterator over signatures contained in a &str. 
+/// This does not validate the content, it expects a valid signature.
+/// ```rust
+/// use rustbus::signature::SignatureIter;
+/// let mut iter = SignatureIter::new("s(x)a(xxy)a{s(st)}");
+/// assert_eq!(iter.next(), Some("s"));
+/// assert_eq!(iter.next(), Some("(x)"));
+/// assert_eq!(iter.next(), Some("a(xxy)"));
+/// assert_eq!(iter.next(), Some("a{s(st)}"));
+/// ```
 pub struct SignatureIter<'a> {
     idx: usize,
     sigs: &'a str,
 }
 
 impl<'a> SignatureIter<'a> {
+    /// This does not validate the content, it expects a valid signature.
     pub fn new(sigs: &'a str) -> SignatureIter<'a> {
         SignatureIter { sigs, idx: 0 }
     }
 
+    /// This does not validate the content, it expects a valid signature.
     pub fn new_at_idx(sigs: &'a str, idx: usize) -> SignatureIter<'a> {
         SignatureIter { sigs, idx }
     }
