@@ -303,7 +303,7 @@ impl Signature for Variant<'_, '_> {
         s_buf.push_static("v");
     }
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('v')
+        sig.starts_with('v')
     }
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {

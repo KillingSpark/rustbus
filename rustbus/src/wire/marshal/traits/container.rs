@@ -16,7 +16,7 @@ impl<E: Signature> Signature for (E,) {
         8
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.chars().nth(0).unwrap() == '(' {
+        if sig.starts_with('(') {
             let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
             E::has_sig(iter.next().unwrap())
         } else {
@@ -49,7 +49,7 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.chars().nth(0).unwrap() == '(' {
+        if sig.starts_with('(') {
             let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
             E1::has_sig(iter.next().unwrap()) && E2::has_sig(iter.next().unwrap())
         } else {
@@ -90,7 +90,7 @@ impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.chars().nth(0).unwrap() == '(' {
+        if sig.starts_with('(') {
             let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
             E1::has_sig(iter.next().unwrap())
                 && E2::has_sig(iter.next().unwrap())
@@ -135,7 +135,7 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.chars().nth(0).unwrap() == '(' {
+        if sig.starts_with('(') {
             let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
             E1::has_sig(iter.next().unwrap())
                 && E2::has_sig(iter.next().unwrap())
@@ -186,7 +186,7 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> 
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.chars().nth(0).unwrap() == '(' {
+        if sig.starts_with('(') {
             let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
             E1::has_sig(iter.next().unwrap())
                 && E2::has_sig(iter.next().unwrap())
@@ -234,7 +234,7 @@ impl<E: Signature> Signature for [E] {
         E::sig_str(s_buf);
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.chars().nth(0).unwrap() == 'a' {
+        if let Some(_prefix) = sig.strip_prefix('a') {
             let mut iter = SignatureIter::new(&sig[1..]);
             E::has_sig(iter.next().unwrap())
         } else {
@@ -328,7 +328,7 @@ impl<T: Marshal + Signature> Signature for Variant<T> {
         s_buf.push_static("v")
     }
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('v')
+        sig.starts_with('v')
     }
 }
 

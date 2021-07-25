@@ -37,7 +37,7 @@ macro_rules! dbus_variant_sig {
                 s_buf.push_static("v");
             }
             fn has_sig(sig: &str) -> bool {
-                sig.chars().nth(0) == Some('v')
+                sig.starts_with('v')
             }
         }
 
@@ -301,7 +301,7 @@ macro_rules! dbus_variant_var {
                 s_buf.push_static("v");
             }
             fn has_sig(sig: &str) -> bool {
-                sig.chars().nth(0) == Some('v')
+                sig.starts_with('v')
             }
         }
 

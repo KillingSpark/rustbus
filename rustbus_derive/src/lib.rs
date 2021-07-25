@@ -179,7 +179,7 @@ fn struct_field_has_sigs(fields: &syn::Fields) -> TokenStream {
     }
 
     quote! {
-        if sig.chars().nth(0).unwrap() == '(' {
+        if sig.starts_with('(') {
             let mut iter = ::rustbus::signature::SignatureIter::new(&sig[1..sig.len() - 1]);
             let mut accu = true;
 

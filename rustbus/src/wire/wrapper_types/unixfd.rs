@@ -148,7 +148,7 @@ impl Signature for UnixFd {
         s_buf.push_static("h");
     }
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('h')
+        sig.starts_with('h')
     }
 }
 impl Marshal for UnixFd {

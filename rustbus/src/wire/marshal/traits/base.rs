@@ -27,7 +27,7 @@ impl Signature for u64 {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('t')
+        sig.starts_with('t')
     }
 }
 impl Marshal for u64 {
@@ -58,7 +58,7 @@ impl Signature for i64 {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('x')
+        sig.starts_with('x')
     }
 }
 impl Marshal for i64 {
@@ -90,7 +90,7 @@ impl Signature for u32 {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('u')
+        sig.starts_with('u')
     }
 }
 impl Marshal for u32 {
@@ -121,7 +121,7 @@ impl Signature for i32 {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('i')
+        sig.starts_with('i')
     }
 }
 impl Marshal for i32 {
@@ -153,7 +153,7 @@ impl Signature for u16 {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('q')
+        sig.starts_with('q')
     }
 }
 impl Marshal for u16 {
@@ -184,7 +184,7 @@ impl Signature for i16 {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('n')
+        sig.starts_with('n')
     }
 }
 impl Marshal for i16 {
@@ -216,7 +216,7 @@ impl Signature for u8 {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('y')
+        sig.starts_with('y')
     }
 }
 impl Marshal for u8 {
@@ -242,7 +242,7 @@ impl Signature for bool {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('b')
+        sig.starts_with('b')
     }
 }
 impl Marshal for bool {
@@ -267,7 +267,7 @@ impl Signature for String {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('s')
+        sig.starts_with('s')
     }
 }
 impl Marshal for String {
@@ -319,7 +319,7 @@ impl<S: AsRef<str>> Signature for ObjectPath<S> {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('o')
+        sig.starts_with('o')
     }
 }
 impl<S: AsRef<str>> Marshal for ObjectPath<S> {
@@ -344,7 +344,7 @@ impl<S: AsRef<str>> Signature for SignatureWrapper<S> {
     }
     #[inline]
     fn has_sig(sig: &str) -> bool {
-        sig.chars().nth(0) == Some('g')
+        sig.starts_with('g')
     }
 }
 impl<S: AsRef<str>> Marshal for SignatureWrapper<S> {
