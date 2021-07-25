@@ -32,6 +32,13 @@ macro_rules! dbus_variant_sig {
             fn alignment() -> usize {
                 1
             }
+            #[inline]
+            fn sig_str(s_buf: &mut $crate::wire::marshal::traits::SignatureBuffer) {
+                s_buf.push_static("v");
+            }
+            fn has_sig(sig: &str) -> bool {
+                sig.chars().nth(0) == Some('v')
+            }
         }
 
         dbus_variant_sig_marshal!($vname, $(
@@ -288,6 +295,13 @@ macro_rules! dbus_variant_var {
             }
             fn alignment() -> usize {
                 1
+            }
+            #[inline]
+            fn sig_str(s_buf: &mut $crate::wire::marshal::traits::SignatureBuffer) {
+                s_buf.push_static("v");
+            }
+            fn has_sig(sig: &str) -> bool {
+                sig.chars().nth(0) == Some('v')
             }
         }
 

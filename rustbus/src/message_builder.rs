@@ -591,6 +591,13 @@ fn test_marshal_trait() {
         fn alignment() -> usize {
             8
         }
+        #[inline]
+        fn sig_str(s_buf: &mut crate::wire::marshal::traits::SignatureBuffer) {
+            s_buf.push_static("(ts)")
+        }
+        fn has_sig(sig: &str) -> bool {
+            sig == "(ts)"
+        }
     }
     impl Marshal for &MyStruct {
         fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -771,9 +778,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get<T: Unmarshal<'body, 'fds>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
         if let Some(expected_sig) = self.get_next_sig() {
-            let mut s_buf = SignatureBuffer::new();
-            T::sig_str(&mut s_buf);
-            if expected_sig != s_buf.as_str() {
+            if !T::has_sig(expected_sig) {
                 return Err(crate::wire::unmarshal::Error::WrongSignature);
             }
 

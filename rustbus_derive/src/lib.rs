@@ -97,6 +97,7 @@ fn make_struct_signature_impl(
 ) -> TokenStream {
     let (impl_gen, typ_gen, clause_gen) = generics.split_for_impl();
     let signature = struct_field_sigs(fields);
+    let has_sig = struct_field_has_sigs(fields);
 
     quote! {
         impl #impl_gen ::rustbus::Signature for #ident #typ_gen #clause_gen {
@@ -106,6 +107,9 @@ fn make_struct_signature_impl(
             }
             fn alignment() -> usize {
                 8
+            }
+            fn has_sig(sig: &str) -> bool {
+                #has_sig
             }
         }
     }
@@ -163,5 +167,29 @@ fn struct_field_sigs(fields: &syn::Fields) -> TokenStream {
             ::rustbus::signature::Type::Container(::rustbus::signature::Container::Struct(
                 ::rustbus::signature::StructTypes::new(sigs).unwrap()
             ))
+    }
+}
+fn struct_field_has_sigs(fields: &syn::Fields) -> TokenStream {
+    let field_types = fields
+        .iter()
+        .map(|field| field.ty.to_token_stream())
+        .collect::<Vec<_>>();
+    if field_types.is_empty() {
+        panic!("Signature can not be derived for empty structs!")
+    }
+
+    quote! {
+        if sig.chars().nth(0).unwrap() == '(' {
+            let mut iter = ::rustbus::signature::SignatureIter::new(&sig[1..sig.len() - 1]);
+            let mut accu = true;
+
+            #(
+                accu &= <#field_types as rustbus::Signature>::has_sig(iter.next().unwrap());
+            )*
+
+            accu
+        } else {
+            false
+        }
     }
 }

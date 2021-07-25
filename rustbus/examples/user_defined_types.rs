@@ -40,6 +40,10 @@ impl Signature for &MyType {
         ))
     }
 
+    fn has_sig(sig: &str) -> bool {
+        sig == "(t(sv))"
+    }
+
     fn alignment() -> usize {
         8
     }
@@ -90,6 +94,10 @@ impl Signature for &MySubType {
     fn alignment() -> usize {
         8
     }
+
+    fn has_sig(sig: &str) -> bool {
+        sig == "(ii)"
+    }
 }
 impl Marshal for &MySubType {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
@@ -110,6 +118,10 @@ impl Signature for &MyOtherSubType {
 
     fn alignment() -> usize {
         8
+    }
+
+    fn has_sig(sig: &str) -> bool {
+        sig == "(uu)"
     }
 }
 impl Marshal for &MyOtherSubType {

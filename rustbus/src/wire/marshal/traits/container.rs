@@ -1,5 +1,6 @@
 //! This contains the implementations for the `Marshal` trait for container types like lists and dicts
 
+use crate::signature::SignatureIter;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
 use crate::Marshal;
@@ -13,6 +14,14 @@ impl<E: Signature> Signature for (E,) {
     }
     fn alignment() -> usize {
         8
+    }
+    fn has_sig(sig: &str) -> bool {
+        if sig.chars().nth(0).unwrap() == '(' {
+            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
+            E::has_sig(iter.next().unwrap())
+        } else {
+            false
+        }
     }
 }
 impl<E: Marshal> Marshal for (E,) {
@@ -38,6 +47,14 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
         E1::sig_str(s_buf);
         E2::sig_str(s_buf);
         s_buf.push_str(")");
+    }
+    fn has_sig(sig: &str) -> bool {
+        if sig.chars().nth(0).unwrap() == '(' {
+            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
+            E1::has_sig(iter.next().unwrap()) && E2::has_sig(iter.next().unwrap())
+        } else {
+            false
+        }
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
@@ -71,6 +88,16 @@ impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
         E2::sig_str(s_buf);
         E3::sig_str(s_buf);
         s_buf.push_str(")");
+    }
+    fn has_sig(sig: &str) -> bool {
+        if sig.chars().nth(0).unwrap() == '(' {
+            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
+            E1::has_sig(iter.next().unwrap())
+                && E2::has_sig(iter.next().unwrap())
+                && E3::has_sig(iter.next().unwrap())
+        } else {
+            false
+        }
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
@@ -106,6 +133,17 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (
         E3::sig_str(s_buf);
         E4::sig_str(s_buf);
         s_buf.push_str(")");
+    }
+    fn has_sig(sig: &str) -> bool {
+        if sig.chars().nth(0).unwrap() == '(' {
+            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
+            E1::has_sig(iter.next().unwrap())
+                && E2::has_sig(iter.next().unwrap())
+                && E3::has_sig(iter.next().unwrap())
+                && E4::has_sig(iter.next().unwrap())
+        } else {
+            false
+        }
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
@@ -147,6 +185,18 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> 
         E5::sig_str(s_buf);
         s_buf.push_str(")");
     }
+    fn has_sig(sig: &str) -> bool {
+        if sig.chars().nth(0).unwrap() == '(' {
+            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
+            E1::has_sig(iter.next().unwrap())
+                && E2::has_sig(iter.next().unwrap())
+                && E3::has_sig(iter.next().unwrap())
+                && E4::has_sig(iter.next().unwrap())
+                && E5::has_sig(iter.next().unwrap())
+        } else {
+            false
+        }
+    }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
     for (E1, E2, E3, E4, E5)
@@ -183,6 +233,14 @@ impl<E: Signature> Signature for [E] {
         s_buf.push_str("a");
         E::sig_str(s_buf);
     }
+    fn has_sig(sig: &str) -> bool {
+        if sig.chars().nth(0).unwrap() == 'a' {
+            let mut iter = SignatureIter::new(&sig[1..]);
+            E::has_sig(iter.next().unwrap())
+        } else {
+            false
+        }
+    }
 }
 impl<E: Marshal> Marshal for [E] {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -202,6 +260,9 @@ impl<E: Signature> Signature for &[E] {
     #[inline]
     fn sig_str(s_buf: &mut SignatureBuffer) {
         <[E]>::sig_str(s_buf)
+    }
+    fn has_sig(sig: &str) -> bool {
+        <[E]>::has_sig(sig)
     }
 }
 use crate::wire::util::write_u32;
@@ -266,6 +327,9 @@ impl<T: Marshal + Signature> Signature for Variant<T> {
     fn sig_str(s_buf: &mut SignatureBuffer) {
         s_buf.push_static("v")
     }
+    fn has_sig(sig: &str) -> bool {
+        sig.chars().nth(0) == Some('v')
+    }
 }
 
 impl<T: Marshal + Signature> Marshal for Variant<T> {
@@ -287,6 +351,20 @@ impl<K: Signature, V: Signature> Signature for std::collections::HashMap<K, V> {
 
     fn alignment() -> usize {
         4
+    }
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_str("a{");
+        K::sig_str(s_buf);
+        V::sig_str(s_buf);
+        s_buf.push_str("}");
+    }
+    fn has_sig(sig: &str) -> bool {
+        if sig.starts_with("a{") {
+            let mut iter = SignatureIter::new(&sig[2..sig.len() - 1]);
+            K::has_sig(iter.next().unwrap()) && V::has_sig(iter.next().unwrap())
+        } else {
+            false
+        }
     }
 }
 

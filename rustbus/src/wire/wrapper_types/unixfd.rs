@@ -1,3 +1,4 @@
+use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::{Marshal, Signature, Unmarshal};
@@ -142,6 +143,13 @@ impl Signature for UnixFd {
     fn alignment() -> usize {
         Self::signature().get_alignment()
     }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_static("h");
+    }
+    fn has_sig(sig: &str) -> bool {
+        sig.chars().nth(0) == Some('h')
+    }
 }
 impl Marshal for UnixFd {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
@@ -150,10 +158,17 @@ impl Marshal for UnixFd {
 }
 impl Signature for &dyn std::os::unix::io::AsRawFd {
     fn signature() -> crate::signature::Type {
-        crate::signature::Type::Base(crate::signature::Base::UnixFd)
+        UnixFd::signature()
     }
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        UnixFd::alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        UnixFd::sig_str(s_buf)
+    }
+    fn has_sig(sig: &str) -> bool {
+        UnixFd::has_sig(sig)
     }
 }
 impl Marshal for &dyn std::os::unix::io::AsRawFd {

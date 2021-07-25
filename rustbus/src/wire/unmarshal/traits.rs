@@ -35,6 +35,7 @@ pub use container::*;
 /// use rustbus::wire::unmarshal::UnmarshalContext;
 /// use rustbus::wire::unmarshal::traits::Unmarshal;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
+/// use rustbus::wire::marshal::traits::SignatureBuffer;
 /// use rustbus::wire::util;
 /// use rustbus::ByteOrder;
 ///
@@ -47,6 +48,12 @@ pub use container::*;
 ///
 ///     fn alignment() -> usize {
 ///         8
+///     }
+///     fn sig_str(s_buf: &mut SignatureBuffer) {
+///         s_buf.push_static("(ts)");
+///     }
+///     fn has_sig(sig: &str) -> bool {
+///         sig == "(ts)"
 ///     }
 /// }
 ///
@@ -87,6 +94,7 @@ pub use container::*;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
 /// use rustbus::wire::unmarshal::UnmarshalContext;
 /// use rustbus::wire::marshal::traits::Signature;
+/// use rustbus::wire::marshal::traits::SignatureBuffer;
 /// use rustbus::signature;
 ///
 /// struct MyStruct{ mycoolint: u64}
@@ -99,6 +107,12 @@ pub use container::*;
 ///
 ///     fn alignment() -> usize {
 ///         8
+///     }
+///     fn sig_str(s_buf: &mut SignatureBuffer) {
+///         s_buf.push_static("(ts)");
+///     }
+///     fn has_sig(sig: &str) -> bool {
+///         sig == "(ts)"
 ///     }
 /// }
 ///

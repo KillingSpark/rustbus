@@ -1,6 +1,7 @@
 //! This contains the implementations for the `Unmarshal` trait for container types like lists and dicts
 
 use crate::signature;
+use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::unmarshal;
 use crate::wire::unmarshal::Error;
 use crate::wire::unmarshal::UnmarshalContext;
@@ -95,8 +96,16 @@ impl<E: Signature> Signature for Vec<E> {
             E::signature(),
         )))
     }
+    #[inline]
     fn alignment() -> usize {
-        4
+        <[E]>::alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        <[E]>::sig_str(s_buf)
+    }
+    fn has_sig(sig: &str) -> bool {
+        <[E]>::has_sig(sig)
     }
 }
 
@@ -105,8 +114,16 @@ impl<E: Signature + Clone> Signature for Cow<'_, [E]> {
         let e_type = Box::new(E::signature());
         crate::signature::Type::Container(crate::signature::Container::Array(e_type))
     }
+    #[inline]
     fn alignment() -> usize {
-        4
+        <[E]>::alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        <[E]>::sig_str(s_buf)
+    }
+    fn has_sig(sig: &str) -> bool {
+        <[E]>::has_sig(sig)
     }
 }
 /// for byte arrays we can give an efficient method of decoding. This will bind the returned slice to the lifetime of the buffer.
@@ -280,6 +297,13 @@ impl Signature for Variant<'_, '_> {
     }
     fn alignment() -> usize {
         Variant::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_static("v");
+    }
+    fn has_sig(sig: &str) -> bool {
+        sig.chars().nth(0) == Some('v')
     }
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {

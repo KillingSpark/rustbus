@@ -43,6 +43,9 @@ pub use container::*;
 ///     fn sig_str(s_buf: &mut SignatureBuffer) {
 ///         s_buf.push_static("(ts)");
 ///     }
+///     fn has_sig(sig: &str) -> bool {
+///         sig == "(ts)"
+///     }
 /// }    
 /// impl Marshal for &MyStruct {
 ///     fn marshal(
@@ -218,6 +221,17 @@ pub trait Signature {
         let typ = Self::signature();
         typ.to_str(s_buf);
     }
+
+    /// Check if this type fulfills this signature. This may expect to only be called with valid signatures.
+    /// But it might be called with the wrong signature. This means for example you must check the length before indexing.
+    ///
+    /// The default impl uses Signature::sig_str and compares it to the given signature. The same performance
+    /// implications as for Signature::sig_str apply here.
+    fn has_sig(sig: &str) -> bool {
+        let mut s_buf = SignatureBuffer::new();
+        Self::sig_str(&mut s_buf);
+        sig == s_buf.as_str()
+    }
 }
 
 impl<S: Signature> Signature for &S {
@@ -226,6 +240,9 @@ impl<S: Signature> Signature for &S {
     }
     fn alignment() -> usize {
         S::alignment()
+    }
+    fn has_sig(sig: &str) -> bool {
+        S::has_sig(sig)
     }
 }
 
