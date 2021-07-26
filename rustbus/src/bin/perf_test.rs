@@ -25,9 +25,15 @@ fn main() {
         })
         .unwrap();
 
-    for _ in 0..50000000 {
-        let _ = sig.body.parser().get::<(u8, u64, &str)>().unwrap().1;
+    let mut buf = Vec::new();
+    for _ in 0..20000000 {
+        buf.clear();
+        rustbus::wire::marshal::marshal(&sig, 1, &mut buf).unwrap();
     }
+
+    // for _ in 0..50000000 {
+    //     let _ = sig.body.parser().get::<(u8, u64, &str)>().unwrap().1;
+    // }
 
     let ctx = con.send_message(&mut sig).unwrap();
     ctx.write_all().unwrap();

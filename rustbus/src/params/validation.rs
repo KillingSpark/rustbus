@@ -127,7 +127,89 @@ pub fn validate_membername(mem: &str) -> Result<()> {
 }
 
 pub fn validate_signature(sig: &str) -> Result<()> {
-    signature::Type::parse_description(sig).map_err(Error::InvalidSignature)?;
+    const MAX_BRACKET_DEPTH: usize = 32;
+
+    if sig.len() > 255 {
+        return Err(Error::InvalidSignature(signature::Error::SignatureTooLong));
+    }
+
+    let mut pos = 0;
+    while pos < sig.len() {
+        pos += validate_next(sig.as_bytes(), pos, 0, 0)?;
+    }
+
+    // recursive function to validate the next signature after pos
+    fn validate_next(
+        sig: &[u8],
+        pos: usize,
+        array_depth: usize,
+        bracket_depth: usize,
+    ) -> Result<usize> {
+        if bracket_depth > MAX_BRACKET_DEPTH {
+            return Err(Error::InvalidSignature(signature::Error::NestingTooDeep));
+        }
+        if array_depth > MAX_BRACKET_DEPTH {
+            return Err(Error::InvalidSignature(signature::Error::NestingTooDeep));
+        }
+        if pos >= sig.len() {
+            return Err(Error::InvalidSignature(signature::Error::InvalidSignature));
+        }
+
+        match sig[pos] {
+            b'y' | b'b' | b'n' | b'q' | b'i' | b'u' | b'x' | b't' | b'd' | b'h' | b's' | b'o'
+            | b'g' | b'v' => {
+                // Nothing to do just skip base types and variants
+                Ok(1)
+            }
+            b'a' => {
+                let element_sig_len = validate_next(sig, pos + 1, array_depth + 1, bracket_depth)?;
+                Ok(element_sig_len + 1)
+            }
+            b'{' => {
+                if pos > 0 && sig.len() > pos + 2 && sig[pos - 1] == b'a' {
+                    match sig[pos + 1] {
+                        b'y' | b'b' | b'n' | b'q' | b'i' | b'u' | b'x' | b't' | b'd' | b'h'
+                        | b's' | b'o' | b'g' => {
+                            // Nothing to do just skip base types
+                        }
+                        _ => {
+                            return Err(Error::InvalidSignature(signature::Error::InvalidSignature))
+                        }
+                    }
+                    let val_sig_len = validate_next(sig, pos + 2, array_depth, bracket_depth + 1)?;
+                    let inner_sigs_len = 1 + val_sig_len;
+                    if pos + inner_sigs_len + 1 >= sig.len() {
+                        Err(Error::InvalidSignature(signature::Error::InvalidSignature))
+                    } else if sig[pos + inner_sigs_len + 1] == b'}' {
+                        Ok(inner_sigs_len + 2)
+                    } else {
+                        Err(Error::InvalidSignature(signature::Error::InvalidSignature))
+                    }
+                } else {
+                    // there must be an 'a' before the '{'
+                    Err(Error::InvalidSignature(signature::Error::InvalidSignature))
+                }
+            }
+            b'(' => {
+                let mut counter = 1;
+                loop {
+                    if pos + counter >= sig.len() {
+                        return Err(Error::InvalidSignature(signature::Error::InvalidSignature));
+                    }
+                    if sig[pos + counter] == b')' {
+                        counter += 1;
+                        break;
+                    }
+                    let elem_sig_len =
+                        validate_next(sig, pos + counter, array_depth, bracket_depth + 1)?;
+                    counter += elem_sig_len;
+                }
+                Ok(counter)
+            }
+            _ => Err(Error::InvalidSignature(signature::Error::InvalidSignature)),
+        }
+    }
+
     Ok(())
 }
 
