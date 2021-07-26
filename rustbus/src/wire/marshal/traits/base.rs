@@ -15,23 +15,20 @@ impl Signature for u64 {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        8
     }
     #[inline]
     unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
-    #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("t");
     }
-    #[inline]
     fn has_sig(sig: &str) -> bool {
         sig.starts_with('t')
     }
 }
 impl Marshal for u64 {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
         util::write_u64(*self, ctx.byteorder, ctx.buf);
@@ -46,23 +43,20 @@ impl Signature for i64 {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        8
     }
     #[inline]
     unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
-    #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("x");
     }
-    #[inline]
     fn has_sig(sig: &str) -> bool {
         sig.starts_with('x')
     }
 }
 impl Marshal for i64 {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
         // Ok because rust represents i64 as a twos complement, which is what dbus uses too
@@ -78,23 +72,20 @@ impl Signature for u32 {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        4
     }
     #[inline]
     unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
-    #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("u");
     }
-    #[inline]
     fn has_sig(sig: &str) -> bool {
         sig.starts_with('u')
     }
 }
 impl Marshal for u32 {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
         crate::wire::util::write_u32(*self, ctx.byteorder, ctx.buf);
@@ -109,23 +100,20 @@ impl Signature for i32 {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        4
     }
     #[inline]
     unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
-    #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("i");
     }
-    #[inline]
     fn has_sig(sig: &str) -> bool {
         sig.starts_with('i')
     }
 }
 impl Marshal for i32 {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
         // Ok because rust represents i32 as a twos complement, which is what dbus uses too
@@ -135,29 +123,24 @@ impl Marshal for i32 {
 }
 
 impl Signature for u16 {
-    #[inline]
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Uint16)
     }
-    #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        2
     }
     #[inline]
     unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
-    #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("q");
     }
-    #[inline]
     fn has_sig(sig: &str) -> bool {
         sig.starts_with('q')
     }
 }
 impl Marshal for u16 {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
         util::write_u16(*self, ctx.byteorder, ctx.buf);
@@ -166,29 +149,24 @@ impl Marshal for u16 {
 }
 
 impl Signature for i16 {
-    #[inline]
     fn signature() -> crate::signature::Type {
         crate::signature::Type::Base(crate::signature::Base::Int16)
     }
-    #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        2
     }
     #[inline]
     unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
         bo == crate::ByteOrder::NATIVE
     }
-    #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("n");
     }
-    #[inline]
     fn has_sig(sig: &str) -> bool {
         sig.starts_with('n')
     }
 }
 impl Marshal for i16 {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
         // Ok because rust represents i16 as a twos complement, which is what dbus uses too
@@ -204,13 +182,12 @@ impl Signature for u8 {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        1
     }
     #[inline]
     unsafe fn valid_slice(_: crate::ByteOrder) -> bool {
         true
     }
-    #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
         sig.push_static("y");
     }
@@ -234,7 +211,7 @@ impl Signature for bool {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        4
     }
     #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
@@ -259,7 +236,7 @@ impl Signature for String {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        4
     }
     #[inline]
     fn sig_str(sig: &mut SignatureBuffer) {
@@ -271,7 +248,6 @@ impl Signature for String {
     }
 }
 impl Marshal for String {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         self.as_str().marshal(ctx)
     }
@@ -296,7 +272,6 @@ impl Signature for &str {
     }
 }
 impl Marshal for &str {
-    #[inline]
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
         ctx.align_to(Self::alignment());
         crate::wire::util::write_string(self, ctx.byteorder, ctx.buf);
@@ -311,7 +286,7 @@ impl<S: AsRef<str>> Signature for ObjectPath<S> {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        4
     }
     #[inline]
     fn sig_str(s_buf: &mut SignatureBuffer) {
@@ -336,7 +311,7 @@ impl<S: AsRef<str>> Signature for SignatureWrapper<S> {
     }
     #[inline]
     fn alignment() -> usize {
-        Self::signature().get_alignment()
+        1
     }
     #[inline]
     fn sig_str(s_buf: &mut SignatureBuffer) {
