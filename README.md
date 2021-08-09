@@ -39,19 +39,15 @@ The API is still very much in progress and breaking changes are to be expected.
 ```rust
 use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
 fn main() -> Result<(), rustbus::connection::Error> {
-    /// To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
+    // To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
     let session_path = get_session_bus_path()?;
-    let mut con = DuplexConn::connect_to_bus(session_path, true)?;
+    let mut con: DuplexConn = DuplexConn::connect_to_bus(session_path, true)?;
     // Dont forget to send the obligatory hello message. send_hello wraps the call and parses the response for convenience.
-    let unique_name = con.send_hello(Timeout::Infinite)?;
+    let _unique_name: String = con.send_hello(Timeout::Infinite)?;
 
     // Next you will probably want to create a new message to send out to the world
     let mut sig = MessageBuilder::new()
-        .signal(
-            "io.killing.spark".into(),
-            "TestSignal".into(),
-            "/io/killing/spark".into(),
-        )
+        .signal("io.killing.spark", "TestSignal", r#"/io/killing/spark"#)
         .build();
 
     // To put parameters into that message you use the sig.body.push_param functions. These accept anything that can be marshalled into a dbus parameter
@@ -59,7 +55,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
     sig.body.push_param("My cool new Signal!").unwrap();
 
     // Now send you signal to all that want to hear it!
-    con.send.send_message(&mut sig, Timeout::Infinite)?;
+    con.send.send_message(&sig)?.write_all().unwrap();
 
     // To receive messages sent to you you can call the various functions on the RecvConn. The simplest is this:
     let message = con.recv.get_next_message(Timeout::Infinite)?;
