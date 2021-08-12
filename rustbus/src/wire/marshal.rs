@@ -140,7 +140,7 @@ fn marshal_header_field(
             buf.push(b'o');
             buf.push(0);
             pad_to_align(4, buf);
-            write_string(&path, byteorder, buf);
+            write_string(path, byteorder, buf);
         }
         HeaderField::Interface(int) => {
             params::validate_interface(int)?;
@@ -149,7 +149,7 @@ fn marshal_header_field(
             buf.push(b's');
             buf.push(0);
             pad_to_align(4, buf);
-            write_string(&int, byteorder, buf);
+            write_string(int, byteorder, buf);
         }
         HeaderField::Member(mem) => {
             params::validate_membername(mem)?;
@@ -158,7 +158,7 @@ fn marshal_header_field(
             buf.push(b's');
             buf.push(0);
             pad_to_align(4, buf);
-            write_string(&mem, byteorder, buf);
+            write_string(mem, byteorder, buf);
         }
         HeaderField::ErrorName(name) => {
             params::validate_errorname(name)?;
@@ -167,7 +167,7 @@ fn marshal_header_field(
             buf.push(b's');
             buf.push(0);
             pad_to_align(4, buf);
-            write_string(&name, byteorder, buf);
+            write_string(name, byteorder, buf);
         }
         HeaderField::ReplySerial(rs) => {
             buf.push(5);
@@ -184,7 +184,7 @@ fn marshal_header_field(
             buf.push(b's');
             buf.push(0);
             pad_to_align(4, buf);
-            write_string(&dest, byteorder, buf);
+            write_string(dest, byteorder, buf);
         }
         HeaderField::Sender(snd) => {
             params::validate_busname(snd)?;
@@ -193,7 +193,7 @@ fn marshal_header_field(
             buf.push(b's');
             buf.push(0);
             pad_to_align(4, buf);
-            write_string(&snd, byteorder, buf);
+            write_string(snd, byteorder, buf);
         }
         HeaderField::Signature(sig) => {
             params::validate_signature(sig)?;
@@ -202,7 +202,7 @@ fn marshal_header_field(
             buf.push(b'g');
             buf.push(0);
             pad_to_align(4, buf);
-            write_signature(&sig, buf);
+            write_signature(sig, buf);
         }
         HeaderField::UnixFds(fds) => {
             buf.push(9);

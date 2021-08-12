@@ -145,7 +145,7 @@ impl<'a, 'parent> DictEntryIter<'a> {
 
             let mut ctx = UnmarshalContext {
                 byteorder: self.byteorder,
-                buf: &self.source,
+                buf: self.source,
                 offset: *self.current_offset,
                 fds: &Vec::new(),
             };
@@ -159,7 +159,7 @@ impl<'a, 'parent> DictEntryIter<'a> {
             }
         } else if self.counter == 1 {
             ParamIter::new(
-                &self.val_sig,
+                self.val_sig,
                 self.current_offset,
                 self.source,
                 self.byteorder,
@@ -362,7 +362,7 @@ fn make_new_variant_iter<'a>(
     let (bytes, sig) = crate::wire::util::unmarshal_signature(&source[*offset..])?;
     debug_assert_eq!(bytes, 4);
 
-    let sig = signature::Type::parse_description(&sig)?.remove(0);
+    let sig = signature::Type::parse_description(sig)?.remove(0);
 
     // move offset
     let padding = crate::wire::util::align_offset(sig.get_alignment(), source, *offset)?;

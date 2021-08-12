@@ -538,7 +538,7 @@ impl MarshalledMessageBody {
     /// Create a parser to retrieve parameters from the body.
     #[inline]
     pub fn parser(&self) -> MessageBodyParser {
-        MessageBodyParser::new(&self)
+        MessageBodyParser::new(self)
     }
 }
 

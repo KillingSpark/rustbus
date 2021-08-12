@@ -165,7 +165,7 @@ pub fn validate_marshalled_container(
                         byteorder,
                         offset + bytes_used_counter,
                         &buf[..array_end],
-                        &elem_sig,
+                        elem_sig,
                     )?;
                     bytes_used_counter += bytes_used;
                 }
@@ -234,7 +234,7 @@ pub fn validate_marshalled_container(
             let (sig_bytes_used, sig_str) =
                 util::unmarshal_signature(&buf[offset..]).map_err(|err| (offset, err))?;
             let mut sig =
-                signature::Type::parse_description(&sig_str).map_err(|e| (offset, e.into()))?;
+                signature::Type::parse_description(sig_str).map_err(|e| (offset, e.into()))?;
             if sig.len() != 1 {
                 // There must be exactly one type in the signature!
                 return Err((offset, Error::WrongSignature));

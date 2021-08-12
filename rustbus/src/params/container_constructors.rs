@@ -115,7 +115,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
             values: elements,
         };
 
-        validate_array(&arr.values, &arr.element_sig)?;
+        validate_array(arr.values, &arr.element_sig)?;
 
         Ok(Container::ArrayRef(arr))
     }
@@ -232,7 +232,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
             map,
         };
 
-        validate_dict(&dict.map, dict.key_sig, &dict.value_sig)?;
+        validate_dict(dict.map, dict.key_sig, &dict.value_sig)?;
 
         Ok(Container::DictRef(dict))
     }

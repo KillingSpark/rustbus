@@ -31,7 +31,7 @@ pub fn unmarshal_variant<'a, 'e>(
 ) -> UnmarshalResult<params::Variant<'a, 'e>> {
     let (sig_bytes_used, sig_str) = unmarshal_signature(&ctx.buf[ctx.offset..])?;
 
-    let mut sig = signature::Type::parse_description(&sig_str)?;
+    let mut sig = signature::Type::parse_description(sig_str)?;
     if sig.len() != 1 {
         // There must be exactly one type in the signature!
         return Err(unmarshal::Error::WrongSignature);
@@ -67,7 +67,7 @@ pub fn unmarshal_container<'a, 'e>(
                     return Err(Error::NotEnoughBytes);
                 }
 
-                let (bytes_used, element) = unmarshal_with_sig(&elem_sig, ctx)?;
+                let (bytes_used, element) = unmarshal_with_sig(elem_sig, ctx)?;
                 elements.push(element);
                 bytes_used_counter += bytes_used;
             }

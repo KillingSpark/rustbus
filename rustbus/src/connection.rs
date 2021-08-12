@@ -84,7 +84,7 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
             let end_path_offset = ps.find(',').unwrap_or_else(|| ps.len());
             let ps: String = ps.drain(..end_path_offset).collect();
             let path_buf = ps.as_bytes();
-            Ok(UnixAddr::new_abstract(&path_buf)?)
+            Ok(UnixAddr::new_abstract(path_buf)?)
         }
     } else {
         Err(Error::AddressTypeNotSupported(addr.to_owned()))

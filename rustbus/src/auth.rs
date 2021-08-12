@@ -33,11 +33,11 @@ fn find_line_ending(buf: &[u8]) -> Option<usize> {
 
 fn read_message(stream: &mut UnixStream, buf: &mut Vec<u8>) -> std::io::Result<String> {
     let mut tmpbuf = [0u8; 512];
-    while !has_line_ending(&buf) {
+    while !has_line_ending(buf) {
         let bytes = stream.read(&mut tmpbuf[..])?;
         buf.extend(&tmpbuf[..bytes])
     }
-    let idx = find_line_ending(&buf).unwrap();
+    let idx = find_line_ending(buf).unwrap();
     let line = buf.drain(0..idx).collect::<Vec<_>>();
     Ok(String::from_utf8(line).unwrap())
 }

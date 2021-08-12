@@ -9,8 +9,8 @@ use crate::wire::util::*;
 
 pub fn marshal_param(p: &params::Param, ctx: &mut MarshalContext) -> message::Result<()> {
     match p {
-        params::Param::Base(b) => marshal_base_param(&b, ctx),
-        params::Param::Container(c) => marshal_container_param(&c, ctx),
+        params::Param::Base(b) => marshal_base_param(b, ctx),
+        params::Param::Container(c) => marshal_container_param(c, ctx),
     }
 }
 
@@ -29,7 +29,7 @@ fn marshal_array(
     ctx.align_to(sig.get_alignment());
     let content_pos = ctx.buf.len();
     for p in array {
-        marshal_param(&p, ctx)?;
+        marshal_param(p, ctx)?;
     }
     let len = ctx.buf.len() - content_pos;
     insert_u32(
@@ -43,7 +43,7 @@ fn marshal_array(
 fn marshal_struct(params: &[params::Param], ctx: &mut MarshalContext) -> message::Result<()> {
     ctx.align_to(8);
     for p in params {
-        marshal_param(&p, ctx)?;
+        marshal_param(p, ctx)?;
     }
     Ok(())
 }
@@ -69,8 +69,8 @@ fn marshal_dict(dict: &params::DictMap, ctx: &mut MarshalContext) -> message::Re
     for (key, value) in dict {
         // elements are aligned to 8
         ctx.align_to(8);
-        marshal_base_param(&key, ctx)?;
-        marshal_param(&value, ctx)?;
+        marshal_base_param(key, ctx)?;
+        marshal_param(value, ctx)?;
     }
     let len = ctx.buf.len() - content_pos;
     insert_u32(
@@ -91,8 +91,8 @@ pub fn marshal_container_param(
             marshal_array(&params.values, &params.element_sig, ctx)?;
         }
         params::Container::ArrayRef(params) => {
-            params::validate_array(&params.values, &params.element_sig)?;
-            marshal_array(&params.values, &params.element_sig, ctx)?;
+            params::validate_array(params.values, &params.element_sig)?;
+            marshal_array(params.values, &params.element_sig, ctx)?;
         }
         params::Container::Struct(params) => {
             marshal_struct(params, ctx)?;
@@ -105,7 +105,7 @@ pub fn marshal_container_param(
             marshal_dict(&params.map, ctx)?;
         }
         params::Container::DictRef(params) => {
-            params::validate_dict(&params.map, params.key_sig, &params.value_sig)?;
+            params::validate_dict(params.map, params.key_sig, &params.value_sig)?;
             marshal_dict(params.map, ctx)?;
         }
         params::Container::Variant(variant) => {

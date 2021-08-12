@@ -26,8 +26,8 @@ impl<'a, 'e> Param<'a, 'e> {
     pub fn as_slice(&'a self) -> Option<&'a [Param]> {
         match self {
             Param::Container(Container::Array(arr)) => Some(arr.values.as_slice()),
-            Param::Container(Container::ArrayRef(arr)) => Some(&arr.values),
-            Param::Container(Container::Struct(arr)) => Some(&arr),
+            Param::Container(Container::ArrayRef(arr)) => Some(arr.values),
+            Param::Container(Container::Struct(arr)) => Some(arr),
             Param::Container(Container::StructRef(arr)) => Some(arr),
             _ => None,
         }
