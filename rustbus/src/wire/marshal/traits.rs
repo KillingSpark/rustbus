@@ -241,6 +241,9 @@ impl<S: Signature> Signature for &S {
     fn alignment() -> usize {
         S::alignment()
     }
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        S::sig_str(s_buf)
+    }
     fn has_sig(sig: &str) -> bool {
         S::has_sig(sig)
     }
