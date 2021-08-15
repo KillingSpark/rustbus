@@ -77,3 +77,57 @@ fn test_derive() {
     };
     assert_eq!(b, sig.body.parser().get::<B>().unwrap());
 }
+
+pub fn test_enum_derive() {
+    use rustbus::wire::unmarshal::traits::Variant;
+    use rustbus::MessageBuilder;
+    use rustbus_derive::{Marshal, Signature, Unmarshal};
+
+    #[derive(Marshal, Signature, PartialEq, Eq, Debug)]
+    enum Variant1 {
+        A(String),
+        B(String, String),
+        C {
+            c1: String,
+            c2: String,
+            c3: u64,
+            c4: (u8, i32, i64, bool),
+        },
+    }
+
+    let v1 = Variant1::A("ABCD".into());
+    let v2 = Variant1::B("ABCD".into(), "EFGH".into());
+    let v3 = Variant1::C {
+        c1: "ABCD".into(),
+        c2: "EFGH".into(),
+        c3: 100,
+        c4: (000, 100, 200, false),
+    };
+
+    // create a signal with the MessageBuilder API
+    let mut sig = MessageBuilder::new()
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
+        .build();
+
+    // add a parameter to the signal
+    sig.body.push_param(&v1).unwrap();
+    sig.body.push_param(&v2).unwrap();
+    sig.body.push_param(&v3).unwrap();
+
+    let (m1, m2, m3) = sig
+        .body
+        .parser()
+        .get3::<Variant, Variant, Variant>()
+        .unwrap();
+
+    let v1_2 = Variant1::A(m1.get().unwrap());
+    assert_eq!(v1, v1_2);
+
+    let v2_2 = m2.get::<(String, String)>().unwrap();
+    let v2_2 = Variant1::B(v2_2.0, v2_2.1);
+    assert_eq!(v2, v2_2);
+
+    let v3_2 = m3.get::<(String, String, u64, (u8, i32, i64, bool))>().unwrap();
+    let v3_2 = Variant1::C {c1: v3_2.0, c2: v3_2.1, c3: v3_2.2, c4: v3_2.3};
+    assert_eq!(v3, v3_2);
+}
