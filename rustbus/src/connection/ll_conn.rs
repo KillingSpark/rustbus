@@ -223,7 +223,7 @@ impl SendConn {
 
         // clear the buf before marshalling the new header
         self.header_buf.clear();
-        marshal::marshal(&msg, serial, &mut self.header_buf)?;
+        marshal::marshal(msg, serial, &mut self.header_buf)?;
 
         let ctx = SendMessageContext {
             msg,

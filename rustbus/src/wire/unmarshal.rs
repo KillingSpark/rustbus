@@ -163,7 +163,7 @@ pub fn unmarshal_body<'a, 'e>(
         offset,
     };
     for param_sig in sigs {
-        let (bytes, new_param) = unmarshal_with_sig(&param_sig, &mut ctx)?;
+        let (bytes, new_param) = unmarshal_with_sig(param_sig, &mut ctx)?;
         params.push(new_param);
         body_bytes_used += bytes;
     }
@@ -276,7 +276,7 @@ fn unmarshal_header_field(
     let offset = offset + typ_bytes_used;
 
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
-    let mut sig = signature::Type::parse_description(&sig_str).map_err(|_| Error::NoSignature)?;
+    let mut sig = signature::Type::parse_description(sig_str).map_err(|_| Error::NoSignature)?;
     let offset = offset + sig_bytes_used;
 
     if sig.len() != 1 {
@@ -340,7 +340,7 @@ fn unmarshal_header_field(
                 let (b, sig) = unmarshal_signature(&buf[offset..])?;
                 // empty signature is allowed here
                 if !sig.is_empty() {
-                    crate::params::validate_signature(&sig)?;
+                    crate::params::validate_signature(sig)?;
                 }
                 (b, Ok(HeaderField::Signature(sig.to_owned())))
             }

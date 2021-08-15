@@ -44,18 +44,18 @@ fn marshal_string(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::
     if s.contains('\0') {
         Err(params::validation::Error::StringContainsNullByte.into())
     } else {
-        write_string(&s, byteorder, buf);
+        write_string(s, byteorder, buf);
         Ok(())
     }
 }
 fn marshal_objectpath(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
-    params::validate_object_path(&s)?;
-    write_string(&s, byteorder, buf);
+    params::validate_object_path(s)?;
+    write_string(s, byteorder, buf);
     Ok(())
 }
 pub(super) fn marshal_signature(s: &str, buf: &mut Vec<u8>) -> message::Result<()> {
-    params::validate_signature(&s)?;
-    write_signature(&s, buf);
+    params::validate_signature(s)?;
+    write_signature(s, buf);
     Ok(())
 }
 

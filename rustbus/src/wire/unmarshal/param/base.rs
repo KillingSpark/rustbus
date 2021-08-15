@@ -85,7 +85,7 @@ pub fn unmarshal_base<'a>(
         }
         signature::Base::Signature => {
             let (bytes, string) = unmarshal_signature(&ctx.buf[ctx.offset..])?;
-            crate::params::validate_signature(&string)?;
+            crate::params::validate_signature(string)?;
             Ok((bytes, params::Base::Signature(string.to_owned())))
         }
     }?;
