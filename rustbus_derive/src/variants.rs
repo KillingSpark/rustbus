@@ -53,8 +53,8 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
         .iter()
         .map(|field| field.ty.to_token_stream());
 
-    if variant.fields.len() > 0 {
-        if variant.fields.iter().nth(0).unwrap().ident.is_some() {
+    if !variant.fields.is_empty() {
+        if variant.fields.iter().next().unwrap().ident.is_some() {
             // Named fields
             let field_names1 = variant
                 .fields
@@ -91,7 +91,7 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
                     Ok(())
                 },
             }
-        } else if variant.fields.iter().nth(0).unwrap().ident.is_none() && variant.fields.len() > 1
+        } else if variant.fields.iter().next().unwrap().ident.is_none() && variant.fields.len() > 1
         {
             // Named fields
             let field_names1 = variant.fields.iter().enumerate().map(|(idx, _field)| {
@@ -131,7 +131,7 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
         } else {
             // One unnamed field
             let mut field_types = field_types;
-            let ty = field_types.nth(0).unwrap();
+            let ty = field_types.next().unwrap();
             quote! {
                 #enum_name::#name( val ) => {
                     let mut sig_str = ::rustbus::wire::marshal::traits::SignatureBuffer::new();
