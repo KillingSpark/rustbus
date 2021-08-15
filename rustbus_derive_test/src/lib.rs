@@ -128,7 +128,14 @@ pub fn test_enum_derive() {
     let v2_2 = Variant1::B(v2_2.0, v2_2.1);
     assert_eq!(v2, v2_2);
 
-    let v3_2 = m3.get::<(String, String, u64, (u8, i32, i64, bool))>().unwrap();
-    let v3_2 = Variant1::C {c1: v3_2.0, c2: v3_2.1, c3: v3_2.2, c4: v3_2.3};
+    let v3_2 = m3
+        .get::<(String, String, u64, (u8, i32, i64, bool))>()
+        .unwrap();
+    let v3_2 = Variant1::C {
+        c1: v3_2.0,
+        c2: v3_2.1,
+        c3: v3_2.2,
+        c4: v3_2.3,
+    };
     assert_eq!(v3, v3_2);
 }

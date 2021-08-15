@@ -118,7 +118,7 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
 
                     // -2 for pos and nullbyte
                     ctx.buf[pos] = (ctx.buf.len() - pos - 2) as u8;
-                    
+
                     // align to 8 because we treat this as a struct
                     ctx.align_to(8);
                     //actual marshal code

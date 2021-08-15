@@ -1,5 +1,5 @@
-mod variants;
 mod structs;
+mod variants;
 
 #[proc_macro_derive(Marshal)]
 pub fn derive_marshal(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
