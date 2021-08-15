@@ -78,6 +78,7 @@ fn test_derive() {
     assert_eq!(b, sig.body.parser().get::<B>().unwrap());
 }
 
+#[test]
 pub fn test_enum_derive() {
     use rustbus::wire::unmarshal::traits::Variant;
     use rustbus::MessageBuilder;

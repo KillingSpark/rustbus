@@ -65,16 +65,26 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
             quote! {
                 #enum_name::#name{ #( #field_names1, )* } => {
                     // marshal signature
+                    let pos = ctx.buf.len();
+                    ctx.buf.push(0);
+
                     ctx.buf.push(b'(');
                     let mut sig_str = ::rustbus::wire::marshal::traits::SignatureBuffer::new();
                     #(
                         sig_str.clear();
                         <#field_types as ::rustbus::Signature>::sig_str(&mut sig_str);
-                        ::rustbus::wire::util::write_signature(sig_str.as_ref(), &mut ctx.buf);
+                        ctx.buf.extend_from_slice(sig_str.as_ref().as_bytes());
                     )*
                     ctx.buf.push(b')');
+                    ctx.buf.push(0);
+
+
+                    // -2 for pos and nullbyte
+                    ctx.buf[pos] = (ctx.buf.len() - pos - 2) as u8;
 
                     // actual marshal code
+                    // align to 8 because we treat this as a struct
+                    ctx.align_to(8);
                     #(
                         #field_names2.marshal(ctx)?;
                     )*
@@ -84,26 +94,33 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
         } else if variant.fields.iter().nth(0).unwrap().ident.is_none() && variant.fields.len() > 1
         {
             // Named fields
-            let field_names1 = variant
-                .fields
-                .iter()
-                .enumerate()
-                .map(|(idx, _field)| syn::Ident::new(&format!("v{}", idx), enum_name.span()).to_token_stream());
+            let field_names1 = variant.fields.iter().enumerate().map(|(idx, _field)| {
+                syn::Ident::new(&format!("v{}", idx), enum_name.span()).to_token_stream()
+            });
 
             let field_names2 = field_names1.clone();
 
             quote! {
                 #enum_name::#name( #( #field_names1, )* ) => {
                     // marshal signature
+                    let pos = ctx.buf.len();
+                    ctx.buf.push(0);
+
                     ctx.buf.push(b'(');
                     let mut sig_str = ::rustbus::wire::marshal::traits::SignatureBuffer::new();
                     #(
                         sig_str.clear();
                         <#field_types as ::rustbus::Signature>::sig_str(&mut sig_str);
-                        ::rustbus::wire::util::write_signature(sig_str.as_ref(), &mut ctx.buf);
+                        ctx.buf.extend_from_slice(sig_str.as_ref().as_bytes());
                     )*
                     ctx.buf.push(b')');
+                    ctx.buf.push(0);
 
+                    // -2 for pos and nullbyte
+                    ctx.buf[pos] = (ctx.buf.len() - pos - 2) as u8;
+                    
+                    // align to 8 because we treat this as a struct
+                    ctx.align_to(8);
                     //actual marshal code
                     #(
                         #field_names2.marshal(ctx)?;
