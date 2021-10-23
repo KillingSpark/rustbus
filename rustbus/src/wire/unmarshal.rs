@@ -51,6 +51,7 @@ pub enum Error {
     NoSerial,
     NoSignature,
     BadFdIndex(usize),
+    NoMatchingVariantFound,
 }
 
 pub struct UnmarshalContext<'fds, 'buf> {

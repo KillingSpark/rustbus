@@ -23,6 +23,9 @@ pub fn derive_unmarshal(input: proc_macro::TokenStream) -> proc_macro::TokenStre
         syn::Data::Struct(data) => {
             structs::make_struct_unmarshal_impl(&ast.ident, &ast.generics, &data.fields).into()
         }
+        syn::Data::Enum(data) => {
+            variants::make_variant_unmarshal_impl(&ast.ident, &ast.generics, &data.variants).into()
+        }
         _ => unimplemented!("Nothing but structs can be derived on right now"),
     }
 }

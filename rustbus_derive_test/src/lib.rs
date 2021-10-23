@@ -84,16 +84,21 @@ pub fn test_enum_derive() {
     use rustbus::MessageBuilder;
     use rustbus_derive::{Marshal, Signature, Unmarshal};
 
-    #[derive(Marshal, Signature, PartialEq, Eq, Debug)]
-    enum Variant1 {
+    #[derive(Marshal, Unmarshal, Signature, PartialEq, Eq, Debug)]
+    enum Variant1<'a> {
         A(String),
-        B(String, String),
+        B(&'a str, String),
         C {
             c1: String,
             c2: String,
             c3: u64,
             c4: (u8, i32, i64, bool),
         },
+    }
+
+    #[derive(Marshal, Unmarshal, Signature, PartialEq, Eq, Debug)]
+    enum Variant2 {
+        A(u64),
     }
 
     let v1 = Variant1::A("ABCD".into());
@@ -115,6 +120,7 @@ pub fn test_enum_derive() {
     sig.body.push_param(&v2).unwrap();
     sig.body.push_param(&v3).unwrap();
 
+    // use generic Variant type to parse the variants by hand
     let (m1, m2, m3) = sig
         .body
         .parser()
@@ -122,11 +128,9 @@ pub fn test_enum_derive() {
         .unwrap();
 
     let v1_2 = Variant1::A(m1.get().unwrap());
-    assert_eq!(v1, v1_2);
 
     let v2_2 = m2.get::<(String, String)>().unwrap();
-    let v2_2 = Variant1::B(v2_2.0, v2_2.1);
-    assert_eq!(v2, v2_2);
+    let v2_2 = Variant1::B(&v2_2.0, v2_2.1);
 
     let v3_2 = m3
         .get::<(String, String, u64, (u8, i32, i64, bool))>()
@@ -137,5 +141,25 @@ pub fn test_enum_derive() {
         c3: v3_2.2,
         c4: v3_2.3,
     };
+
+    assert_eq!(v1, v1_2);
+    assert_eq!(v2, v2_2);
     assert_eq!(v3, v3_2);
+
+    // use the derived unmarshal impl to get the variants
+    let (v1_3, v2_3, v3_3) = sig
+        .body
+        .parser()
+        .get3::<Variant1, Variant1, Variant1>()
+        .unwrap();
+
+    assert_eq!(v1, v1_3);
+    assert_eq!(v2, v2_3);
+    assert_eq!(v3, v3_3);
+
+    let err = sig.body.parser().get::<Variant2>();
+    assert_eq!(
+        Err(::rustbus::wire::unmarshal::Error::NoMatchingVariantFound),
+        err
+    );
 }

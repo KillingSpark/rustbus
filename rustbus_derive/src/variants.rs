@@ -93,7 +93,7 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
             }
         } else if variant.fields.iter().next().unwrap().ident.is_none() && variant.fields.len() > 1
         {
-            // Named fields
+            // Unnamed fields
             let field_names1 = variant.fields.iter().enumerate().map(|(idx, _field)| {
                 syn::Ident::new(&format!("v{}", idx), enum_name.span()).to_token_stream()
             });
@@ -141,6 +141,136 @@ fn variant_marshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream
                     val.marshal(ctx)?;
                     Ok(())
                 },
+            }
+        }
+    } else {
+        panic!("Variants with no fields are not supported yet")
+    }
+}
+
+pub fn make_variant_unmarshal_impl(
+    ident: &syn::Ident,
+    generics: &syn::Generics,
+    variant: &Punctuated<Variant, Comma>,
+) -> TokenStream {
+    let marshal = variant
+        .iter()
+        .fold(Default::default(), |mut tokens: TokenStream, variant| {
+            tokens.extend(variant_unmarshal(ident.clone(), variant));
+            tokens
+        });
+
+    let mut bufdef = syn::LifetimeDef {
+        attrs: Vec::new(),
+        lifetime: syn::Lifetime::new("'__internal_buf", proc_macro2::Span::call_site()),
+        colon_token: None,
+        bounds: syn::punctuated::Punctuated::new(),
+    };
+
+    let mut new_generics = generics.clone();
+    for lt in new_generics.lifetimes_mut() {
+        bufdef.bounds.push(lt.lifetime.clone());
+        lt.bounds.push(bufdef.lifetime.clone());
+    }
+
+    let typ_generics = new_generics.clone();
+    let (_, typ_gen, _) = typ_generics.split_for_impl();
+
+    new_generics
+        .params
+        .insert(0, syn::GenericParam::Lifetime(bufdef));
+
+    let (impl_gen, _, clause_gen) = new_generics.split_for_impl();
+
+    quote! {
+        impl #impl_gen ::rustbus::Unmarshal<'__internal_buf, '_> for #ident #typ_gen #clause_gen {
+            #[inline]
+            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::unmarshal::Error> {
+                let start_offset = ctx.offset;
+                let (sig_bytes, sig) = ::rustbus::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
+                ctx.offset += sig_bytes;
+
+                #marshal
+                Err(::rustbus::wire::unmarshal::Error::NoMatchingVariantFound)
+            }
+        }
+    }
+}
+
+fn variant_unmarshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStream {
+    let name = variant.ident.clone();
+    let field_types1 = variant
+        .fields
+        .iter()
+        .map(|field| field.ty.to_token_stream());
+
+    let field_types2 = field_types1.clone();
+
+    if !variant.fields.is_empty() {
+        if variant.fields.iter().next().unwrap().ident.is_some() {
+            // Named fields
+            let field_names = variant
+                .fields
+                .iter()
+                .map(|field| field.ident.as_ref().unwrap().to_token_stream());
+
+            quote! {
+                let mut expected_sig = "(".to_owned();
+                let mut sig_str = ::rustbus::wire::marshal::traits::SignatureBuffer::new();
+                #(
+                    sig_str.clear();
+                    <#field_types1 as ::rustbus::Signature>::sig_str(&mut sig_str);
+                    expected_sig.push_str(sig_str.as_ref());
+                )*
+                expected_sig.push(')');
+                if sig.eq(&expected_sig) {
+                    ctx.align_to(8)?;
+                    let this = #enum_name::#name{
+                        #(
+                            #field_names: <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
+                        )*
+                    };
+                    let total_bytes = ctx.offset - start_offset;
+                    return Ok((total_bytes, this));
+                }
+            }
+        } else if variant.fields.iter().next().unwrap().ident.is_none() && variant.fields.len() > 1
+        {
+            quote! {
+                let mut expected_sig = "(".to_owned();
+                let mut sig_str = ::rustbus::wire::marshal::traits::SignatureBuffer::new();
+                #(
+                    sig_str.clear();
+                    <#field_types1 as ::rustbus::Signature>::sig_str(&mut sig_str);
+                    expected_sig.push_str(sig_str.as_ref());
+                )*
+                expected_sig.push(')');
+                if sig.eq(&expected_sig) {
+                    ctx.align_to(8)?;
+                    let this = #enum_name::#name(
+                        #(
+                            <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
+                        )*
+                    );
+                    let total_bytes = ctx.offset - start_offset;
+                    return Ok((total_bytes, this));
+                }
+            }
+        } else {
+            // One unnamed field
+            let mut field_types = field_types1;
+            let ty = field_types.next().unwrap();
+            quote! {
+                let mut sig_str = ::rustbus::wire::marshal::traits::SignatureBuffer::new();
+                <#ty as ::rustbus::Signature>::sig_str(&mut sig_str);
+
+                if sig.eq(sig_str.as_ref()) {
+                    let this = #enum_name::#name(
+                        <#ty as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
+                    );
+                    let total_bytes = ctx.offset - start_offset;
+                    return Ok((total_bytes, this));
+                }
             }
         }
     } else {
