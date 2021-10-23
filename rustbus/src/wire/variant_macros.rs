@@ -1,4 +1,8 @@
 #[macro_export(local_inner_macros)]
+/// NOTE: There are derive proc-macros for enums. These should preferably be used because these macros are likely to be deprecated and removed.
+/// The proc-macros do not yet support the Catchall cases. So if you need those feel free to keep using these macros for now.
+/// Deprecation/Removal will only take place once the proc-macros are functionally equal to these macros.
+///
 /// This macro provides a convenient way to create enums to represent relatively simple Variants, with fitting marshal/unmarshal implementations.
 /// It can be used like this:
 /// ```rust, ignore
