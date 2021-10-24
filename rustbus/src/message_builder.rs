@@ -140,7 +140,7 @@ pub struct SignalBuilder {
 }
 
 impl MessageBuilder {
-    /// New messagebuilder with the default little endian byteorder
+    /// New messagebuilder with the default native byteorder
     pub fn new() -> MessageBuilder {
         MessageBuilder {
             msg: MarshalledMessage::new(),
@@ -235,7 +235,7 @@ impl MarshalledMessage {
         &self.body.sig
     }
 
-    /// New message with the default little endian byteorder
+    /// New message with the default native byteorder
     pub fn new() -> Self {
         MarshalledMessage {
             typ: MessageType::Invalid,
@@ -333,13 +333,13 @@ pub fn marshal_as_variant<P: Marshal>(
 }
 
 impl MarshalledMessageBody {
-    /// New messagebody with the default little endian byteorder
+    /// New messagebody with the default native byteorder
     pub fn new() -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
             raw_fds: Vec::new(),
             sig: SignatureBuffer::new(),
-            byteorder: ByteOrder::LittleEndian,
+            byteorder: ByteOrder::NATIVE,
         }
     }
 
