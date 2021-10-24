@@ -3,6 +3,7 @@ use super::Result;
 use super::Timeout;
 use crate::auth;
 use crate::message_builder::MarshalledMessage;
+use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
 
@@ -131,7 +132,7 @@ impl RecvConn {
         let bytes_needed = self.bytes_needed_for_current_message();
         match bytes_needed {
             Err(e) => {
-                if let Error::UnmarshalError(unmarshal::Error::NotEnoughBytes) = e {
+                if let Error::UnmarshalError(UnmarshalError::NotEnoughBytes) = e {
                     Ok(false)
                 } else {
                     Err(e)
@@ -177,7 +178,7 @@ impl RecvConn {
         )?;
 
         if self.msg_buf_in.len() != bytes_used + hdrbytes + dynhdrbytes {
-            return Err(Error::UnmarshalError(unmarshal::Error::NotAllBytesUsed));
+            return Err(Error::UnmarshalError(UnmarshalError::NotAllBytesUsed));
         }
         self.msg_buf_in.clear();
 

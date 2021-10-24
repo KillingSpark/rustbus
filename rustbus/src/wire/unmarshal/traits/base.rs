@@ -1,5 +1,6 @@
 //! This contains the implementations for the `Unmarshal` trait for base types like integers and strings
 
+use crate::wire::errors::UnmarshalError;
 use crate::wire::unmarshal;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::util;
@@ -63,7 +64,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for i16 {
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for u8 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         if ctx.offset >= ctx.buf.len() {
-            return Err(crate::wire::unmarshal::Error::NotEnoughBytes);
+            return Err(UnmarshalError::NotEnoughBytes);
         }
         let val = ctx.buf[ctx.offset];
         ctx.offset += 1;
@@ -79,7 +80,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for bool {
         match val {
             0 => Ok((bytes + padding, false)),
             1 => Ok((bytes + padding, true)),
-            _ => Err(crate::wire::unmarshal::Error::InvalidBoolean),
+            _ => Err(UnmarshalError::InvalidBoolean),
         }
     }
 }

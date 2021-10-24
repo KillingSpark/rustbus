@@ -1,5 +1,6 @@
 //! Everything that deals with converting from/to raw bytes. You probably only need the various wrapper types.
 
+pub mod errors;
 pub mod marshal;
 pub mod unmarshal;
 pub mod util;

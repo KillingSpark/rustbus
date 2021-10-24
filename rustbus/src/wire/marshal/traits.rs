@@ -51,7 +51,7 @@ pub use container::*;
 ///     fn marshal(
 ///         &self,
 ///         ctx: &mut MarshalContext,
-///     ) -> Result<(), rustbus::Error> {
+///     ) -> Result<(), rustbus::wire::errors::MarshalError> {
 ///         // always align to 8 at the start of a struct!
 ///         ctx.align_to(8);
 ///         self.x.marshal(ctx)?;
@@ -69,8 +69,11 @@ pub use container::*;
 /// 1. The alignment must report the correct number. This does not need to be a constant like in the example, but it needs to be consistent with the type
 ///     the signature() function returns. If you are not sure, just use Self::signature().get_alignment().
 pub trait Marshal: Signature {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error>;
-    fn marshal_as_variant(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::wire::errors::MarshalError>;
+    fn marshal_as_variant(
+        &self,
+        ctx: &mut MarshalContext,
+    ) -> Result<(), crate::wire::errors::MarshalError> {
         let mut sig = SignatureBuffer::new();
         Self::sig_str(&mut sig);
         if sig.len() > 255 {
@@ -250,7 +253,7 @@ impl<S: Signature> Signature for &S {
 }
 
 impl<P: Marshal> Marshal for &P {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::wire::errors::MarshalError> {
         (*self).marshal(ctx)
     }
 }

@@ -2,7 +2,30 @@
 
 use super::*;
 use crate::signature;
-use crate::Error;
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ConversionError {
+    /// Tried to construct an array with an empty set of params
+    EmptyArray,
+    /// Tried to construct a dict with an empty set of params
+    EmptyDict,
+    /// Errors occuring while validating the input
+    Validation(crate::params::validation::Error),
+    /// Tried to convert a Param to the wron type
+    InvalidType,
+}
+
+impl From<crate::params::validation::Error> for ConversionError {
+    fn from(e: crate::params::validation::Error) -> Self {
+        ConversionError::Validation(e)
+    }
+}
+
+impl From<crate::signature::Error> for ConversionError {
+    fn from(e: crate::signature::Error) -> Self {
+        ConversionError::Validation(crate::params::validation::Error::InvalidSignature(e))
+    }
+}
 
 impl<'a, 'e> Param<'a, 'e> {
     pub fn into_container(self) -> Result<Container<'a, 'e>, Param<'a, 'e>> {
@@ -368,110 +391,110 @@ impl<'a> std::convert::From<&Base<'a>> for signature::Base {
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for bool {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<bool, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<bool, ConversionError> {
         if let Base::Boolean(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for String {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<String, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<String, ConversionError> {
         if let Base::String(value) = b {
             Ok(value.clone())
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 impl<'a> std::convert::TryFrom<&Base<'a>> for &'a str {
-    type Error = Error;
-    fn try_from(b: &Base<'a>) -> std::result::Result<&'a str, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base<'a>) -> std::result::Result<&'a str, ConversionError> {
         if let Base::StringRef(value) = b {
             Ok(value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for u8 {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<u8, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<u8, ConversionError> {
         if let Base::Byte(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for u16 {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<u16, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<u16, ConversionError> {
         if let Base::Uint16(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for u32 {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<u32, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<u32, ConversionError> {
         if let Base::Uint32(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for u64 {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<u64, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<u64, ConversionError> {
         if let Base::Uint64(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for i16 {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<i16, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<i16, ConversionError> {
         if let Base::Int16(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for i32 {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<i32, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<i32, ConversionError> {
         if let Base::Int32(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
 
 impl<'a> std::convert::TryFrom<&Base<'a>> for i64 {
-    type Error = Error;
-    fn try_from(b: &Base) -> std::result::Result<i64, Error> {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<i64, ConversionError> {
         if let Base::Int64(value) = b {
             Ok(*value)
         } else {
-            Err(Error::InvalidType)
+            Err(ConversionError::InvalidType)
         }
     }
 }
@@ -516,10 +539,10 @@ impl<'a, 'e> std::convert::From<Container<'a, 'e>> for Param<'a, 'e> {
 //
 
 impl<'a, 'e> std::convert::TryFrom<(signature::Type, Vec<Param<'a, 'e>>)> for Container<'a, 'e> {
-    type Error = Error;
+    type Error = ConversionError;
     fn try_from(
         parts: (signature::Type, Vec<Param<'a, 'e>>),
-    ) -> std::result::Result<Container<'a, 'e>, Error> {
+    ) -> std::result::Result<Container<'a, 'e>, ConversionError> {
         let arr = Array {
             element_sig: parts.0,
             values: parts.1,
@@ -529,10 +552,12 @@ impl<'a, 'e> std::convert::TryFrom<(signature::Type, Vec<Param<'a, 'e>>)> for Co
     }
 }
 impl<'a, 'e> std::convert::TryFrom<Vec<Param<'a, 'e>>> for Container<'a, 'e> {
-    type Error = Error;
-    fn try_from(elems: Vec<Param<'a, 'e>>) -> std::result::Result<Container<'a, 'e>, Error> {
+    type Error = ConversionError;
+    fn try_from(
+        elems: Vec<Param<'a, 'e>>,
+    ) -> std::result::Result<Container<'a, 'e>, ConversionError> {
         if elems.is_empty() {
-            return Err(Error::EmptyArray);
+            return Err(ConversionError::EmptyArray);
         }
         Container::try_from((elems[0].sig(), elems))
     }
@@ -541,10 +566,10 @@ impl<'a, 'e> std::convert::TryFrom<Vec<Param<'a, 'e>>> for Container<'a, 'e> {
 impl<'a, 'e> std::convert::TryFrom<(signature::Base, signature::Type, DictMap<'a, 'e>)>
     for Container<'a, 'e>
 {
-    type Error = Error;
+    type Error = ConversionError;
     fn try_from(
         parts: (signature::Base, signature::Type, DictMap<'a, 'e>),
-    ) -> std::result::Result<Container<'a, 'e>, Error> {
+    ) -> std::result::Result<Container<'a, 'e>, ConversionError> {
         let dict = Dict {
             key_sig: parts.0,
             value_sig: parts.1,
@@ -555,10 +580,10 @@ impl<'a, 'e> std::convert::TryFrom<(signature::Base, signature::Type, DictMap<'a
     }
 }
 impl<'a, 'e> std::convert::TryFrom<DictMap<'a, 'e>> for Container<'a, 'e> {
-    type Error = Error;
-    fn try_from(elems: DictMap<'a, 'e>) -> std::result::Result<Container<'a, 'e>, Error> {
+    type Error = ConversionError;
+    fn try_from(elems: DictMap<'a, 'e>) -> std::result::Result<Container<'a, 'e>, ConversionError> {
         if elems.is_empty() {
-            return Err(Error::EmptyDict);
+            return Err(ConversionError::EmptyDict);
         }
         let key_sig = elems.keys().next().unwrap().sig();
         let value_sig = elems.values().next().unwrap().sig();

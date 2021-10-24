@@ -67,7 +67,7 @@ fn test_invalid_stuff() {
         .body
         .push_old_param(&Param::Base(Base::Signature("((((((((}}}}}}}".into())));
     assert_eq!(
-        Err(crate::Error::Validation(
+        Err(crate::wire::errors::MarshalError::Validation(
             crate::params::validation::Error::InvalidSignature(
                 crate::signature::Error::InvalidSignature
             )
@@ -83,7 +83,7 @@ fn test_invalid_stuff() {
         .body
         .push_old_param(&Param::Base(Base::ObjectPath("invalid/object/path".into())));
     assert_eq!(
-        Err(crate::Error::Validation(
+        Err(crate::wire::errors::MarshalError::Validation(
             crate::params::validation::Error::InvalidObjectPath
         )),
         err
@@ -96,7 +96,7 @@ fn test_invalid_stuff() {
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
-        Err(crate::Error::Validation(
+        Err(crate::wire::errors::MarshalError::Validation(
             crate::params::validation::Error::InvalidInterface
         )),
         marshal(&msg, 0, &mut buf)
@@ -113,7 +113,7 @@ fn test_invalid_stuff() {
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     assert_eq!(
-        Err(crate::Error::Validation(
+        Err(crate::wire::errors::MarshalError::Validation(
             crate::params::validation::Error::InvalidMembername
         )),
         marshal(&msg, 0, &mut buf)

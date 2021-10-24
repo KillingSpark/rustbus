@@ -1,13 +1,13 @@
 //! Marshal container params into raw bytes
 
 use crate::params;
-use crate::params::message;
 use crate::signature;
+use crate::wire::errors::MarshalError;
 use crate::wire::marshal::base::*;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::util::*;
 
-pub fn marshal_param(p: &params::Param, ctx: &mut MarshalContext) -> message::Result<()> {
+pub fn marshal_param(p: &params::Param, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
     match p {
         params::Param::Base(b) => marshal_base_param(b, ctx),
         params::Param::Container(c) => marshal_container_param(c, ctx),
@@ -18,7 +18,7 @@ fn marshal_array(
     array: &[params::Param],
     sig: &signature::Type,
     ctx: &mut MarshalContext,
-) -> message::Result<()> {
+) -> Result<(), MarshalError> {
     ctx.align_to(4);
     let len_pos = ctx.buf.len();
     // placeholder. The lenght will be written here later
@@ -40,7 +40,7 @@ fn marshal_array(
     Ok(())
 }
 
-fn marshal_struct(params: &[params::Param], ctx: &mut MarshalContext) -> message::Result<()> {
+fn marshal_struct(params: &[params::Param], ctx: &mut MarshalContext) -> Result<(), MarshalError> {
     ctx.align_to(8);
     for p in params {
         marshal_param(p, ctx)?;
@@ -48,7 +48,7 @@ fn marshal_struct(params: &[params::Param], ctx: &mut MarshalContext) -> message
     Ok(())
 }
 
-fn marshal_variant(var: &params::Variant, ctx: &mut MarshalContext) -> message::Result<()> {
+fn marshal_variant(var: &params::Variant, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
     let mut sig_str = String::new();
     var.sig.to_str(&mut sig_str);
     marshal_signature(&sig_str, ctx.buf)?;
@@ -56,7 +56,7 @@ fn marshal_variant(var: &params::Variant, ctx: &mut MarshalContext) -> message::
     Ok(())
 }
 
-fn marshal_dict(dict: &params::DictMap, ctx: &mut MarshalContext) -> message::Result<()> {
+fn marshal_dict(dict: &params::DictMap, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
     ctx.align_to(4);
     let len_pos = ctx.buf.len();
     // placeholder. The lenght will be written here later
@@ -84,7 +84,7 @@ fn marshal_dict(dict: &params::DictMap, ctx: &mut MarshalContext) -> message::Re
 pub fn marshal_container_param(
     p: &params::Container,
     ctx: &mut MarshalContext,
-) -> message::Result<()> {
+) -> Result<(), MarshalError> {
     match p {
         params::Container::Array(params) => {
             params::validate_array(&params.values, &params.element_sig)?;

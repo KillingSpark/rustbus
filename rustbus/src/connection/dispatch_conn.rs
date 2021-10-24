@@ -9,6 +9,8 @@ use super::ll_conn::RecvConn;
 use super::ll_conn::SendConn;
 use super::*;
 use crate::message_builder::MarshalledMessage;
+use crate::wire::errors::MarshalError;
+use crate::wire::errors::UnmarshalError;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -137,13 +139,19 @@ impl<UserData, UserError: std::fmt::Debug> PathMatcher<UserData, UserError> {
 
 #[derive(Debug)]
 pub enum HandleError<UserError: std::fmt::Debug> {
-    Rustbus(crate::Error),
+    Marshal(MarshalError),
+    Unmarshal(UnmarshalError),
     Connection(crate::connection::Error),
     User(UserError),
 }
-impl<UserError: std::fmt::Debug> From<crate::Error> for HandleError<UserError> {
-    fn from(err: crate::Error) -> Self {
-        HandleError::Rustbus(err)
+impl<UserError: std::fmt::Debug> From<MarshalError> for HandleError<UserError> {
+    fn from(err: MarshalError) -> Self {
+        HandleError::Marshal(err)
+    }
+}
+impl<UserError: std::fmt::Debug> From<UnmarshalError> for HandleError<UserError> {
+    fn from(err: UnmarshalError) -> Self {
+        HandleError::Unmarshal(err)
     }
 }
 

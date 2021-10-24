@@ -4,11 +4,11 @@
 //! try to unmarshal anything it should be more efficient than doing a whole unmarshalling just to check for correctness.
 
 use crate::signature;
-use crate::wire::unmarshal::Error;
+use crate::wire::errors::UnmarshalError;
 use crate::ByteOrder;
 
 /// Either Ok(amount_of_bytes) or Err(position, ErrorCode)
-pub type ValidationResult = Result<usize, (usize, crate::wire::unmarshal::Error)>;
+pub type ValidationResult = Result<usize, (usize, UnmarshalError)>;
 
 pub fn validate_marshalled(
     byteorder: ByteOrder,
@@ -34,61 +34,61 @@ pub fn validate_marshalled_base(
     match sig {
         signature::Base::Byte => {
             if buf[offset + padding..].is_empty() {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(1 + padding)
         }
         signature::Base::Uint16 => {
             if buf[offset + padding..].len() < 2 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(2 + padding)
         }
         signature::Base::Int16 => {
             if buf[offset + padding..].len() < 2 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(2 + padding)
         }
         signature::Base::Uint32 => {
             if buf[offset + padding..].len() < 4 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(4 + padding)
         }
         signature::Base::UnixFd => {
             if buf[offset + padding..].len() < 4 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(4 + padding)
         }
         signature::Base::Int32 => {
             if buf[offset + padding..].len() < 4 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(4 + padding)
         }
         signature::Base::Uint64 => {
             if buf[offset + padding..].len() < 8 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(8 + padding)
         }
         signature::Base::Int64 => {
             if buf[offset + padding..].len() < 8 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(8 + padding)
         }
         signature::Base::Double => {
             if buf[offset + padding..].len() < 8 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             Ok(8 + padding)
         }
         signature::Base::Boolean => {
             if buf[offset + padding..].len() < 4 {
-                return Err((offset + padding, Error::NotEnoughBytes));
+                return Err((offset + padding, UnmarshalError::NotEnoughBytes));
             }
             let offset = offset + padding;
             let slice = &buf[offset..offset + 4];
@@ -97,7 +97,7 @@ pub fn validate_marshalled_base(
             match val {
                 0 => Ok(4 + padding),
                 1 => Ok(4 + padding),
-                _ => Err((offset, Error::InvalidBoolean)),
+                _ => Err((offset, UnmarshalError::InvalidBoolean)),
             }
         }
         signature::Base::String => {
@@ -139,7 +139,7 @@ pub fn validate_marshalled_container(
             let offset = offset + 4;
 
             if buf[offset..].len() < bytes_in_array as usize {
-                return Err((offset, Error::NotEnoughBytesForCollection));
+                return Err((offset, UnmarshalError::NotEnoughBytesForCollection));
             }
 
             let first_elem_padding = util::align_offset(elem_sig.get_alignment(), buf, offset)
@@ -147,7 +147,7 @@ pub fn validate_marshalled_container(
             let offset = offset + first_elem_padding;
 
             if buf[offset..].len() < bytes_in_array as usize {
-                return Err((offset, Error::NotEnoughBytesForCollection));
+                return Err((offset, UnmarshalError::NotEnoughBytesForCollection));
             }
 
             if elem_sig.bytes_always_valid() {
@@ -155,7 +155,7 @@ pub fn validate_marshalled_container(
                 // length is equal to their alignment
                 if bytes_in_array as usize % elem_sig.get_alignment() != 0 {
                     // there is not a whole number of elements in the array.
-                    return Err((offset, Error::NotEnoughBytes));
+                    return Err((offset, UnmarshalError::NotEnoughBytes));
                 }
             } else {
                 let mut bytes_used_counter = 0;
@@ -181,7 +181,7 @@ pub fn validate_marshalled_container(
             let offset = offset + 4;
 
             if buf[offset..].len() < bytes_in_dict as usize {
-                return Err((offset, Error::NotEnoughBytesForCollection));
+                return Err((offset, UnmarshalError::NotEnoughBytesForCollection));
             }
 
             let before_elements_padding =
@@ -189,7 +189,7 @@ pub fn validate_marshalled_container(
             let offset = offset + before_elements_padding;
 
             if buf[offset..].len() < bytes_in_dict as usize {
-                return Err((offset, Error::NotEnoughBytesForCollection));
+                return Err((offset, UnmarshalError::NotEnoughBytesForCollection));
             }
 
             // don't let the contents of the dict see anything beyond the dicts claimed end.
@@ -237,7 +237,7 @@ pub fn validate_marshalled_container(
                 signature::Type::parse_description(sig_str).map_err(|e| (offset, e.into()))?;
             if sig.len() != 1 {
                 // There must be exactly one type in the signature!
-                return Err((offset, Error::WrongSignature));
+                return Err((offset, UnmarshalError::WrongSignature));
             }
             let sig = sig.remove(0);
             let offset = offset + sig_bytes_used;
@@ -261,7 +261,7 @@ fn test_raw_validation() {
         )
         .err()
         .unwrap(),
-        (0usize, Error::NotEnoughBytes)
+        (0usize, UnmarshalError::NotEnoughBytes)
     );
 
     // 8u8 ++ padding ++ 14u32 with a 1 in the padding
@@ -275,7 +275,7 @@ fn test_raw_validation() {
         )
         .err()
         .unwrap(),
-        (1usize, Error::PaddingContainedData)
+        (1usize, UnmarshalError::PaddingContainedData)
     );
 
     // padding of empty array
@@ -289,7 +289,7 @@ fn test_raw_validation() {
         )
         .err()
         .unwrap(),
-        (4usize, Error::NotEnoughBytes)
+        (4usize, UnmarshalError::NotEnoughBytes)
     );
 
     // padding of empty array
@@ -303,7 +303,7 @@ fn test_raw_validation() {
         )
         .err()
         .unwrap(),
-        (4usize, Error::PaddingContainedData)
+        (4usize, UnmarshalError::PaddingContainedData)
     );
 
     // just to make sure stuff that should pass does pass this

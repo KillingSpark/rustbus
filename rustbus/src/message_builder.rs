@@ -1,6 +1,8 @@
 //! Build new messages that you want to send over a connection
 use crate::params::message;
 use crate::signature::SignatureIter;
+use crate::wire::errors::MarshalError;
+use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::{Marshal, SignatureBuffer};
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal::UnmarshalContext;
@@ -261,7 +263,7 @@ impl MarshalledMessage {
         self.body.reserve(additional)
     }
 
-    pub fn unmarshall_all<'a, 'e>(self) -> Result<message::Message<'a, 'e>, crate::Error> {
+    pub fn unmarshall_all<'a, 'e>(self) -> Result<message::Message<'a, 'e>, UnmarshalError> {
         let params = if self.body.sig.is_empty() {
             vec![]
         } else {
@@ -311,7 +313,7 @@ pub fn marshal_as_variant<P: Marshal>(
     byteorder: ByteOrder,
     buf: &mut Vec<u8>,
     fds: &mut Vec<crate::wire::UnixFd>,
-) -> Result<(), crate::Error> {
+) -> Result<(), MarshalError> {
     let mut ctx = MarshalContext {
         fds,
         buf,
@@ -387,7 +389,7 @@ impl MarshalledMessageBody {
 
     /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
     /// the new trait/type based API does not work.
-    pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), crate::Error> {
+    pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), MarshalError> {
         let mut ctx = MarshalContext {
             buf: &mut self.buf,
             fds: &mut self.raw_fds,
@@ -400,7 +402,7 @@ impl MarshalledMessageBody {
     }
 
     /// Convenience function to call push_old_param on a slice of Param
-    pub fn push_old_params(&mut self, ps: &[crate::params::Param]) -> Result<(), crate::Error> {
+    pub fn push_old_params(&mut self, ps: &[crate::params::Param]) -> Result<(), MarshalError> {
         for p in ps {
             self.push_old_param(p)?;
         }
@@ -415,7 +417,7 @@ impl MarshalledMessageBody {
     }
 
     /// Append something that is Marshal to the message body
-    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
+    pub fn push_param<P: Marshal>(&mut self, p: P) -> Result<(), MarshalError> {
         let mut ctx = self.create_ctx();
         p.marshal(&mut ctx)?;
         P::sig_str(&mut self.sig);
@@ -424,9 +426,9 @@ impl MarshalledMessageBody {
 
     /// execute some amount of push calls and if any of them fails, reset the body
     // to the state it was in before the push calls where executed
-    fn push_mult_helper<F>(&mut self, push_calls: F) -> Result<(), crate::Error>
+    fn push_mult_helper<F>(&mut self, push_calls: F) -> Result<(), MarshalError>
     where
-        F: FnOnce(&mut MarshalledMessageBody) -> Result<(), crate::Error>,
+        F: FnOnce(&mut MarshalledMessageBody) -> Result<(), MarshalError>,
     {
         let sig_len = self.sig.len();
         let buf_len = self.buf.len();
@@ -449,7 +451,7 @@ impl MarshalledMessageBody {
         &mut self,
         p1: P1,
         p2: P2,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), MarshalError> {
         self.push_mult_helper(move |msg: &mut Self| {
             msg.push_param(p1)?;
             msg.push_param(p2)
@@ -462,7 +464,7 @@ impl MarshalledMessageBody {
         p1: P1,
         p2: P2,
         p3: P3,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), MarshalError> {
         self.push_mult_helper(move |msg: &mut Self| {
             msg.push_param(p1)?;
             msg.push_param(p2)?;
@@ -477,7 +479,7 @@ impl MarshalledMessageBody {
         p2: P2,
         p3: P3,
         p4: P4,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), MarshalError> {
         self.push_mult_helper(move |msg: &mut Self| {
             msg.push_param(p1)?;
             msg.push_param(p2)?;
@@ -494,7 +496,7 @@ impl MarshalledMessageBody {
         p3: P3,
         p4: P4,
         p5: P5,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), MarshalError> {
         self.push_mult_helper(move |msg: &mut Self| {
             msg.push_param(p1)?;
             msg.push_param(p2)?;
@@ -505,7 +507,7 @@ impl MarshalledMessageBody {
     }
 
     /// Append any number of things that have the same type that is Marshal to the message body
-    pub fn push_params<P: Marshal>(&mut self, params: &[P]) -> Result<(), crate::Error> {
+    pub fn push_params<P: Marshal>(&mut self, params: &[P]) -> Result<(), MarshalError> {
         for p in params {
             self.push_param(p)?;
         }
@@ -513,13 +515,13 @@ impl MarshalledMessageBody {
     }
 
     /// Append something that is Marshal to the body but use a dbus Variant in the signature. This is necessary for some APIs
-    pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), crate::Error> {
+    pub fn push_variant<P: Marshal>(&mut self, p: P) -> Result<(), MarshalError> {
         self.sig.push_static("v");
         let mut ctx = self.create_ctx();
         p.marshal_as_variant(&mut ctx)
     }
     /// Validate the all the marshalled elements of the body.
-    pub fn validate(&self) -> Result<(), crate::wire::unmarshal::Error> {
+    pub fn validate(&self) -> Result<(), UnmarshalError> {
         if self.sig.is_empty() && self.buf.is_empty() {
             return Ok(());
         }
@@ -532,7 +534,7 @@ impl MarshalledMessageBody {
         if used == self.buf.len() {
             Ok(())
         } else {
-            Err(crate::wire::unmarshal::Error::NotAllBytesUsed)
+            Err(UnmarshalError::NotAllBytesUsed)
         }
     }
     /// Create a parser to retrieve parameters from the body.
@@ -600,7 +602,7 @@ fn test_marshal_trait() {
         }
     }
     impl Marshal for &MyStruct {
-        fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+        fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
             // always align to 8
             ctx.align_to(8);
             self.x.marshal(ctx)?;
@@ -647,12 +649,12 @@ fn test_marshal_trait() {
         std::collections::HashMap<String, std::collections::HashMap<String, u64>>;
     assert_eq!(
         body_iter.get::<WrongNestedDict>().err().unwrap(),
-        crate::wire::unmarshal::Error::WrongSignature
+        UnmarshalError::WrongSignature
     );
     type WrongStruct = (u64, i32, String);
     assert_eq!(
         body_iter.get::<WrongStruct>().err().unwrap(),
-        crate::wire::unmarshal::Error::WrongSignature
+        UnmarshalError::WrongSignature
     );
 
     // the get the correct type and make sure the content is correct
@@ -665,11 +667,11 @@ fn test_marshal_trait() {
     // again try some stuff that has the wrong signature
     assert_eq!(
         body_iter.get::<WrongNestedDict>().err().unwrap(),
-        crate::wire::unmarshal::Error::WrongSignature
+        UnmarshalError::WrongSignature
     );
     assert_eq!(
         body_iter.get::<WrongStruct>().err().unwrap(),
-        crate::wire::unmarshal::Error::WrongSignature
+        UnmarshalError::WrongSignature
     );
 
     // get the empty map next
@@ -680,13 +682,13 @@ fn test_marshal_trait() {
     let mut body_iter = body.parser();
     assert_eq!(
         body_iter.get2::<NestedDict, u16>().unwrap_err(),
-        crate::wire::unmarshal::Error::WrongSignature
+        UnmarshalError::WrongSignature
     );
     assert_eq!(
         body_iter
             .get3::<NestedDict, std::collections::HashMap<&str, u32>, u32>()
             .unwrap_err(),
-        crate::wire::unmarshal::Error::EndOfMessage
+        UnmarshalError::EndOfMessage
     );
 
     // test to make sure body_iter is left unchanged from last failure and the map is
@@ -700,7 +702,7 @@ fn test_marshal_trait() {
     assert_eq!(newemptymap.len(), 0);
     assert_eq!(
         body_iter.get::<u16>().unwrap_err(),
-        crate::wire::unmarshal::Error::EndOfMessage
+        UnmarshalError::EndOfMessage
     );
 
     // test mixed get() and get_param()
@@ -730,7 +732,7 @@ fn test_marshal_trait() {
     }
     assert_eq!(
         body_iter.get::<u16>().unwrap_err(),
-        crate::wire::unmarshal::Error::EndOfMessage
+        UnmarshalError::EndOfMessage
     );
 }
 
@@ -776,10 +778,10 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
     /// Get the next param, use get::<TYPE> to specify what type you expect. For example `let s = parser.get::<String>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get<T: Unmarshal<'body, 'fds>>(&mut self) -> Result<T, crate::wire::unmarshal::Error> {
+    pub fn get<T: Unmarshal<'body, 'fds>>(&mut self) -> Result<T, UnmarshalError> {
         if let Some(expected_sig) = self.get_next_sig() {
             if !T::has_sig(expected_sig) {
-                return Err(crate::wire::unmarshal::Error::WrongSignature);
+                return Err(UnmarshalError::WrongSignature);
             }
 
             let mut ctx = UnmarshalContext {
@@ -797,20 +799,16 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
                 Err(e) => Err(e),
             }
         } else {
-            Err(crate::wire::unmarshal::Error::EndOfMessage)
+            Err(UnmarshalError::EndOfMessage)
         }
     }
     /// Perform error handling for `get2(), get3()...` if `get_calls` fails.
-    fn get_mult_helper<T, F>(
-        &mut self,
-        count: usize,
-        get_calls: F,
-    ) -> Result<T, crate::wire::unmarshal::Error>
+    fn get_mult_helper<T, F>(&mut self, count: usize, get_calls: F) -> Result<T, UnmarshalError>
     where
-        F: FnOnce(&mut Self) -> Result<T, crate::wire::unmarshal::Error>,
+        F: FnOnce(&mut Self) -> Result<T, UnmarshalError>,
     {
         if count > self.sigs_left() {
-            return Err(crate::wire::unmarshal::Error::EndOfMessage);
+            return Err(UnmarshalError::EndOfMessage);
         }
         let start_sig_idx = self.sig_idx;
         let start_buf_idx = self.buf_idx;
@@ -826,7 +824,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
     /// Get the next two params, use get2::<TYPE, TYPE> to specify what type you expect. For example `let s = parser.get2::<String, i32>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), crate::wire::unmarshal::Error>
+    pub fn get2<T1, T2>(&mut self) -> Result<(T1, T2), UnmarshalError>
     where
         T1: Unmarshal<'body, 'fds>,
         T2: Unmarshal<'body, 'fds>,
@@ -841,7 +839,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
     /// Get the next three params, use get3::<TYPE, TYPE, TYPE> to specify what type you expect. For example `let s = parser.get3::<String, i32, u64>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), crate::wire::unmarshal::Error>
+    pub fn get3<T1, T2, T3>(&mut self) -> Result<(T1, T2, T3), UnmarshalError>
     where
         T1: Unmarshal<'body, 'fds>,
         T2: Unmarshal<'body, 'fds>,
@@ -858,9 +856,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
     /// Get the next four params, use get4::<TYPE, TYPE, TYPE, TYPE> to specify what type you expect. For example `let s = parser.get4::<String, i32, u64, u8>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get4<T1, T2, T3, T4>(
-        &mut self,
-    ) -> Result<(T1, T2, T3, T4), crate::wire::unmarshal::Error>
+    pub fn get4<T1, T2, T3, T4>(&mut self) -> Result<(T1, T2, T3, T4), UnmarshalError>
     where
         T1: Unmarshal<'body, 'fds>,
         T2: Unmarshal<'body, 'fds>,
@@ -879,9 +875,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
     /// Get the next five params, use get5::<TYPE, TYPE, TYPE, TYPE, TYPE> to specify what type you expect. For example `let s = parser.get4::<String, i32, u64, u8, bool>()?;`
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get5<T1, T2, T3, T4, T5>(
-        &mut self,
-    ) -> Result<(T1, T2, T3, T4, T5), crate::wire::unmarshal::Error>
+    pub fn get5<T1, T2, T3, T4, T5>(&mut self) -> Result<(T1, T2, T3, T4, T5), UnmarshalError>
     where
         T1: Unmarshal<'body, 'fds>,
         T2: Unmarshal<'body, 'fds>,
@@ -902,7 +896,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
     /// Get the next (old_style) param.
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get_param(&mut self) -> Result<crate::params::Param, crate::wire::unmarshal::Error> {
+    pub fn get_param(&mut self) -> Result<crate::params::Param, UnmarshalError> {
         if let Some(sig_str) = self.get_next_sig() {
             let mut ctx = UnmarshalContext {
                 byteorder: self.body.byteorder,
@@ -922,7 +916,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
                 Err(e) => Err(e),
             }
         } else {
-            Err(crate::wire::unmarshal::Error::EndOfMessage)
+            Err(UnmarshalError::EndOfMessage)
         }
     }
 }
@@ -931,6 +925,8 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 mod tests {
     #[test]
     fn parser_get() {
+        use crate::wire::errors::UnmarshalError;
+
         let mut sig = super::MessageBuilder::new()
             .signal("io.killingspark", "Signal", "/io/killingspark/Signaler")
             .build();
@@ -941,25 +937,16 @@ mod tests {
         assert_eq!(parser.get(), Ok(100u32));
         assert_eq!(parser.get(), Ok(200i32));
         assert_eq!(parser.get(), Ok("ABCDEFGH"));
-        assert_eq!(
-            parser.get::<String>(),
-            Err(crate::wire::unmarshal::Error::EndOfMessage)
-        );
+        assert_eq!(parser.get::<String>(), Err(UnmarshalError::EndOfMessage));
 
         let mut parser = sig.body.parser();
         assert_eq!(parser.get2(), Ok((100u32, 200i32)));
         assert_eq!(parser.get(), Ok("ABCDEFGH"));
-        assert_eq!(
-            parser.get::<String>(),
-            Err(crate::wire::unmarshal::Error::EndOfMessage)
-        );
+        assert_eq!(parser.get::<String>(), Err(UnmarshalError::EndOfMessage));
 
         let mut parser = sig.body.parser();
         assert_eq!(parser.get3(), Ok((100u32, 200i32, "ABCDEFGH")));
-        assert_eq!(
-            parser.get::<String>(),
-            Err(crate::wire::unmarshal::Error::EndOfMessage)
-        );
+        assert_eq!(parser.get::<String>(), Err(UnmarshalError::EndOfMessage));
 
         let mut sig = super::MessageBuilder::new()
             .signal("io.killingspark", "Signal", "/io/killingspark/Signaler")

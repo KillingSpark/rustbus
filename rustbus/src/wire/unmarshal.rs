@@ -10,6 +10,7 @@ use crate::message_builder::MarshalledMessageBody;
 use crate::message_builder::MessageType;
 use crate::params;
 use crate::signature;
+use crate::wire::errors::UnmarshalError;
 use crate::wire::util::*;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
@@ -32,28 +33,6 @@ pub struct Header {
     pub serial: u32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Error {
-    EmptyStruct,
-    NotEnoughBytes,
-    NotEnoughBytesForCollection,
-    NotAllBytesUsed,
-    InvalidByteOrder,
-    InvalidType,
-    WrongSignature,
-    Validation(crate::params::validation::Error),
-    InvalidHeaderField,
-    InvalidHeaderFields,
-    UnknownHeaderField,
-    PaddingContainedData,
-    InvalidBoolean,
-    EndOfMessage,
-    NoSerial,
-    NoSignature,
-    BadFdIndex(usize),
-    NoMatchingVariantFound,
-}
-
 pub struct UnmarshalContext<'fds, 'buf> {
     pub fds: &'fds [crate::wire::UnixFd],
     pub buf: &'buf [u8],
@@ -62,11 +41,11 @@ pub struct UnmarshalContext<'fds, 'buf> {
 }
 
 impl UnmarshalContext<'_, '_> {
-    pub fn align_to(&mut self, alignment: usize) -> Result<usize, crate::wire::unmarshal::Error> {
+    pub fn align_to(&mut self, alignment: usize) -> Result<usize, UnmarshalError> {
         let padding = crate::wire::util::align_offset(alignment, self.buf, self.offset)?;
 
         if self.offset + padding > self.buf.len() {
-            Err(Error::NotEnoughBytes)
+            Err(UnmarshalError::NotEnoughBytes)
         } else {
             self.offset += padding;
             Ok(padding)
@@ -74,39 +53,39 @@ impl UnmarshalContext<'_, '_> {
     }
 }
 
-impl From<crate::params::validation::Error> for Error {
+impl From<crate::params::validation::Error> for UnmarshalError {
     fn from(e: crate::params::validation::Error) -> Self {
-        Error::Validation(e)
+        UnmarshalError::Validation(e)
     }
 }
-impl From<crate::signature::Error> for Error {
+impl From<crate::signature::Error> for UnmarshalError {
     fn from(e: crate::signature::Error) -> Self {
-        Error::Validation(crate::params::validation::Error::InvalidSignature(e))
+        UnmarshalError::Validation(crate::params::validation::Error::InvalidSignature(e))
     }
 }
 
-impl Error {
+impl UnmarshalError {
     /// Checks if `self` is an `EndOfMessage` error.
     #[inline]
     pub fn is_end_of_message(&self) -> bool {
-        self == &Error::EndOfMessage
+        self == &UnmarshalError::EndOfMessage
     }
 }
 
 pub const HEADER_LEN: usize = 12;
 
-pub type UnmarshalResult<T> = std::result::Result<(usize, T), Error>;
+pub type UnmarshalResult<T> = std::result::Result<(usize, T), UnmarshalError>;
 
 pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
     if buf.len() < offset + HEADER_LEN {
-        return Err(Error::NotEnoughBytes);
+        return Err(UnmarshalError::NotEnoughBytes);
     }
     let header_slice = &buf[offset..offset + HEADER_LEN];
 
     let byteorder = match header_slice[0] {
         b'l' => ByteOrder::LittleEndian,
         b'B' => ByteOrder::BigEndian,
-        _ => return Err(Error::InvalidByteOrder),
+        _ => return Err(UnmarshalError::InvalidByteOrder),
     };
 
     let typ = match header_slice[1] {
@@ -114,7 +93,7 @@ pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
         2 => MessageType::Reply,
         3 => MessageType::Error,
         4 => MessageType::Signal,
-        _ => return Err(Error::InvalidType),
+        _ => return Err(UnmarshalError::InvalidMessageType),
     };
     let flags = header_slice[2];
     let version = header_slice[3];
@@ -192,7 +171,7 @@ pub fn unmarshal_next_message(
         let offset = offset + padding;
 
         if buf[offset..].len() < (header.body_len as usize) {
-            return Err(Error::NotEnoughBytes);
+            return Err(UnmarshalError::NotEnoughBytes);
         }
 
         let msg = MarshalledMessage {
@@ -219,7 +198,7 @@ fn unmarshal_header_fields(
     let offset = offset + 4;
 
     if offset + header_fields_bytes as usize > buf.len() {
-        return Err(Error::NotEnoughBytes);
+        return Err(UnmarshalError::NotEnoughBytes);
     }
 
     let mut fields = Vec::new();
@@ -231,7 +210,7 @@ fn unmarshal_header_fields(
                 fields.push(field);
                 bytes_used_counter += bytes_used;
             }
-            Err(Error::UnknownHeaderField) => {
+            Err(UnmarshalError::UnknownHeaderField) => {
                 // for the unknown header field code which is always one byte
                 bytes_used_counter += 1;
 
@@ -254,7 +233,8 @@ fn unmarshal_header_fields(
             Err(e) => return Err(e),
         }
     }
-    params::validate_header_fields(header.typ, &fields).map_err(|_| Error::InvalidHeaderFields)?;
+    params::validate_header_fields(header.typ, &fields)
+        .map_err(|_| UnmarshalError::InvalidHeaderFields)?;
 
     Ok((header_fields_bytes as usize + 4, fields))
 }
@@ -270,19 +250,20 @@ fn unmarshal_header_field(
 
     // check that there is enough bytes in the buffer after padding
     if buf.len() <= offset {
-        return Err(Error::NotEnoughBytes);
+        return Err(UnmarshalError::NotEnoughBytes);
     }
     let typ = buf[offset];
     let typ_bytes_used = 1;
     let offset = offset + typ_bytes_used;
 
     let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
-    let mut sig = signature::Type::parse_description(sig_str).map_err(|_| Error::NoSignature)?;
+    let mut sig =
+        signature::Type::parse_description(sig_str).map_err(|_| UnmarshalError::NoSignature)?;
     let offset = offset + sig_bytes_used;
 
     if sig.len() != 1 {
         // There must be exactly one type in the signature!
-        return Err(Error::NoSignature);
+        return Err(UnmarshalError::NoSignature);
     }
     let sig = sig.remove(0);
     let (field_bytes_used, field) = match typ {
@@ -292,49 +273,49 @@ fn unmarshal_header_field(
                 crate::params::validate_object_path(&objpath)?;
                 (b, Ok(HeaderField::Path(objpath)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         2 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, int) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(HeaderField::Interface(int)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         3 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, mem) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(HeaderField::Member(mem)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         4 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, name) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(HeaderField::ErrorName(name)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         5 => match sig {
             signature::Type::Base(signature::Base::Uint32) => {
                 let (b, serial) = parse_u32(&buf[offset..], header.byteorder)?;
                 (b, Ok(HeaderField::ReplySerial(serial)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         6 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, dest) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(HeaderField::Destination(dest)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         7 => match sig {
             signature::Type::Base(signature::Base::String) => {
                 let (b, snd) = unmarshal_string(header.byteorder, &buf[offset..])?;
                 (b, Ok(HeaderField::Sender(snd)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         8 => match sig {
             signature::Type::Base(signature::Base::Signature) => {
@@ -345,17 +326,17 @@ fn unmarshal_header_field(
                 }
                 (b, Ok(HeaderField::Signature(sig.to_owned())))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
         9 => match sig {
             signature::Type::Base(signature::Base::Uint32) => {
                 let (b, fds) = parse_u32(&buf[offset..], header.byteorder)?;
                 (b, Ok(HeaderField::UnixFds(fds)))
             }
-            _ => (0, Err(Error::WrongSignature)),
+            _ => (0, Err(UnmarshalError::WrongSignature)),
         },
-        0 => (0, Err(Error::InvalidHeaderField)),
-        _ => (0, Err(Error::UnknownHeaderField)),
+        0 => (0, Err(UnmarshalError::InvalidHeaderField)),
+        _ => (0, Err(UnmarshalError::UnknownHeaderField)),
     };
     let sum_bytes_used = padding + typ_bytes_used + sig_bytes_used + field_bytes_used;
     match field {

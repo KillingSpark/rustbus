@@ -1,9 +1,9 @@
 //! This contains the implementations for the `Unmarshal` trait for container types like lists and dicts
 
 use crate::signature;
+use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::unmarshal;
-use crate::wire::unmarshal::Error;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::util;
 use crate::ByteOrder;
@@ -155,7 +155,7 @@ where
     ctx.align_to(alignment)?;
 
     if bytes_in_array % alignment != 0 {
-        return Err(Error::NotAllBytesUsed);
+        return Err(UnmarshalError::NotAllBytesUsed);
     }
     let elem_cnt = bytes_in_array / alignment;
     let ptr = &ctx.buf[ctx.offset..] as *const [u8] as *const E;
@@ -199,7 +199,7 @@ impl<'buf, 'fds, E: Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for Vec<E> {
         let mut bytes_used_counter = 0;
         while bytes_used_counter < bytes_in_array as usize {
             if ctx.offset >= ctx.buf.len() {
-                return Err(Error::NotEnoughBytes);
+                return Err(UnmarshalError::NotEnoughBytes);
             }
 
             let elem_padding = util::align_offset(E::alignment(), ctx.buf, ctx.offset)?;
@@ -233,7 +233,7 @@ impl<'buf, 'fds, K: Unmarshal<'buf, 'fds> + std::hash::Hash + Eq, V: Unmarshal<'
         let mut bytes_used_counter = 0;
         while bytes_used_counter < bytes_in_array as usize {
             if ctx.offset >= ctx.buf.len() {
-                return Err(Error::NotEnoughBytes);
+                return Err(UnmarshalError::NotEnoughBytes);
             }
 
             let elem_padding = util::align_offset(8, ctx.buf, ctx.offset)?;
@@ -278,9 +278,9 @@ impl<'buf, 'fds> Variant<'fds, 'buf> {
     /// Unmarshal the variant's value. This method is used in the same way as [`MessageBodyParser::get()`].
     ///
     /// [`MessageBodyParser::get()`]: /rustbus/message_builder/struct.MessageBodyParser.html#method.get
-    pub fn get<T: Unmarshal<'buf, 'fds>>(&self) -> Result<T, unmarshal::Error> {
+    pub fn get<T: Unmarshal<'buf, 'fds>>(&self) -> Result<T, UnmarshalError> {
         if self.sig != T::signature() {
-            return Err(unmarshal::Error::WrongSignature);
+            return Err(UnmarshalError::WrongSignature);
         }
         let mut ctx = UnmarshalContext {
             byteorder: self.byteorder,
@@ -314,10 +314,10 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
 
         let mut sigs = match signature::Type::parse_description(desc) {
             Ok(sigs) => sigs,
-            Err(_) => return Err(unmarshal::Error::WrongSignature),
+            Err(_) => return Err(UnmarshalError::WrongSignature),
         };
         if sigs.len() != 1 {
-            return Err(unmarshal::Error::WrongSignature);
+            return Err(UnmarshalError::WrongSignature);
         }
         let sig = sigs.remove(0);
 

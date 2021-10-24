@@ -2,13 +2,12 @@
 //!
 //! These allow for easier construction of containers. Note that empty containers require you to specify the
 //! signature.
-
-use crate::params::message::Result;
 use crate::params::*;
 use crate::signature;
+use crate::wire::errors::MarshalError;
 
 impl<'e, 'a: 'e> Container<'a, 'e> {
-    pub fn push<P: Into<Param<'a, 'e>>>(&mut self, new: P) -> Result<()> {
+    pub fn push<P: Into<Param<'a, 'e>>>(&mut self, new: P) -> Result<(), MarshalError> {
         match self {
             Container::Struct(elements) => {
                 elements.push(new.into());
@@ -33,7 +32,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         &mut self,
         key: K,
         val: V,
-    ) -> Result<()> {
+    ) -> Result<(), MarshalError> {
         match self {
             Container::Dict(dict) => {
                 let key = key.into();
@@ -95,7 +94,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
     pub fn make_array_ref(
         element_sig: &str,
         elements: &'a [Param<'a, 'e>],
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let mut sigs = signature::Type::parse_description(element_sig)?;
 
         if sigs.len() != 1 {
@@ -109,7 +108,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
     pub fn make_array_ref_with_sig(
         element_sig: signature::Type,
         elements: &'a [Param<'a, 'e>],
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let arr: ArrayRef<'a, 'e> = ArrayRef {
             element_sig,
             values: elements,
@@ -123,7 +122,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
     pub fn make_array<P: Into<Param<'a, 'e>>, I: Iterator<Item = P>>(
         element_sig: &str,
         elements: I,
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let mut sigs = signature::Type::parse_description(element_sig)?;
 
         if sigs.len() != 1 {
@@ -137,7 +136,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
     pub fn make_array_with_sig<P: Into<Param<'a, 'e>>, I: Iterator<Item = P>>(
         element_sig: signature::Type,
         elements: I,
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let arr: Array<'a, 'e> = Array {
             element_sig,
             values: elements.map(std::convert::Into::into).collect(),
@@ -152,7 +151,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         key_sig: &str,
         val_sig: &str,
         map: I,
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let mut valsigs = signature::Type::parse_description(val_sig)?;
 
         if valsigs.len() != 1 {
@@ -183,7 +182,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         key_sig: signature::Base,
         value_sig: signature::Type,
         map: I,
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let dict = Dict {
             key_sig,
             value_sig,
@@ -198,7 +197,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         key_sig: &str,
         val_sig: &str,
         map: &'a DictMap,
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let mut valsigs = signature::Type::parse_description(val_sig)?;
 
         if valsigs.len() != 1 {
@@ -225,7 +224,7 @@ impl<'e, 'a: 'e> Container<'a, 'e> {
         key_sig: signature::Base,
         value_sig: signature::Type,
         map: &'a DictMap,
-    ) -> Result<Container<'a, 'e>> {
+    ) -> Result<Container<'a, 'e>, MarshalError> {
         let dict = DictRef {
             key_sig,
             value_sig,

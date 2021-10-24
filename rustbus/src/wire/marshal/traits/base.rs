@@ -1,5 +1,6 @@
 //! This contains the implementations for the `Marshal` trait for base types like integers and strings
 
+use crate::wire::errors::MarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::util;
@@ -29,7 +30,7 @@ impl Signature for u64 {
     }
 }
 impl Marshal for u64 {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.align_to(Self::alignment());
         util::write_u64(*self, ctx.byteorder, ctx.buf);
         Ok(())
@@ -57,7 +58,7 @@ impl Signature for i64 {
     }
 }
 impl Marshal for i64 {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.align_to(Self::alignment());
         // Ok because rust represents i64 as a twos complement, which is what dbus uses too
         util::write_u64(*self as u64, ctx.byteorder, ctx.buf);
@@ -86,7 +87,7 @@ impl Signature for u32 {
     }
 }
 impl Marshal for u32 {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.align_to(Self::alignment());
         crate::wire::util::write_u32(*self, ctx.byteorder, ctx.buf);
         Ok(())
@@ -114,7 +115,7 @@ impl Signature for i32 {
     }
 }
 impl Marshal for i32 {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.align_to(Self::alignment());
         // Ok because rust represents i32 as a twos complement, which is what dbus uses too
         crate::wire::util::write_u32(*self as u32, ctx.byteorder, ctx.buf);
@@ -141,7 +142,7 @@ impl Signature for u16 {
     }
 }
 impl Marshal for u16 {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.align_to(Self::alignment());
         util::write_u16(*self, ctx.byteorder, ctx.buf);
         Ok(())
@@ -167,7 +168,7 @@ impl Signature for i16 {
     }
 }
 impl Marshal for i16 {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.align_to(Self::alignment());
         // Ok because rust represents i16 as a twos complement, which is what dbus uses too
         util::write_u16(*self as u16, ctx.byteorder, ctx.buf);
@@ -198,7 +199,7 @@ impl Signature for u8 {
 }
 impl Marshal for u8 {
     #[inline]
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.buf.push(*self);
         Ok(())
     }
@@ -224,7 +225,7 @@ impl Signature for bool {
 }
 impl Marshal for bool {
     #[inline]
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         (*self as u32).marshal(ctx)
     }
 }
@@ -248,7 +249,7 @@ impl Signature for String {
     }
 }
 impl Marshal for String {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         self.as_str().marshal(ctx)
     }
 }
@@ -272,7 +273,7 @@ impl Signature for &str {
     }
 }
 impl Marshal for &str {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         ctx.align_to(Self::alignment());
         crate::wire::util::write_string(self, ctx.byteorder, ctx.buf);
         Ok(())
@@ -299,7 +300,7 @@ impl<S: AsRef<str>> Signature for ObjectPath<S> {
 }
 impl<S: AsRef<str>> Marshal for ObjectPath<S> {
     #[inline]
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         self.as_ref().marshal(ctx)
     }
 }
@@ -324,7 +325,7 @@ impl<S: AsRef<str>> Signature for SignatureWrapper<S> {
 }
 impl<S: AsRef<str>> Marshal for SignatureWrapper<S> {
     #[inline]
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         crate::wire::util::write_signature(self.as_ref(), ctx.buf);
         Ok(())
     }

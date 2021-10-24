@@ -8,7 +8,6 @@ pub mod dispatch_conn;
 pub mod ll_conn;
 pub mod rpc_conn;
 
-use crate::wire::unmarshal;
 use std::path::PathBuf;
 use std::time;
 
@@ -26,8 +25,8 @@ use nix::sys::socket::UnixAddr;
 pub enum Error {
     IoError(std::io::Error),
     NixError(nix::Error),
-    UnmarshalError(unmarshal::Error),
-    MarshalError(crate::Error),
+    UnmarshalError(crate::wire::errors::UnmarshalError),
+    MarshalError(crate::wire::errors::MarshalError),
     AuthFailed,
     UnixFdNegotiationFailed,
     NameTaken,
@@ -44,8 +43,8 @@ impl std::convert::From<std::io::Error> for Error {
     }
 }
 
-impl std::convert::From<unmarshal::Error> for Error {
-    fn from(e: unmarshal::Error) -> Error {
+impl std::convert::From<crate::wire::errors::UnmarshalError> for Error {
+    fn from(e: crate::wire::errors::UnmarshalError) -> Error {
         Error::UnmarshalError(e)
     }
 }
@@ -56,8 +55,8 @@ impl std::convert::From<nix::Error> for Error {
     }
 }
 
-impl std::convert::From<crate::Error> for Error {
-    fn from(e: crate::Error) -> Error {
+impl std::convert::From<crate::wire::errors::MarshalError> for Error {
+    fn from(e: crate::wire::errors::MarshalError) -> Error {
         Error::MarshalError(e)
     }
 }

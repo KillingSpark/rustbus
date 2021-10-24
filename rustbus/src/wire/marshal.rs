@@ -5,7 +5,6 @@
 
 use crate::message_builder;
 use crate::params;
-use crate::params::message;
 use crate::wire::HeaderField;
 use crate::ByteOrder;
 
@@ -16,11 +15,7 @@ pub use param::base;
 pub use param::container;
 pub mod traits;
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum Error {
-    EmptyUnixFd,
-    DupUnixFd(nix::Error),
-}
+type MarshalResult<T> = Result<T, crate::wire::errors::MarshalError>;
 
 pub struct MarshalContext<'fds, 'buf> {
     pub fds: &'fds mut Vec<crate::wire::UnixFd>,
@@ -41,7 +36,7 @@ pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
     chosen_serial: u32,
     buf: &mut Vec<u8>,
-) -> message::Result<()> {
+) -> MarshalResult<()> {
     marshal_header(msg, chosen_serial, buf)?;
     pad_to_align(8, buf);
 
@@ -58,7 +53,7 @@ fn marshal_header(
     msg: &crate::message_builder::MarshalledMessage,
     chosen_serial: u32,
     buf: &mut Vec<u8>,
-) -> message::Result<()> {
+) -> MarshalResult<()> {
     let byteorder = msg.body.byteorder;
 
     match byteorder {
@@ -71,7 +66,9 @@ fn marshal_header(
     }
 
     let msg_type = match msg.typ {
-        message_builder::MessageType::Invalid => return Err(crate::Error::InvalidType),
+        message_builder::MessageType::Invalid => {
+            return Err(crate::wire::errors::MarshalError::InvalidMessageType)
+        }
         message_builder::MessageType::Call => 1,
         message_builder::MessageType::Reply => 2,
         message_builder::MessageType::Error => 3,
@@ -130,7 +127,7 @@ fn marshal_header_field(
     byteorder: ByteOrder,
     field: &HeaderField,
     buf: &mut Vec<u8>,
-) -> message::Result<()> {
+) -> MarshalResult<()> {
     pad_to_align(8, buf);
     match field {
         HeaderField::Path(path) => {

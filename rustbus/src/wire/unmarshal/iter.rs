@@ -3,8 +3,8 @@
 
 use crate::params;
 use crate::signature;
+use crate::wire::errors::UnmarshalError;
 use crate::wire::unmarshal::base::unmarshal_base;
-use crate::wire::unmarshal::Error;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::ByteOrder;
 
@@ -34,7 +34,7 @@ impl<'a> MessageIter<'a> {
         }
     }
 
-    pub fn next_iter(&'a mut self) -> Option<Result<ParamIter<'a>, Error>> {
+    pub fn next_iter(&'a mut self) -> Option<Result<ParamIter<'a>, UnmarshalError>> {
         if self.counter >= self.sig.len() {
             None
         } else {
@@ -51,7 +51,7 @@ impl<'a> MessageIter<'a> {
 
     pub fn unmarshal_next<'buf, 'fds, T: crate::wire::unmarshal::traits::Unmarshal<'buf, 'fds>>(
         &'buf mut self,
-    ) -> Option<Result<T, Error>> {
+    ) -> Option<Result<T, UnmarshalError>> {
         if self.counter >= self.sig.len() {
             None
         } else {
@@ -139,7 +139,7 @@ pub struct ArrayIter<'a> {
 }
 
 impl<'a, 'parent> DictEntryIter<'a> {
-    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
+    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, UnmarshalError>> {
         let iter = if self.counter == 0 {
             // read the key value
 
@@ -174,7 +174,7 @@ impl<'a, 'parent> DictEntryIter<'a> {
     }
 }
 impl<'a, 'parent> VariantIter<'a> {
-    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
+    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, UnmarshalError>> {
         let iter = if self.counter == 0 {
             ParamIter::new(
                 &self.val_sig,
@@ -192,7 +192,7 @@ impl<'a, 'parent> VariantIter<'a> {
     }
 }
 impl<'a, 'parent> StructIter<'a> {
-    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
+    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, UnmarshalError>> {
         if self.counter >= self.sig.len() {
             return None;
         }
@@ -204,7 +204,7 @@ impl<'a, 'parent> StructIter<'a> {
 }
 
 impl<'a, 'parent> ParamIter<'a> {
-    pub fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
+    pub fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, UnmarshalError>> {
         match self {
             ParamIter::Array(array) => array.recurse(),
             ParamIter::DictEntry(de) => de.recurse(),
@@ -231,7 +231,7 @@ impl<'a, 'parent> ParamIter<'a> {
         offset: &'a mut usize,
         source: &'a [u8],
         byteorder: ByteOrder,
-    ) -> Option<Result<ParamIter<'a>, Error>> {
+    ) -> Option<Result<ParamIter<'a>, UnmarshalError>> {
         let padding =
             match crate::wire::util::align_offset(new_sig.get_alignment(), source, *offset) {
                 Ok(padding) => padding,
@@ -291,7 +291,7 @@ impl<'a, 'parent> ParamIter<'a> {
 }
 
 impl<'a, 'parent> ArrayIter<'a> {
-    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
+    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, UnmarshalError>> {
         let consumed = *self.current_offset - self.start_offset;
         debug_assert!(consumed <= self.consume_max_bytes);
         if consumed >= self.consume_max_bytes {
@@ -308,7 +308,7 @@ impl<'a, 'parent> ArrayIter<'a> {
 }
 
 impl<'a, 'parent> DictIter<'a> {
-    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, Error>> {
+    fn recurse(&'parent mut self) -> Option<Result<ParamIter<'parent>, UnmarshalError>> {
         let consumed = *self.current_offset - self.start_offset;
         debug_assert!(consumed <= self.consume_max_bytes);
         if consumed >= self.consume_max_bytes {
@@ -332,7 +332,7 @@ fn make_new_array_iter<'a>(
     source: &'a [u8],
     byteorder: ByteOrder,
     el_sig: &'a signature::Type,
-) -> Result<ArrayIter<'a>, Error> {
+) -> Result<ArrayIter<'a>, UnmarshalError> {
     // get child array size
     let (bytes, array_len_bytes) = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
     debug_assert_eq!(bytes, 4);
@@ -357,7 +357,7 @@ fn make_new_variant_iter<'a>(
     offset: &'a mut usize,
     source: &'a [u8],
     byteorder: ByteOrder,
-) -> Result<VariantIter<'a>, Error> {
+) -> Result<VariantIter<'a>, UnmarshalError> {
     // get child array size
     let (bytes, sig) = crate::wire::util::unmarshal_signature(&source[*offset..])?;
     debug_assert_eq!(bytes, 4);
@@ -384,7 +384,7 @@ fn make_new_dict_iter<'a>(
     byteorder: ByteOrder,
     key_sig: signature::Base,
     val_sig: &'a signature::Type,
-) -> Result<DictIter<'a>, Error> {
+) -> Result<DictIter<'a>, UnmarshalError> {
     // get child array size
     let (bytes, array_len_bytes) = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
     debug_assert_eq!(bytes, 4);

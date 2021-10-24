@@ -1,9 +1,11 @@
+use crate::wire::errors::MarshalError;
+use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::{Marshal, Signature, Unmarshal};
-use std::os::unix::io::RawFd;
 
+use std::os::unix::io::RawFd;
 use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
 
@@ -152,7 +154,7 @@ impl Signature for UnixFd {
     }
 }
 impl Marshal for UnixFd {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         crate::wire::util::marshal_unixfd(self, ctx)
     }
 }
@@ -172,10 +174,9 @@ impl Signature for &dyn std::os::unix::io::AsRawFd {
     }
 }
 impl Marshal for &dyn std::os::unix::io::AsRawFd {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         let fd = self.as_raw_fd();
-        let new_fd = nix::unistd::dup(fd)
-            .map_err(|e| crate::Error::Marshal(crate::wire::marshal::Error::DupUnixFd(e)))?;
+        let new_fd = nix::unistd::dup(fd).map_err(|e| MarshalError::DupUnixFd(e))?;
         ctx.fds.push(UnixFd::new(new_fd));
 
         let idx = ctx.fds.len() - 1;
@@ -192,7 +193,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for UnixFd {
         let (bytes, idx) = u32::unmarshal(ctx)?;
 
         if ctx.fds.len() <= idx as usize {
-            Err(crate::wire::unmarshal::Error::BadFdIndex(idx as usize))
+            Err(UnmarshalError::BadFdIndex(idx as usize))
         } else {
             let val = &ctx.fds[idx as usize];
             Ok((bytes, val.clone()))

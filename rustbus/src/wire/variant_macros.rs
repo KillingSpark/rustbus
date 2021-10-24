@@ -73,7 +73,7 @@ macro_rules! dbus_variant_sig_type {
 macro_rules! dbus_variant_sig_marshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl $crate::Marshal for $vname {
-            fn marshal(&self, ctx: &mut $crate::wire::marshal::MarshalContext) -> Result<(), $crate::Error> {
+            fn marshal(&self, ctx: &mut $crate::wire::marshal::MarshalContext) -> Result<(), $crate::wire::errors::MarshalError> {
                 match self {
                     $(
                         Self::$name(v) => {
@@ -107,7 +107,7 @@ macro_rules! dbus_variant_sig_unmarshal {
                 let sig = if sig.len() == 1 {
                     sig.remove(0)
                 } else {
-                    return Err($crate::wire::unmarshal::Error::WrongSignature);
+                    return Err($crate::wire::errors::UnmarshalError::WrongSignature);
                 };
                 ctx.offset += sig_bytes;
 
@@ -337,7 +337,7 @@ macro_rules! dbus_variant_var_type {
 macro_rules! dbus_variant_var_marshal {
     ($vname: ident, $($name: ident => $typ: ty)+) => {
         impl<'fds, 'buf> $crate::Marshal for $vname <'fds, 'buf> {
-            fn marshal(&self, ctx: &mut $crate::wire::marshal::MarshalContext) -> Result<(), $crate::Error> {
+            fn marshal(&self, ctx: &mut $crate::wire::marshal::MarshalContext) -> Result<(), $crate::wire::errors::MarshalError> {
                 match self {
                     $(
                         Self::$name(v) => {

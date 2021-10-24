@@ -100,5 +100,3 @@ impl<'a, 'e> Message<'a, 'e> {
         self.params.push(p3.into());
     }
 }
-
-pub type Result<T> = std::result::Result<T, crate::Error>;

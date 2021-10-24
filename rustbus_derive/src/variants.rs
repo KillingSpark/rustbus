@@ -37,7 +37,7 @@ pub fn make_variant_marshal_impl(
     quote! {
         impl #impl_gen ::rustbus::Marshal for #ident #typ_gen #clause_gen {
             #[inline]
-            fn marshal(&self, ctx: &mut ::rustbus::wire::marshal::MarshalContext<'_,'_>) -> Result<(), ::rustbus::Error> {
+            fn marshal(&self, ctx: &mut ::rustbus::wire::marshal::MarshalContext<'_,'_>) -> Result<(), ::rustbus::wire::errors::MarshalError> {
                 match self {
                     #marshal
                 }
@@ -185,13 +185,13 @@ pub fn make_variant_unmarshal_impl(
     quote! {
         impl #impl_gen ::rustbus::Unmarshal<'__internal_buf, '_> for #ident #typ_gen #clause_gen {
             #[inline]
-            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::unmarshal::Error> {
+            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::errors::UnmarshalError> {
                 let start_offset = ctx.offset;
                 let (sig_bytes, sig) = ::rustbus::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
                 ctx.offset += sig_bytes;
 
                 #marshal
-                Err(::rustbus::wire::unmarshal::Error::NoMatchingVariantFound)
+                Err(::rustbus::wire::errors::UnmarshalError::NoMatchingVariantFound)
             }
         }
     }

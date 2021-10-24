@@ -50,7 +50,7 @@ impl Signature for &MyType {
 }
 
 impl Marshal for &MyType {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::wire::errors::MarshalError> {
         // always align structs to 8!
         ctx.align_to(8);
 
@@ -100,7 +100,7 @@ impl Signature for &MySubType {
     }
 }
 impl Marshal for &MySubType {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::wire::errors::MarshalError> {
         // always align to 8
         ctx.align_to(8);
         self.x.marshal(ctx)?;
@@ -125,7 +125,7 @@ impl Signature for &MyOtherSubType {
     }
 }
 impl Marshal for &MyOtherSubType {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), rustbus::wire::errors::MarshalError> {
         // always align to 8
         ctx.align_to(8);
         self.x.marshal(ctx)?;

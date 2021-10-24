@@ -2,7 +2,7 @@
 
 use crate::params;
 use crate::signature;
-use crate::wire::unmarshal::Error;
+use crate::wire::errors::UnmarshalError;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::util::*;
@@ -16,7 +16,7 @@ pub fn unmarshal_base<'a>(
     let (bytes, param) = match typ {
         signature::Base::Byte => {
             if ctx.offset >= ctx.buf.len() {
-                return Err(Error::NotEnoughBytes);
+                return Err(UnmarshalError::NotEnoughBytes);
             }
             Ok((1, params::Base::Byte(ctx.buf[ctx.offset])))
         }
@@ -39,7 +39,7 @@ pub fn unmarshal_base<'a>(
             let slice = &ctx.buf[ctx.offset..];
             let (bytes, idx) = parse_u32(slice, ctx.byteorder)?;
             if ctx.fds.len() <= idx as usize {
-                Err(crate::wire::unmarshal::Error::BadFdIndex(idx as usize))
+                Err(UnmarshalError::BadFdIndex(idx as usize))
             } else {
                 let val = &ctx.fds[idx as usize];
                 Ok((bytes, params::Base::UnixFd(val.clone())))
@@ -71,7 +71,7 @@ pub fn unmarshal_base<'a>(
             match val {
                 0 => Ok((bytes, params::Base::Boolean(false))),
                 1 => Ok((bytes, params::Base::Boolean(true))),
-                _ => Err(Error::InvalidBoolean),
+                _ => Err(UnmarshalError::InvalidBoolean),
             }
         }
         signature::Base::String => {

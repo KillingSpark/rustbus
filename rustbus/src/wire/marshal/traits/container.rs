@@ -1,6 +1,7 @@
 //! This contains the implementations for the `Marshal` trait for container types like lists and dicts
 
 use crate::signature::SignatureIter;
+use crate::wire::errors::MarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
 use crate::Marshal;
@@ -25,7 +26,7 @@ impl<E: Signature> Signature for (E,) {
     }
 }
 impl<E: Marshal> Marshal for (E,) {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         // always align to 8
         ctx.align_to(8);
         self.0.marshal(ctx)?;
@@ -58,7 +59,7 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         // always align to 8
         ctx.align_to(8);
         self.0.marshal(ctx)?;
@@ -101,7 +102,7 @@ impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         // always align to 8
         ctx.align_to(8);
         self.0.marshal(ctx)?;
@@ -147,7 +148,7 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         // always align to 8
         ctx.align_to(8);
         self.0.marshal(ctx)?;
@@ -201,7 +202,7 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> 
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
     for (E1, E2, E3, E4, E5)
 {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         // always align to 8
         ctx.align_to(8);
         self.0.marshal(ctx)?;
@@ -214,7 +215,7 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
 }
 
 impl<E: Marshal> Marshal for Vec<E> {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         self.as_slice().marshal(ctx)
     }
 }
@@ -243,7 +244,7 @@ impl<E: Signature> Signature for [E] {
     }
 }
 impl<E: Marshal> Marshal for [E] {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         (&self).marshal(ctx)
     }
 }
@@ -267,7 +268,7 @@ impl<E: Signature> Signature for &[E] {
 }
 use crate::wire::util::write_u32;
 impl<E: Marshal> Marshal for &[E] {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         // always align to 4
         ctx.align_to(4);
         let alignment = E::alignment();
@@ -333,7 +334,7 @@ impl<T: Marshal + Signature> Signature for Variant<T> {
 }
 
 impl<T: Marshal + Signature> Marshal for Variant<T> {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         self.0.marshal_as_variant(ctx)
     }
 }
@@ -369,7 +370,7 @@ impl<K: Signature, V: Signature> Signature for std::collections::HashMap<K, V> {
 }
 
 impl<K: Marshal, V: Marshal> Marshal for std::collections::HashMap<K, V> {
-    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), crate::Error> {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         // always align to 4
         ctx.align_to(4);
 

@@ -159,7 +159,7 @@ pub fn test_enum_derive() {
 
     let err = sig.body.parser().get::<Variant2>();
     assert_eq!(
-        Err(::rustbus::wire::unmarshal::Error::NoMatchingVariantFound),
+        Err(::rustbus::wire::errors::UnmarshalError::NoMatchingVariantFound),
         err
     );
 }

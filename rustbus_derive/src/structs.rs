@@ -12,7 +12,7 @@ pub fn make_struct_marshal_impl(
     quote! {
         impl #impl_gen ::rustbus::Marshal for #ident #typ_gen #clause_gen {
             #[inline]
-            fn marshal(&self, ctx: &mut ::rustbus::wire::marshal::MarshalContext<'_,'_>) -> Result<(), ::rustbus::Error> {
+            fn marshal(&self, ctx: &mut ::rustbus::wire::marshal::MarshalContext<'_,'_>) -> Result<(), ::rustbus::wire::errors::MarshalError> {
                 #marshal
             }
         }
@@ -50,7 +50,7 @@ pub fn make_struct_unmarshal_impl(
     quote! {
         impl #impl_gen ::rustbus::Unmarshal<'__internal_buf, '_> for #ident #typ_gen #clause_gen {
             #[inline]
-            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::unmarshal::Error> {
+            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::errors::UnmarshalError> {
                 #marshal
             }
         }

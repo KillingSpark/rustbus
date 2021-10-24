@@ -1,7 +1,7 @@
 //! Marshal base params into raw bytes
 
 use crate::params;
-use crate::params::message;
+use crate::wire::errors::MarshalError;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::util::*;
 use crate::ByteOrder;
@@ -40,7 +40,7 @@ fn marshal_u64(i: u64, byteorder: ByteOrder, buf: &mut Vec<u8>) {
     write_u64(i, byteorder, buf);
 }
 
-fn marshal_string(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_string(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> Result<(), MarshalError> {
     if s.contains('\0') {
         Err(params::validation::Error::StringContainsNullByte.into())
     } else {
@@ -48,18 +48,22 @@ fn marshal_string(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::
         Ok(())
     }
 }
-fn marshal_objectpath(s: &str, byteorder: ByteOrder, buf: &mut Vec<u8>) -> message::Result<()> {
+fn marshal_objectpath(
+    s: &str,
+    byteorder: ByteOrder,
+    buf: &mut Vec<u8>,
+) -> Result<(), MarshalError> {
     params::validate_object_path(s)?;
     write_string(s, byteorder, buf);
     Ok(())
 }
-pub(super) fn marshal_signature(s: &str, buf: &mut Vec<u8>) -> message::Result<()> {
+pub(super) fn marshal_signature(s: &str, buf: &mut Vec<u8>) -> Result<(), MarshalError> {
     params::validate_signature(s)?;
     write_signature(s, buf);
     Ok(())
 }
 
-pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> message::Result<()> {
+pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
     pad_to_align(p.sig().get_alignment(), ctx.buf);
 
     match p {
