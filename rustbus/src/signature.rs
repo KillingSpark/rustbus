@@ -3,6 +3,8 @@
 mod signature_iter;
 pub use signature_iter::*;
 
+use thiserror::Error;
+
 /// Base types that might occur in a signature
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Base {
@@ -58,14 +60,21 @@ pub enum Type {
     Container(Container),
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum Error {
+    #[error("There were too many types in the signature")]
     TooManyTypes,
+    #[error("Type encountered that should have been a base type")]
     ShouldBeBaseType,
+    #[error("Signature was invalid")]
     InvalidSignature,
+    #[error("signature was too long")]
     SignatureTooLong,
+    #[error("Nesting of structs/arrays/variants was too deep")]
     NestingTooDeep,
+    #[error("The signature was empty")]
     EmptySignature,
+    #[error("There was an empty struct in the signature")]
     EmptyStruct,
 }
 

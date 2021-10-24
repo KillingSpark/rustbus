@@ -6,20 +6,35 @@ use crate::params;
 use crate::signature;
 use crate::wire::HeaderField;
 
-#[derive(Debug, Eq, PartialEq)]
+use thiserror::Error;
+
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum Error {
+    #[error("Invalid signature: {0}")]
     InvalidSignature(signature::Error),
+    #[error("Invalid object path")]
     InvalidObjectPath,
+    #[error("Invalid bus name")]
     InvalidBusname,
+    #[error("Invalid error name")]
     InvalidErrorname,
+    #[error("Invalid member name")]
     InvalidMembername,
+    #[error("Invalid Interface name")]
     InvalidInterface,
+    #[error("Invalid header fields")]
     InvalidHeaderFields,
+    #[error("String contained a null byte")]
     StringContainsNullByte,
+    #[error("String did contain invalid utf-8")]
     InvalidUtf8,
+    #[error("Duplicated header fields encountered")]
     DuplicatedHeaderFields,
+    #[error("Array elements differ in type")]
     ArrayElementTypesDiffer,
+    #[error("Dict keys differ in type")]
     DictKeyTypesDiffer,
+    #[error("Dict values differ in type")]
     DictValueTypesDiffer,
 }
 
