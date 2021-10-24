@@ -143,7 +143,7 @@ fn verify_padding() {
     assert_eq!(ctx.buf, &[0xFF, 0, 0, 0, 4, 0, 0, 0, 32, 0, 0, 0]);
     ctx.buf.clear();
     0xFFu8.marshal(ctx).unwrap();
-    &[32u32].marshal(ctx).unwrap();
+    let _ = &[32u32].marshal(ctx).unwrap();
     assert_eq!(ctx.buf, &[0xFF, 0, 0, 0, 4, 0, 0, 0, 32, 0, 0, 0]);
     ctx.buf.clear();
 

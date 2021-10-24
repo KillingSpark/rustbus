@@ -39,7 +39,7 @@ pub fn marshal_unixfd(
     ctx: &mut crate::wire::marshal::MarshalContext,
 ) -> Result<(), MarshalError> {
     if let Some(fd) = i.get_raw_fd() {
-        let new_fd = nix::unistd::dup(fd).map_err(|e| MarshalError::DupUnixFd(e))?;
+        let new_fd = nix::unistd::dup(fd).map_err(MarshalError::DupUnixFd)?;
         ctx.fds.push(crate::wire::UnixFd::new(new_fd));
 
         let idx = ctx.fds.len() - 1;

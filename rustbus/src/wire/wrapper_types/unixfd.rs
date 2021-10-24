@@ -176,7 +176,7 @@ impl Signature for &dyn std::os::unix::io::AsRawFd {
 impl Marshal for &dyn std::os::unix::io::AsRawFd {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         let fd = self.as_raw_fd();
-        let new_fd = nix::unistd::dup(fd).map_err(|e| MarshalError::DupUnixFd(e))?;
+        let new_fd = nix::unistd::dup(fd).map_err(MarshalError::DupUnixFd)?;
         ctx.fds.push(UnixFd::new(new_fd));
 
         let idx = ctx.fds.len() - 1;
