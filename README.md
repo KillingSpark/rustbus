@@ -90,8 +90,8 @@ fn main() -> Result<(), rustbus::connection::Error> {
 
  For structs there is a derive proc-macro that derives the necessary trait impls for you. Look into rustbus_derive if this is of need for you.
 
- For Variants there is a macro dbus_variant_sig! and dbus_variant_var! which will generate an enum and the Marshal and Unmarshal impls for you. These might get
- replaced with a proc-macro derive like it exists already for structs.
+ For enums there is also a proc-macro that derives the necessary trait impls for you. There are two legacy macros: `dbus_variant_sig!` and `dbus_variant_var!`.
+ They do effectively the same, but the legacy macros add a `CatchAll` to our enum to help with unexpected types, where the proc-macros fails unmarshalling with an error.
 
  The doc for the traits gives more specifics on how to implement them for your own types if necessary.
 
