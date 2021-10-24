@@ -166,7 +166,7 @@ impl RpcConn {
                 MessageType::Call => {
                     self.calls.push_back(msg);
                 }
-                MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                MessageType::Invalid => return Err(Error::UnexpectedMessageTypeReceived),
                 MessageType::Error => {
                     self.responses
                         .insert(msg.dynheader.response_serial.unwrap(), msg);
@@ -189,7 +189,7 @@ impl RpcConn {
                         .write_all()
                         .map_err(ll_conn::force_finish_on_error)?;
                 }
-                MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                MessageType::Invalid => return Err(Error::UnexpectedMessageTypeReceived),
                 MessageType::Error => {
                     // just drop it
                 }
@@ -256,7 +256,7 @@ impl RpcConn {
                     MessageType::Call => {
                         self.calls.push_back(msg);
                     }
-                    MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                    MessageType::Invalid => return Err(Error::UnexpectedMessageTypeReceived),
                     MessageType::Error => {
                         self.responses
                             .insert(msg.dynheader.response_serial.unwrap(), msg);
@@ -276,7 +276,7 @@ impl RpcConn {
                         filtered_out.push(reply);
                         // drop message but keep reply
                     }
-                    MessageType::Invalid => return Err(Error::UnexpectedTypeReceived),
+                    MessageType::Invalid => return Err(Error::UnexpectedMessageTypeReceived),
                     MessageType::Error => {
                         // just drop it
                     }

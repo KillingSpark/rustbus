@@ -11,6 +11,8 @@ pub mod rpc_conn;
 use std::path::PathBuf;
 use std::time;
 
+use thiserror::Error;
+
 #[derive(Clone, Copy)]
 pub enum Timeout {
     Infinite,
@@ -21,19 +23,31 @@ pub enum Timeout {
 use nix::sys::socket::UnixAddr;
 
 /// Errors that can occur when using the Conn/RpcConn
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Error {
+    #[error("An io error occured: {0}")]
     IoError(std::io::Error),
+    #[error("A nix error occured: {0}")]
     NixError(nix::Error),
+    #[error("An error occured while unmarshalling: {0}")]
     UnmarshalError(crate::wire::errors::UnmarshalError),
+    #[error("An error occured while marshalling: {0}")]
     MarshalError(crate::wire::errors::MarshalError),
+    #[error("Authentication failed")]
     AuthFailed,
+    #[error("Negotiating unix fd usage failed")]
     UnixFdNegotiationFailed,
+    #[error("The name is already taken")]
     NameTaken,
+    #[error("The address type {0} is not yet supportd by this lib")]
     AddressTypeNotSupported(String),
+    #[error("This path does not exist: {0}")]
     PathDoesNotExist(String),
+    #[error("Address not found")]
     NoAddressFound,
-    UnexpectedTypeReceived,
+    #[error("Unexpected message type received")]
+    UnexpectedMessageTypeReceived,
+    #[error("Timeout occured")]
     TimedOut,
 }
 
