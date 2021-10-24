@@ -106,4 +106,4 @@ fn main() -> Result<(), rustbus::connection::Error> {
  ## Byteorders
  Dbus supports both big and little endian and so does rustbus. You can specify how a message should be marshalled when you create the MessageBuilder. Messages
  can be received in any byteorder and will be transparently unmarshalled into the byteorder you CPU uses. Note that unmarshalling from/to the native byteorder will
- be faster. The default byteorder is little endian.
+ be faster. The default byteorder is the native byteorder of your compilation target.
