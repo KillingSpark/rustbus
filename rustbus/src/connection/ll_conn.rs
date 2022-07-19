@@ -417,8 +417,7 @@ impl SendMessageContext<'_> {
                 .body
                 .raw_fds
                 .iter()
-                .map(|fd| fd.get_raw_fd())
-                .flatten()
+                .filter_map(|fd| fd.get_raw_fd())
                 .collect::<Vec<RawFd>>()
         } else {
             vec![]

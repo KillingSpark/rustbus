@@ -55,13 +55,13 @@ impl<'a> MessageIter<'a> {
         if self.counter >= self.sig.len() {
             None
         } else {
-            let mut ctx = &mut crate::wire::unmarshal::UnmarshalContext {
+            let ctx = &mut crate::wire::unmarshal::UnmarshalContext {
                 buf: self.source,
                 fds: &[],
                 byteorder: self.byteorder,
                 offset: *self.current_offset,
             };
-            let (bytes, val) = match T::unmarshal(&mut ctx) {
+            let (bytes, val) = match T::unmarshal(ctx) {
                 Err(e) => return Some(Err(e)),
                 Ok(t) => t,
             };

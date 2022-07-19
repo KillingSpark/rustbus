@@ -244,13 +244,12 @@ impl SecretService {
     pub fn search_items<'a>(&'a self, attrs: &'a [LookupAttribute]) -> Vec<(&'a str, &'a Item)> {
         self.collections
             .iter()
-            .map(|coll| {
+            .flat_map(|coll| {
                 coll.search_items(attrs)
                     .into_iter()
                     .map(|item| (coll.id.as_str(), item))
                     .collect::<Vec<_>>()
             })
-            .flatten()
             .collect()
     }
     pub fn get_collection(&self, id: &str) -> Option<&Collection> {

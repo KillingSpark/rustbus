@@ -94,7 +94,7 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
         #[cfg(target_os = "linux")]
         {
             let mut ps = addr.trim_start_matches("unix:abstract=").to_string();
-            let end_path_offset = ps.find(',').unwrap_or_else(|| ps.len());
+            let end_path_offset = ps.find(',').unwrap_or(ps.len());
             let ps: String = ps.drain(..end_path_offset).collect();
             let path_buf = ps.as_bytes();
             Ok(UnixAddr::new_abstract(path_buf)?)
