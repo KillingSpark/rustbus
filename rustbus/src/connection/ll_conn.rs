@@ -7,6 +7,8 @@ use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
 
+use std::io::IoSlice;
+use std::io::IoSliceMut;
 use std::time;
 
 use std::os::unix::io::RawFd;
@@ -14,11 +16,11 @@ use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::os::unix::net::UnixStream;
 
 use nix::cmsg_space;
+use nix::sys::socket::SockaddrStorage;
 use nix::sys::socket::{
     self, connect, recvmsg, sendmsg, socket, ControlMessage, ControlMessageOwned, MsgFlags,
-    SockAddr, UnixAddr,
+    UnixAddr,
 };
-use nix::sys::uio::IoVec;
 
 /// A lowlevel abstraction over the raw unix socket
 #[derive(Debug)]
@@ -61,7 +63,7 @@ impl RecvConn {
 
         const BUFSIZE: usize = 512;
         let mut tmpbuf = [0u8; BUFSIZE];
-        let iovec = IoVec::from_mut_slice(&mut tmpbuf[..usize::min(bytes_to_read, BUFSIZE)]);
+        let iovec = IoSliceMut::new(&mut tmpbuf[..usize::min(bytes_to_read, BUFSIZE)]);
 
         let mut cmsgspace = cmsg_space!([RawFd; 10]);
         let flags = MsgFlags::empty();
@@ -78,9 +80,9 @@ impl RecvConn {
                 self.stream.set_nonblocking(true)?;
             }
         }
-        let msg = recvmsg(
+        let msg = recvmsg::<SockaddrStorage>(
             self.stream.as_raw_fd(),
-            &[iovec],
+            &mut [iovec],
             Some(&mut cmsgspace),
             flags,
         )
@@ -390,8 +392,8 @@ impl SendMessageContext<'_> {
         let body_slice_to_send = &self.msg.get_buf()[body_bytes_sent..];
 
         let iov = [
-            IoVec::from_slice(header_slice_to_send),
-            IoVec::from_slice(body_slice_to_send),
+            IoSlice::new(header_slice_to_send),
+            IoSlice::new(body_slice_to_send),
         ];
         let flags = MsgFlags::empty();
 
@@ -421,7 +423,7 @@ impl SendMessageContext<'_> {
         } else {
             vec![]
         };
-        let bytes_sent = sendmsg(
+        let bytes_sent = sendmsg::<SockaddrStorage>(
             self.conn.stream.as_raw_fd(),
             &iov,
             &[ControlMessage::ScmRights(&raw_fds)],
@@ -449,8 +451,8 @@ impl DuplexConn {
             socket::SockFlag::empty(),
             None,
         )?;
-        let sock_addr = SockAddr::Unix(addr);
-        connect(sock, &sock_addr)?;
+
+        connect(sock, &addr)?;
         let mut stream = unsafe { UnixStream::from_raw_fd(sock) };
         match auth::do_auth(&mut stream)? {
             auth::AuthResult::Ok => {}
