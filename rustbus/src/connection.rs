@@ -49,6 +49,8 @@ pub enum Error {
     UnexpectedMessageTypeReceived,
     #[error("Timeout occured")]
     TimedOut,
+    #[error("Connection has been closed by the other side")]
+    ConnectionClosed,
 }
 
 impl std::convert::From<std::io::Error> for Error {

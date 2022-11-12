@@ -96,6 +96,10 @@ impl RecvConn {
 
         let msg = msg?;
 
+        if msg.bytes == 0 {
+            return Err(Error::ConnectionClosed);
+        }
+
         self.msg_buf_in
             .extend(&mut tmpbuf[..msg.bytes].iter().copied());
         self.cmsgs_in.extend(msg.cmsgs());
