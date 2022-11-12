@@ -37,12 +37,52 @@ The API is still very much in progress and breaking changes are to be expected.
 
 ## Quickstart
 ```rust
+use rustbus::{connection::{Timeout, ll_conn::force_finish_on_error}, standard_messages, MessageBuilder, MessageType, RpcConn};
+
+fn main() {
+    // Connect to the session bus. This also takes care of the mandatory hello messages
+    let mut rpc_con = RpcConn::session_conn(Timeout::Infinite).unwrap();
+
+    // Create a new call to a method on a remote object
+    let mut call = MessageBuilder::new()
+        .call("evaluateScript")
+        .with_interface("org.kde.PlasmaShell")
+        .on("/PlasmaShell")
+        .at("org.kde.plasmashell")
+        .build();
+
+    // Send the message and remeber the id, so we can retrieve the answer
+    let id = rpc_con
+        .send_message(&mut call)
+        .expect("Wanna send message :(")
+        .write_all()
+        .map_err(force_finish_on_error)
+        .expect("Wanna send message :(");
+
+    // Retrieve the answer to this message
+    let message = rpc_con
+        .wait_response(id, Timeout::Infinite)
+        .expect("Get failed");
+}
+```
+
+ ## Connection Types
+ * Low level connection is the basis for building more abstract wrappers. You probably don't want to use it outside of special cases.
+ * RpcConn is meant for clients calling methods on services on the bus (as shown in the quick start)
+ * DispatchConn is meant for services that need to dispatch calls to many handlers.
+
+ Since different usecases have different constraints you might need to write your own wrapper around the low level conn. This should not be too hard
+ if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding
+ it to this libary.
+
+ ### Low level connection example
+ ```rust
 use rustbus::{connection::Timeout, get_session_bus_path, DuplexConn, MessageBuilder};
 fn main() -> Result<(), rustbus::connection::Error> {
     // To get a connection going you need to connect to a bus. You will likely use either the session or the system bus.
     let session_path = get_session_bus_path()?;
     let mut con: DuplexConn = DuplexConn::connect_to_bus(session_path, true)?;
-    // Dont forget to send the obligatory hello message. send_hello wraps the call and parses the response for convenience.
+    // Dont forget to send the **mandatory** hello message. send_hello wraps the call and parses the response for convenience.
     let _unique_name: String = con.send_hello(Timeout::Infinite)?;
 
     // Next you will probably want to create a new message to send out to the world
@@ -69,15 +109,6 @@ fn main() -> Result<(), rustbus::connection::Error> {
     Ok(())
 }
 ```
-
- ## Other connection Types
- There are some more connection types in the connection module. These are convenience wrappes around the concepts presented in the quickstart.
- * RpcConn is meant for clients calling methods on services on the bus
- * DispatchConn is meant for services that need to dispatch calls to many handlers.
-
- Since different usecases have different constraints you might need to write your own wrapper around the low level conn. This should not be too hard
- if you copy the existing ones and modify them to your needs. If you have an issue that would be helpful for others I would of course consider adding
- it to this libary.
 
  ## Params and Marshal and Unmarshal
  This lib started out as an attempt to understand how dbus worked. Thus I modeled the types a closely as possible with enums, which is still in the params module.

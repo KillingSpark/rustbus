@@ -10,6 +10,28 @@ use std::collections::VecDeque;
 use std::time;
 
 /// Convenience wrapper around the lowlevel connection
+/// ```rust,no_run
+/// use rustbus::{connection::{Timeout, ll_conn::force_finish_on_error}, standard_messages, MessageBuilder, MessageType, RpcConn};
+/// // Connect to the session bus. This also takes care of the mandatory hello messages
+/// let mut rpc_con = RpcConn::session_conn(Timeout::Infinite).unwrap();
+/// let mut call = MessageBuilder::new()
+///     .call("evaluateScript")
+///     .with_interface("org.kde.PlasmaShell")
+///     .on("/PlasmaShell")
+///     .at("org.kde.plasmashell")
+///     .build();
+///
+/// let id = rpc_con
+///     .send_message(&mut call)
+///     .expect("Wanna send message :(")
+///     .write_all()
+///     .map_err(force_finish_on_error)
+///     .expect("Wanna send message :(");
+///
+/// let message = rpc_con
+///     .wait_response(id, Timeout::Infinite)
+///     .expect("Get failed");
+/// ```
 pub struct RpcConn {
     signals: VecDeque<MarshalledMessage>,
     calls: VecDeque<MarshalledMessage>,
@@ -22,7 +44,7 @@ pub struct RpcConn {
 /// If this filters out a call, the RpcConn will send a UnknownMethod error to the caller. Other messages are just dropped
 /// if the filter returns false.
 /// ```rust,no_run
-/// use rustbus::{connection::Timeout, standard_messages, DuplexConn, MessageBuilder, MessageType, RpcConn};
+/// use rustbus::{connection::Timeout, standard_messages, MessageBuilder, MessageType, RpcConn};
 ///
 /// fn main() -> Result<(), rustbus::connection::Error> {
 ///     let mut rpc_con = RpcConn::session_conn(Timeout::Infinite).unwrap();

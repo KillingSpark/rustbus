@@ -447,6 +447,9 @@ impl SendMessageContext<'_> {
 
 impl DuplexConn {
     /// Connect to a unix socket
+    ///
+    /// Remember to send the mandatory hello message before doing anything else with the connection!
+    /// You can use the `send_hello` function for this.
     pub fn connect_to_bus(addr: UnixAddr, with_unix_fd: bool) -> super::Result<DuplexConn> {
         let sock = socket(
             socket::AddressFamily::Unix,
