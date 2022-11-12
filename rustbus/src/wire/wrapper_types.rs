@@ -36,7 +36,7 @@ impl TryFrom<String> for ObjectPath<String> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 /// Wraps a String or a &str or whatever implements AsRef<str> and checks at creation, that it is a valid Signature
 pub struct SignatureWrapper<S: AsRef<str>>(S);
 impl<S: AsRef<str>> SignatureWrapper<S> {

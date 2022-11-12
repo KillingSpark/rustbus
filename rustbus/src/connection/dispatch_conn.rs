@@ -208,6 +208,7 @@ impl<UserData, UserError: std::fmt::Debug> DispatchConn<UserData, UserError> {
     ///
     /// This also sends reponses back to the callers, returned by the handlers. If the handlers did
     /// return None, it sends a default response with no content.
+    #[allow(clippy::result_large_err)]
     pub fn run(
         &mut self,
     ) -> std::result::Result<(), (Option<MarshalledMessage>, HandleError<UserError>)> {
