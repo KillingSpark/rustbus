@@ -37,7 +37,7 @@ fn main() {
         .wait_response(serial, rustbus::connection::Timeout::Infinite)
         .unwrap();
     println!("Header: {:?}", resp.dynheader);
-    match msg.typ {
+    match resp.typ {
         rustbus::message_builder::MessageType::Error => {
             println!(
                 "Error name: {}",
