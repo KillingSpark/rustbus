@@ -82,7 +82,7 @@ fn service_handler(
             service_interface::handle_service_interface(ctx, matches, msg, env)
         }
         other => {
-            println!("Unkown interface called: {}", other);
+            println!("Unknown interface called: {}", other);
             Ok(Some(rustbus::standard_messages::unknown_method(
                 &msg.dynheader,
             )))
@@ -111,7 +111,7 @@ fn collection_handler(
             collection_interface::handle_collection_interface(ctx, matches, msg, env)
         }
         other => {
-            println!("Unkown interface called: {}", other);
+            println!("Unknown interface called: {}", other);
             Ok(Some(rustbus::standard_messages::unknown_method(
                 &msg.dynheader,
             )))
@@ -140,7 +140,7 @@ fn item_handler(
             item_interface::handle_item_interface(ctx, matches, msg, env)
         }
         other => {
-            println!("Unkown interface called: {}", other);
+            println!("Unknown interface called: {}", other);
             Ok(Some(rustbus::standard_messages::unknown_method(
                 &msg.dynheader,
             )))
@@ -183,7 +183,7 @@ fn session_handler(
                     Ok(None)
                 }
                 other => {
-                    println!("Unkown method called: {}", other);
+                    println!("Unknown method called: {}", other);
                     Ok(Some(rustbus::standard_messages::unknown_method(
                         &msg.dynheader,
                     )))
@@ -191,7 +191,7 @@ fn session_handler(
             }
         }
         other => {
-            println!("Unkown interface called: {}", other);
+            println!("Unknown interface called: {}", other);
             Ok(Some(rustbus::standard_messages::unknown_method(
                 &msg.dynheader,
             )))
@@ -217,7 +217,7 @@ fn main() {
         .write_all()
         .unwrap();
 
-    // The responses content should be looked at. ATM we just assume the name aquistion worked...
+    // The response content should be looked at. ATM we just assume the name acquisition worked...
     let _resp = con
         .recv
         .get_next_message(rustbus::connection::Timeout::Infinite)
