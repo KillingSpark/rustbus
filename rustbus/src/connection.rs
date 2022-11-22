@@ -80,6 +80,9 @@ impl std::convert::From<crate::wire::errors::MarshalError> for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
+    let addr_parts: Vec<&str> = addr.split(',').collect();
+    let addr = addr_parts.get(0).unwrap_or(&addr);
+
     if addr.starts_with("unix:path=") {
         let ps = addr.trim_start_matches("unix:path=");
         let p = PathBuf::from(&ps);
@@ -95,11 +98,8 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
         }
         #[cfg(target_os = "linux")]
         {
-            let mut ps = addr.trim_start_matches("unix:abstract=").to_string();
-            let end_path_offset = ps.find(',').unwrap_or(ps.len());
-            let ps: String = ps.drain(..end_path_offset).collect();
-            let path_buf = ps.as_bytes();
-            Ok(UnixAddr::new_abstract(path_buf)?)
+            let ps = addr.trim_start_matches("unix:abstract=");
+            Ok(UnixAddr::new_abstract(ps.as_bytes())?)
         }
     } else {
         Err(Error::AddressTypeNotSupported(addr.to_owned()))
@@ -150,11 +150,22 @@ mod tests {
     #[test]
     fn test_get_session_bus_path() {
         let path = "unix:path=/tmp/dbus-test-not-exist";
+        let path_with_keys = "unix:path=/tmp/dbus-test-not-exist,guid=aaaaa,test=bbbbbbbb";
         let abstract_path = "unix:abstract=/tmp/dbus-test";
         let abstract_path_with_keys = "unix:abstract=/tmp/dbus-test,guid=aaaaaaaa,test=bbbbbbbb";
 
         let addr = parse_dbus_addr_str(path);
         assert!(addr.is_err());
+
+        let addr = parse_dbus_addr_str(path_with_keys);
+        match addr {
+            Err(Error::PathDoesNotExist(path)) => {
+                // The assertion here ensures that DBus session keys are
+                // stripped from the session bus' determined path.
+                assert_eq!("/tmp/dbus-test-not-exist", path);
+            }
+            _ => assert!(false, "expected Error::PathDoesNotExist"),
+        }
 
         let addr = parse_dbus_addr_str(abstract_path).unwrap();
         assert_eq!(addr, UnixAddr::new_abstract(b"/tmp/dbus-test").unwrap());
