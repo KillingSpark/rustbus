@@ -81,20 +81,13 @@ type Result<T> = std::result::Result<T, Error>;
 
 fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
     // split the address string into <system>:rest
-    let addr_parts: Vec<&str> = addr.split(':').collect();
-    let addr_system = addr_parts.get(0).unwrap_or(&addr);
-    if *addr_system != "unix" {
+    let (addr_system, addr_pairs) = addr.split_once(':').ok_or(Error::NoAddressFound)?;
+    if addr_system != "unix" {
         return Err(Error::AddressTypeNotSupported(addr.to_owned()));
     }
 
     // split the rest of the address string into each <key>=<value> pair
-    let addr_keys: Vec<&str> = addr_parts
-        .get(1)
-        .ok_or(Error::NoAddressFound)?
-        .split(',')
-        .collect();
-
-    for pair in addr_keys {
+    for pair in addr_pairs.split(',') {
         let (key, value) = pair
             .split_once('=')
             .ok_or_else(|| Error::AddressTypeNotSupported(addr.to_owned()))?;
