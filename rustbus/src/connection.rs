@@ -80,30 +80,45 @@ impl std::convert::From<crate::wire::errors::MarshalError> for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
-    let addr_parts: Vec<&str> = addr.split(',').collect();
-    let addr = addr_parts.get(0).unwrap_or(&addr);
-
-    if addr.starts_with("unix:path=") {
-        let ps = addr.trim_start_matches("unix:path=");
-        let p = PathBuf::from(&ps);
-        if p.exists() {
-            Ok(UnixAddr::new(&p)?)
-        } else {
-            Err(Error::PathDoesNotExist(ps.to_owned()))
-        }
-    } else if addr.starts_with("unix:abstract=") {
-        #[cfg(not(target_os = "linux"))]
-        {
-            Err(Error::AddressTypeNotSupported(addr.to_owned()))
-        }
-        #[cfg(target_os = "linux")]
-        {
-            let ps = addr.trim_start_matches("unix:abstract=");
-            Ok(UnixAddr::new_abstract(ps.as_bytes())?)
-        }
-    } else {
-        Err(Error::AddressTypeNotSupported(addr.to_owned()))
+    // split the address string into <system>:rest
+    let addr_parts: Vec<&str> = addr.split(':').collect();
+    let addr_system = addr_parts.get(0).unwrap_or(&addr);
+    if *addr_system != "unix" {
+        return Err(Error::AddressTypeNotSupported(addr.to_owned()));
     }
+
+    // split the rest of the address string into each <key>=<value> pair
+    let addr_keys: Vec<&str> = addr_parts
+        .get(1)
+        .ok_or(Error::NoAddressFound)?
+        .split(',')
+        .collect();
+
+    for pair in addr_keys {
+        let (key, value) = pair
+            .split_once('=')
+            .ok_or_else(|| Error::AddressTypeNotSupported(addr.to_owned()))?;
+
+        match key {
+            "path" => {
+                let p = PathBuf::from(&value);
+                if p.exists() {
+                    return Ok(UnixAddr::new(&p)?);
+                } else {
+                    return Err(Error::PathDoesNotExist(value.to_string()));
+                }
+            }
+            "abstract" => {
+                #[cfg(target_os = "linux")]
+                {
+                    return Ok(UnixAddr::new_abstract(value.as_bytes())?);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Err(Error::AddressTypeNotSupported(addr.to_owned()))
 }
 
 /// Convenience function that returns the UnixAddr of the session bus according to the env
