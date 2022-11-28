@@ -80,30 +80,38 @@ impl std::convert::From<crate::wire::errors::MarshalError> for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
-    if addr.starts_with("unix:path=") {
-        let ps = addr.trim_start_matches("unix:path=");
-        let p = PathBuf::from(&ps);
-        if p.exists() {
-            Ok(UnixAddr::new(&p)?)
-        } else {
-            Err(Error::PathDoesNotExist(ps.to_owned()))
-        }
-    } else if addr.starts_with("unix:abstract=") {
-        #[cfg(not(target_os = "linux"))]
-        {
-            Err(Error::AddressTypeNotSupported(addr.to_owned()))
-        }
-        #[cfg(target_os = "linux")]
-        {
-            let mut ps = addr.trim_start_matches("unix:abstract=").to_string();
-            let end_path_offset = ps.find(',').unwrap_or(ps.len());
-            let ps: String = ps.drain(..end_path_offset).collect();
-            let path_buf = ps.as_bytes();
-            Ok(UnixAddr::new_abstract(path_buf)?)
-        }
-    } else {
-        Err(Error::AddressTypeNotSupported(addr.to_owned()))
+    // split the address string into <system>:rest
+    let (addr_system, addr_pairs) = addr.split_once(':').ok_or(Error::NoAddressFound)?;
+    if addr_system != "unix" {
+        return Err(Error::AddressTypeNotSupported(addr.to_owned()));
     }
+
+    // split the rest of the address string into each <key>=<value> pair
+    for pair in addr_pairs.split(',') {
+        let (key, value) = pair
+            .split_once('=')
+            .ok_or_else(|| Error::AddressTypeNotSupported(addr.to_owned()))?;
+
+        match key {
+            "path" => {
+                let p = PathBuf::from(&value);
+                if p.exists() {
+                    return Ok(UnixAddr::new(&p)?);
+                } else {
+                    return Err(Error::PathDoesNotExist(value.to_string()));
+                }
+            }
+            "abstract" => {
+                #[cfg(target_os = "linux")]
+                {
+                    return Ok(UnixAddr::new_abstract(value.as_bytes())?);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Err(Error::AddressTypeNotSupported(addr.to_owned()))
 }
 
 /// Convenience function that returns the UnixAddr of the session bus according to the env
@@ -150,11 +158,22 @@ mod tests {
     #[test]
     fn test_get_session_bus_path() {
         let path = "unix:path=/tmp/dbus-test-not-exist";
+        let path_with_keys = "unix:path=/tmp/dbus-test-not-exist,guid=aaaaa,test=bbbbbbbb";
         let abstract_path = "unix:abstract=/tmp/dbus-test";
         let abstract_path_with_keys = "unix:abstract=/tmp/dbus-test,guid=aaaaaaaa,test=bbbbbbbb";
 
         let addr = parse_dbus_addr_str(path);
         assert!(addr.is_err());
+
+        let addr = parse_dbus_addr_str(path_with_keys);
+        match addr {
+            Err(Error::PathDoesNotExist(path)) => {
+                // The assertion here ensures that DBus session keys are
+                // stripped from the session bus' determined path.
+                assert_eq!("/tmp/dbus-test-not-exist", path);
+            }
+            _ => assert!(false, "expected Error::PathDoesNotExist"),
+        }
 
         let addr = parse_dbus_addr_str(abstract_path).unwrap();
         assert_eq!(addr, UnixAddr::new_abstract(b"/tmp/dbus-test").unwrap());
