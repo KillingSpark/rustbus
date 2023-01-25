@@ -124,9 +124,8 @@ impl RecvConn {
             padding_between_header_and_body
         };
 
-        let bytes_needed = complete_header_size as usize
-            + padding_between_header_and_body
-            + header.body_len as usize;
+        let bytes_needed =
+            complete_header_size + padding_between_header_and_body + header.body_len as usize;
         Ok(bytes_needed)
     }
 
