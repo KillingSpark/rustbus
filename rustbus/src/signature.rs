@@ -1,6 +1,8 @@
 //! Everything needed to deal with dbus signatures
 
 mod signature_iter;
+use std::iter::Peekable;
+
 pub use signature_iter::*;
 
 use thiserror::Error;
@@ -244,7 +246,7 @@ impl Type {
             return Err(Error::EmptySignature);
         }
 
-        let mut tokens = make_tokens(sig.chars());
+        let mut tokens = make_tokens(sig.chars()).peekable();
         let mut types = Vec::new();
         while let Some(t) = Self::parse_next_type(&mut tokens, None)? {
             types.push(t);
@@ -301,7 +303,7 @@ impl Type {
         }
     }
     fn parse_next_type<I: Iterator<Item = Result<Token>>>(
-        tokens: &mut I,
+        tokens: &mut Peekable<I>,
         delim: Option<Token>,
     ) -> Result<Option<Type>> {
         if let Some(token) = tokens.next() {
@@ -321,13 +323,20 @@ impl Type {
                     }
                 }
                 Token::Array => {
-                    let elem_type = Self::parse_next_type(tokens, None)?;
-                    match elem_type {
-                        Some(Type::Container(Container::Dict(_, _))) => Ok(elem_type),
-                        Some(elem_type) => {
-                            Ok(Some(Type::Container(Container::Array(Box::new(elem_type)))))
+                    if let Some(Ok(next_token)) = tokens.peek() {
+                        let next_is_dict = *next_token == Token::DictEntryStart;
+                        let elem_type = Self::parse_next_type(tokens, None)?;
+                        match elem_type {
+                            Some(Type::Container(Container::Dict(_, _))) if next_is_dict => {
+                                Ok(elem_type)
+                            }
+                            Some(elem_type) => {
+                                Ok(Some(Type::Container(Container::Array(Box::new(elem_type)))))
+                            }
+                            None => Err(Error::InvalidSignature),
                         }
-                        None => Err(Error::InvalidSignature),
+                    } else {
+                        Err(Error::InvalidSignature)
                     }
                 }
                 Token::DictEntryStart => {
@@ -393,7 +402,9 @@ impl Type {
         }
     }
 
-    fn parse_struct<I: Iterator<Item = Result<Token>>>(tokens: &mut I) -> Result<Vec<Type>> {
+    fn parse_struct<I: Iterator<Item = Result<Token>>>(
+        tokens: &mut Peekable<I>,
+    ) -> Result<Vec<Type>> {
         let mut types = Vec::new();
         while let Some(t) = Self::parse_next_type(tokens, Some(Token::Structend))? {
             types.push(t);
@@ -514,5 +525,8 @@ mod tests {
 
         assert_parse_and_back!("a{si}");
         assert_parse_and_back!("a{s(dv)}");
+        assert_parse_and_back!("a{s(dv)}");
+        assert_parse_and_back!("aa{si}");
+        assert_parse_and_back!("aaaa{si}");
     }
 }
