@@ -10,7 +10,7 @@ homepage = "https://github.com/KillingSpark/rustbus"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nix = "0.25"
+nix = "0.26"
 rustbus_derive = {version = "0.5.0", path = "../rustbus_derive"}
 thiserror = "1.0"
 

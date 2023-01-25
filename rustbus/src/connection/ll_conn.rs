@@ -63,6 +63,7 @@ impl RecvConn {
 
         const BUFSIZE: usize = 512;
         let mut tmpbuf = [0u8; BUFSIZE];
+
         let iovec = IoSliceMut::new(&mut tmpbuf[..usize::min(bytes_to_read, BUFSIZE)]);
 
         let mut cmsgspace = cmsg_space!([RawFd; 10]);
@@ -100,9 +101,10 @@ impl RecvConn {
             return Err(Error::ConnectionClosed);
         }
 
-        self.msg_buf_in
-            .extend(&mut tmpbuf[..msg.bytes].iter().copied());
         self.cmsgs_in.extend(msg.cmsgs());
+        let bytes = msg.bytes;
+        self.msg_buf_in
+            .extend(&mut tmpbuf[..bytes].iter().copied());
         Ok(())
     }
 
