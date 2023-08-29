@@ -55,10 +55,9 @@ impl ObjectPathPattern {
         if parts.len() < self.0.len() {
             None
         } else {
-            parts
-                .into_iter()
-                .enumerate()
-                .try_fold(Matches::default(), |mut matches, (idx, part)| {
+            parts.into_iter().enumerate().try_fold(
+                Matches::default(),
+                |mut matches, (idx, part)| {
                     if idx >= self.0.len() {
                         // The path is too long. If the last member of the patter is a wildcard
                         // this is acceptable.
@@ -86,7 +85,8 @@ impl ObjectPathPattern {
                             }
                         }
                     }
-                })
+                },
+            )
         }
     }
 }
