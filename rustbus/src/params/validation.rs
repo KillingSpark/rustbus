@@ -228,7 +228,7 @@ pub fn validate_signature(sig: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_array<'a, 'e>(array: &[Param<'a, 'e>], sig: &signature::Type) -> Result<()> {
+pub fn validate_array(array: &[Param<'_, '_>], sig: &signature::Type) -> Result<()> {
     if array.is_empty() {
         return Ok(());
     }

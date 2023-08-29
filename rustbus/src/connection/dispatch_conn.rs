@@ -58,16 +58,16 @@ impl ObjectPathPattern {
             parts
                 .into_iter()
                 .enumerate()
-                .fold(Some(Matches::default()), |matches, (idx, part)| {
+                .try_fold(Matches::default(), |mut matches, (idx, part)| {
                     if idx >= self.0.len() {
                         // The path is too long. If the last member of the patter is a wildcard
                         // this is acceptable.
                         if self.0.last().unwrap().is_accept_all() {
-                            matches
+                            Some(matches)
                         } else {
                             None
                         }
-                    } else if let Some(mut matches) = matches {
+                    } else {
                         match &self.0[idx] {
                             PathPart::AcceptAll => {
                                 // Nothing to do :)
@@ -85,8 +85,6 @@ impl ObjectPathPattern {
                                 Some(matches)
                             }
                         }
-                    } else {
-                        None
                     }
                 })
         }
