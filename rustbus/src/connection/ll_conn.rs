@@ -81,9 +81,10 @@ impl RecvConn {
                 self.stream.set_nonblocking(true)?;
             }
         }
+        let iovec_mut = &mut [iovec];
         let msg = recvmsg::<SockaddrStorage>(
             self.stream.as_raw_fd(),
-            &mut [iovec],
+            iovec_mut,
             Some(&mut cmsgspace),
             flags,
         )
