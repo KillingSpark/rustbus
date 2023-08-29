@@ -139,7 +139,7 @@ impl SecretService {
     }
     pub fn unlock_collection(&mut self, id: &str) -> Result<(), UnlockError> {
         let coll = self.collections.iter_mut().find(|s| s.id.eq(id));
-        if let Some(mut coll) = coll {
+        if let Some(coll) = coll {
             coll.lock_state = LockState::Unlocked;
             Ok(())
         } else {
@@ -152,7 +152,7 @@ impl SecretService {
             .iter_mut()
             .find(|col| col.id.eq(col_id))
             .map(|col| col.items.iter_mut().find(|i| i.id.eq(item_id)));
-        if let Some(Some(mut item)) = item {
+        if let Some(Some(item)) = item {
             item.lock_state = LockState::Unlocked;
             Ok(())
         } else {
@@ -161,7 +161,7 @@ impl SecretService {
     }
     pub fn lock_collection(&mut self, id: &str) -> Result<(), UnlockError> {
         let coll = self.collections.iter_mut().find(|s| s.id.eq(id));
-        if let Some(mut coll) = coll {
+        if let Some(coll) = coll {
             coll.lock_state = LockState::Locked;
             Ok(())
         } else {
@@ -174,7 +174,7 @@ impl SecretService {
             .iter_mut()
             .find(|col| col.id.eq(col_id))
             .map(|col| col.items.iter_mut().find(|i| i.id.eq(item_id)));
-        if let Some(Some(mut item)) = item {
+        if let Some(Some(item)) = item {
             item.lock_state = LockState::Locked;
             Ok(())
         } else {
