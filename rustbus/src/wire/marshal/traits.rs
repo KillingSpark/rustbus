@@ -3,7 +3,6 @@ use crate::wire::marshal::MarshalContext;
 
 mod base;
 mod container;
-pub use base::*;
 pub use container::*;
 
 /// The Marshal trait allows to push any type onto an message_builder::OutMessage as a parameter.

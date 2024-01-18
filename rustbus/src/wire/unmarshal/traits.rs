@@ -7,7 +7,6 @@ use crate::wire::unmarshal::UnmarshalContext;
 // these contain the implementations
 mod base;
 mod container;
-pub use base::*;
 pub use container::*;
 
 /// This trait has to be supported to get parameters ergonomically out of a MarshalledMessage.
