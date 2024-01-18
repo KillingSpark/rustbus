@@ -41,29 +41,46 @@ pub enum Error {
 type Result<T> = std::result::Result<T, Error>;
 
 pub fn validate_object_path(op: &str) -> Result<()> {
+    // should starts with '/'
+    let op = op
+        .split_once('/')
+        .and_then(|(r, op)| if r.is_empty() { Some(op) } else { None })
+        .ok_or(Error::InvalidObjectPath)?;
+
     if op.is_empty() {
-        return Err(Error::InvalidObjectPath);
+        // may be '/'
+        Ok(())
+    } else {
+        // check path components
+        op.split('/')
+            .find_map(|elem| {
+                if elem.is_empty() || !elem.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    Some(Error::InvalidObjectPath)
+                } else {
+                    None
+                }
+            })
+            .map(Err)
+            .unwrap_or(Ok(()))
     }
-    if !op.starts_with('/') {
-        return Err(Error::InvalidObjectPath);
-    }
-    if op.len() > 1 {
-        let split = op.split('/').collect::<Vec<_>>();
-        if split.len() < 2 {
-            return Err(Error::InvalidObjectPath);
-        }
-        for element in &split[1..] {
-            if element.is_empty() {
-                return Err(Error::InvalidObjectPath);
-            }
-            let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
-            if !alphanum_or_underscore {
-                return Err(Error::InvalidObjectPath);
-            }
-        }
-    }
-    Ok(())
 }
+
+#[test]
+fn test_validate_object_path() {
+    assert!(validate_object_path("/").is_ok());
+    assert!(validate_object_path("/foo_bar").is_ok());
+    assert!(validate_object_path("/foo_bar/foo_baz").is_ok());
+
+    assert!(validate_object_path("").is_err());
+    assert!(validate_object_path("foo/bar").is_err());
+    assert!(validate_object_path("/foo-bar").is_err());
+    assert!(validate_object_path("/foo_bar/foo-baz").is_err());
+    assert!(validate_object_path("/foo-bar/foo_baz").is_err());
+    assert!(validate_object_path("//").is_err());
+    assert!(validate_object_path("//foo_baz").is_err());
+    assert!(validate_object_path("///baz_bar").is_err());
+}
+
 pub fn validate_interface(int: &str) -> Result<()> {
     let split = int.split('.');
     let mut cnt = 0;
