@@ -201,6 +201,12 @@ impl<'a, 'e> Param<'a, 'e> {
             _ => Err(self),
         }
     }
+    pub fn into_f64(self) -> Result<f64, Param<'a, 'e>> {
+        match self {
+            Param::Base(Base::Double(s)) => Ok(f64::from_bits(s)),
+            _ => Err(self),
+        }
+    }
 }
 
 //
@@ -355,6 +361,12 @@ impl<'a> Base<'a> {
             _ => Err(self),
         }
     }
+    pub fn into_f64(self) -> Result<f64, Self> {
+        match self {
+            Base::Double(s) => Ok(f64::from_bits(s)),
+            _ => Err(self),
+        }
+    }
 }
 
 impl<'a> std::convert::From<&Base<'a>> for signature::Base {
@@ -493,6 +505,17 @@ impl<'a> std::convert::TryFrom<&Base<'a>> for i64 {
     fn try_from(b: &Base) -> std::result::Result<i64, ConversionError> {
         if let Base::Int64(value) = b {
             Ok(*value)
+        } else {
+            Err(ConversionError::InvalidType)
+        }
+    }
+}
+
+impl<'a> std::convert::TryFrom<&Base<'a>> for f64 {
+    type Error = ConversionError;
+    fn try_from(b: &Base) -> std::result::Result<f64, ConversionError> {
+        if let Base::Double(value) = b {
+            Ok(f64::from_bits(*value))
         } else {
             Err(ConversionError::InvalidType)
         }
@@ -652,6 +675,11 @@ impl<'a> std::convert::From<i64> for Base<'a> {
         Base::Int64(s)
     }
 }
+impl<'a> std::convert::From<f64> for Base<'a> {
+    fn from(s: f64) -> Self {
+        Base::Double(s.to_bits())
+    }
+}
 impl<'a> std::convert::From<&'a bool> for Base<'a> {
     fn from(s: &'a bool) -> Self {
         Base::BooleanRef(s)
@@ -675,6 +703,11 @@ impl<'a> std::convert::From<&'a u32> for Base<'a> {
 impl<'a> std::convert::From<&'a u64> for Base<'a> {
     fn from(s: &'a u64) -> Self {
         Base::Uint64Ref(s)
+    }
+}
+impl<'a> std::convert::From<&'a f64> for Base<'a> {
+    fn from(s: &'a f64) -> Self {
+        Base::Double(s.to_bits())
     }
 }
 impl<'a> std::convert::From<&'a i16> for Base<'a> {

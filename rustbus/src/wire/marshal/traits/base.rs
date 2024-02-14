@@ -230,6 +230,34 @@ impl Marshal for bool {
     }
 }
 
+impl Signature for f64 {
+    #[inline]
+    fn signature() -> crate::signature::Type {
+        crate::signature::Type::Base(crate::signature::Base::Double)
+    }
+    #[inline]
+    fn alignment() -> usize {
+        8
+    }
+    #[inline]
+    unsafe fn valid_slice(bo: crate::ByteOrder) -> bool {
+        bo == crate::ByteOrder::NATIVE
+    }
+    fn sig_str(sig: &mut SignatureBuffer) {
+        sig.push_static("d");
+    }
+    fn has_sig(sig: &str) -> bool {
+        sig.starts_with('d')
+    }
+}
+impl Marshal for f64 {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
+        ctx.align_to(Self::alignment());
+        util::write_u64(self.to_bits(), ctx.byteorder, ctx.buf);
+        Ok(())
+    }
+}
+
 impl Signature for String {
     #[inline]
     fn signature() -> crate::signature::Type {

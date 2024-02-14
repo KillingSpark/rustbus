@@ -85,6 +85,15 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for bool {
     }
 }
 
+impl<'buf, 'fds> Unmarshal<'buf, 'fds> for f64 {
+    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+        let padding = ctx.align_to(Self::alignment())?;
+        let (bytes, val) = util::parse_u64(&ctx.buf[ctx.offset..], ctx.byteorder)?;
+        ctx.offset += bytes;
+        Ok((bytes + padding, f64::from_bits(val)))
+    }
+}
+
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf str {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         let padding = ctx.align_to(Self::alignment())?;
