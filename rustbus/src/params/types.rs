@@ -1,4 +1,4 @@
-use crate::signature;
+use crate::{signature, wire::marshal::traits::SignatureBuffer, Marshal, Signature, Unmarshal};
 
 /// The Types a message can have as parameters
 /// There are From<T> impls for most of the Base ones
@@ -211,5 +211,44 @@ impl<'a, 'e> Container<'a, 'e> {
     pub fn sig(&self) -> signature::Type {
         let sig: signature::Container = self.into();
         signature::Type::Container(sig)
+    }
+}
+
+impl Signature for Variant<'_, '_> {
+    fn signature() -> signature::Type {
+        signature::Type::Container(signature::Container::Variant)
+    }
+    fn alignment() -> usize {
+        Variant::signature().get_alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        s_buf.push_static("v");
+    }
+    fn has_sig(sig: &str) -> bool {
+        sig.starts_with('v')
+    }
+}
+impl Marshal for Variant<'_, '_> {
+    fn marshal(
+        &self,
+        ctx: &mut crate::wire::marshal::MarshalContext,
+    ) -> Result<(), crate::wire::errors::MarshalError> {
+        let mut sig = String::new();
+        self.sig.to_str(&mut sig);
+        if sig.len() > 255 {
+            let sig_err = crate::signature::Error::SignatureTooLong;
+            return Err(sig_err.into());
+        }
+        debug_assert!(crate::params::validation::validate_signature(&sig).is_ok());
+        crate::wire::util::write_signature(&sig, ctx.buf);
+        crate::wire::marshal::container::marshal_param(&self.value, ctx)
+    }
+}
+impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'buf, 'fds> {
+    fn unmarshal(
+        ctx: &mut crate::wire::unmarshal::UnmarshalContext<'fds, 'buf>,
+    ) -> crate::wire::unmarshal::UnmarshalResult<Self> {
+        crate::wire::unmarshal::container::unmarshal_variant(ctx)
     }
 }
