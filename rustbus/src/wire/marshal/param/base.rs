@@ -68,23 +68,14 @@ pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> Result<
 
     match p {
         params::Base::Boolean(b) => marshal_boolean(*b, ctx.byteorder, ctx.buf),
-        params::Base::BooleanRef(b) => marshal_boolean(**b, ctx.byteorder, ctx.buf),
         params::Base::Byte(i) => marshal_byte(*i, ctx.buf),
-        params::Base::ByteRef(i) => marshal_byte(**i, ctx.buf),
         params::Base::Int16(i) => marshal_i16(*i, ctx.byteorder, ctx.buf),
-        params::Base::Int16Ref(i) => marshal_i16(**i, ctx.byteorder, ctx.buf),
         params::Base::Uint16(i) => marshal_u16(*i, ctx.byteorder, ctx.buf),
-        params::Base::Uint16Ref(i) => marshal_u16(**i, ctx.byteorder, ctx.buf),
         params::Base::Int32(i) => marshal_i32(*i, ctx.byteorder, ctx.buf),
-        params::Base::Int32Ref(i) => marshal_i32(**i, ctx.byteorder, ctx.buf),
         params::Base::Uint32(i) => marshal_u32(*i, ctx.byteorder, ctx.buf),
-        params::Base::Uint32Ref(i) => marshal_u32(**i, ctx.byteorder, ctx.buf),
         params::Base::Int64(i) => marshal_i64(*i, ctx.byteorder, ctx.buf),
-        params::Base::Int64Ref(i) => marshal_i64(**i, ctx.byteorder, ctx.buf),
         params::Base::Uint64(i) => marshal_u64(*i, ctx.byteorder, ctx.buf),
-        params::Base::Uint64Ref(i) => marshal_u64(**i, ctx.byteorder, ctx.buf),
         params::Base::Double(i) => marshal_u64(*i, ctx.byteorder, ctx.buf),
-        params::Base::DoubleRef(i) => marshal_u64(**i, ctx.byteorder, ctx.buf),
         params::Base::StringRef(s) => marshal_string(s, ctx.byteorder, ctx.buf)?,
         params::Base::String(s) => marshal_string(s, ctx.byteorder, ctx.buf)?,
         params::Base::Signature(s) => marshal_signature(s, ctx.buf)?,
@@ -92,7 +83,6 @@ pub fn marshal_base_param(p: &params::Base, ctx: &mut MarshalContext) -> Result<
         params::Base::ObjectPath(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf)?,
         params::Base::ObjectPathRef(s) => marshal_objectpath(s, ctx.byteorder, ctx.buf)?,
         params::Base::UnixFd(i) => marshal_unixfd(i, ctx)?,
-        params::Base::UnixFdRef(i) => marshal_unixfd(i, ctx)?,
     }
     Ok(())
 }
