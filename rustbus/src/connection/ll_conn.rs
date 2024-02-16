@@ -11,15 +11,14 @@ use std::io::IoSlice;
 use std::io::IoSliceMut;
 use std::time;
 
+use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
-use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::os::unix::net::UnixStream;
 
 use nix::cmsg_space;
-use nix::sys::socket::SockaddrStorage;
 use nix::sys::socket::{
     self, connect, recvmsg, sendmsg, socket, ControlMessage, ControlMessageOwned, MsgFlags,
-    UnixAddr,
+    SockaddrStorage, UnixAddr,
 };
 
 /// A lowlevel abstraction over the raw unix socket
@@ -46,14 +45,13 @@ pub struct DuplexConn {
 impl RecvConn {
     pub fn can_read_from_source(&self) -> nix::Result<bool> {
         let mut fdset = nix::sys::select::FdSet::new();
-        let fd = self.stream.as_raw_fd();
-        fdset.insert(fd);
+        fdset.insert(&self.stream);
 
         use nix::sys::time::TimeValLike;
         let mut zero_timeout = nix::sys::time::TimeVal::microseconds(0);
 
         nix::sys::select::select(None, Some(&mut fdset), None, None, Some(&mut zero_timeout))?;
-        Ok(fdset.contains(fd))
+        Ok(fdset.contains(&self.stream))
     }
 
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
@@ -459,8 +457,8 @@ impl DuplexConn {
             None,
         )?;
 
-        connect(sock, &addr)?;
-        let mut stream = unsafe { UnixStream::from_raw_fd(sock) };
+        connect(sock.as_raw_fd(), &addr)?;
+        let mut stream = UnixStream::from(sock);
         match auth::do_auth(&mut stream)? {
             auth::AuthResult::Ok => {}
             auth::AuthResult::Rejected => return Err(Error::AuthFailed),
