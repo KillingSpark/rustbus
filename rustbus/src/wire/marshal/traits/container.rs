@@ -313,7 +313,7 @@ impl<E: Marshal> Marshal for &[E] {
     }
 }
 
-pub struct Variant<T: Marshal + Signature>(T);
+pub struct Variant<T: Marshal + Signature>(pub T);
 
 impl<T: Marshal + Signature> Signature for Variant<T> {
     #[inline]
