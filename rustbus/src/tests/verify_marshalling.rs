@@ -296,4 +296,16 @@ fn verify_variant_marshalling() {
     // signature ++ padding ++ 32u8
     assert_eq!(ctx.buf, &[1, b'y', 0, 32]);
     ctx.buf.clear();
+
+    let param = crate::params::Param::Base(crate::params::Base::Byte(16));
+    let v = crate::params::Variant {
+        sig: crate::signature::Type::Base(crate::signature::Base::Byte),
+        value: param,
+    };
+
+    v.marshal(ctx).unwrap();
+
+    // signature ++ padding ++ 16u8
+    assert_eq!(ctx.buf, &[1, b'y', 0, 16]);
+    ctx.buf.clear();
 }
