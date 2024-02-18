@@ -56,22 +56,27 @@ fn criterion_benchmark(c: &mut Criterion) {
         params.push(ref_array.clone());
     }
 
-    let mut msg = rustbus::message_builder::MessageBuilder::new()
-        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
-        .build();
-
-    msg.body.push_old_params(&params).unwrap();
-    msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     c.bench_function("marshal", |b| {
         b.iter(|| {
+            let mut msg = rustbus::message_builder::MessageBuilder::new()
+                .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
+                .build();
+            msg.body.push_old_params(&params).unwrap();
+            msg.dynheader.serial = Some(1);
             buf.clear();
             marsh(black_box(&msg), &mut buf)
         })
     });
 
+    let mut msg = rustbus::message_builder::MessageBuilder::new()
+        .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
+        .build();
+    msg.body.push_old_params(&params).unwrap();
+    msg.dynheader.serial = Some(1);
     buf.clear();
     marsh(&msg, &mut buf);
+    buf.extend_from_slice(msg.get_buf());
     c.bench_function("unmarshal", |b| b.iter(|| unmarshal(black_box(&buf))));
 }
 
