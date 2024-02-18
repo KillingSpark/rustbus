@@ -160,7 +160,7 @@ pub fn make_variant_unmarshal_impl(
             tokens
         });
 
-    let mut bufdef = syn::LifetimeDef {
+    let mut bufdef = syn::LifetimeParam {
         attrs: Vec::new(),
         lifetime: syn::Lifetime::new("'__internal_buf", proc_macro2::Span::call_site()),
         colon_token: None,
