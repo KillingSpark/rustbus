@@ -30,19 +30,9 @@ pub enum Base<'a> {
     Boolean(bool),
 
     // By ref
-    DoubleRef(&'a u64),
-    ByteRef(&'a u8),
-    Int16Ref(&'a i16),
-    Uint16Ref(&'a u16),
-    Int32Ref(&'a i32),
-    Uint32Ref(&'a u32),
-    UnixFdRef(&'a crate::wire::UnixFd),
-    Int64Ref(&'a i64),
-    Uint64Ref(&'a u64),
     StringRef(&'a str),
     SignatureRef(&'a str),
     ObjectPathRef(&'a str),
-    BooleanRef(&'a bool),
 }
 
 pub type DictMap<'a, 'e> = std::collections::HashMap<Base<'a>, Param<'a, 'e>>;
@@ -126,16 +116,6 @@ impl<'a> Base<'a> {
             Base::ObjectPath(_) => buf.push('o'),
             Base::String(_) => buf.push('s'),
             Base::Signature(_) => buf.push('g'),
-            Base::BooleanRef(_) => buf.push('b'),
-            Base::DoubleRef(_) => buf.push('d'),
-            Base::ByteRef(_) => buf.push('y'),
-            Base::Int16Ref(_) => buf.push('n'),
-            Base::Uint16Ref(_) => buf.push('q'),
-            Base::Int32Ref(_) => buf.push('i'),
-            Base::Uint32Ref(_) => buf.push('u'),
-            Base::UnixFdRef(_) => buf.push('h'),
-            Base::Int64Ref(_) => buf.push('x'),
-            Base::Uint64Ref(_) => buf.push('t'),
             Base::ObjectPathRef(_) => buf.push('o'),
             Base::StringRef(_) => buf.push('s'),
             Base::SignatureRef(_) => buf.push('g'),

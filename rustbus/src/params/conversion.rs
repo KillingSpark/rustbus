@@ -69,7 +69,6 @@ impl<'a, 'e> Param<'a, 'e> {
     pub fn as_u64(&'a self) -> Option<&'a u64> {
         match self {
             Param::Base(Base::Uint64(b)) => Some(b),
-            Param::Base(Base::Uint64Ref(b)) => Some(b),
             _ => None,
         }
     }
@@ -112,21 +111,18 @@ impl<'a, 'e> Param<'a, 'e> {
     pub fn as_byte(&'a self) -> Option<&'a u8> {
         match self {
             Param::Base(Base::Byte(b)) => Some(b),
-            Param::Base(Base::ByteRef(b)) => Some(b),
             _ => None,
         }
     }
     pub fn as_bool(&'a self) -> Option<&'a bool> {
         match self {
             Param::Base(Base::Boolean(b)) => Some(b),
-            Param::Base(Base::BooleanRef(b)) => Some(b),
             _ => None,
         }
     }
     pub fn as_unix_fd(&'a self) -> Option<&'a crate::wire::UnixFd> {
         match self {
             Param::Base(Base::UnixFd(b)) => Some(b),
-            Param::Base(Base::UnixFdRef(b)) => Some(b),
             _ => None,
         }
     }
@@ -148,56 +144,48 @@ impl<'a, 'e> Param<'a, 'e> {
     pub fn into_u64(self) -> Result<u64, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Uint64(s)) => Ok(s),
-            Param::Base(Base::Uint64Ref(s)) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_u32(self) -> Result<u32, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Uint32(s)) => Ok(s),
-            Param::Base(Base::Uint32Ref(s)) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_u16(self) -> Result<u16, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Uint16(s)) => Ok(s),
-            Param::Base(Base::Uint16Ref(s)) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_i64(self) -> Result<i64, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Int64(s)) => Ok(s),
-            Param::Base(Base::Int64Ref(s)) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_i32(self) -> Result<i32, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Int32(s)) => Ok(s),
-            Param::Base(Base::Int32Ref(s)) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_i16(self) -> Result<i16, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Int16(s)) => Ok(s),
-            Param::Base(Base::Int16Ref(s)) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_byte(self) -> Result<u8, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Byte(s)) => Ok(s),
-            Param::Base(Base::ByteRef(s)) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_bool(self) -> Result<bool, Param<'a, 'e>> {
         match self {
             Param::Base(Base::Boolean(s)) => Ok(s),
-            Param::Base(Base::BooleanRef(s)) => Ok(*s),
             _ => Err(self),
         }
     }
@@ -229,7 +217,6 @@ impl<'a> Base<'a> {
     pub fn as_u64(&'a self) -> Option<&'a u64> {
         match self {
             Base::Uint64(b) => Some(b),
-            Base::Uint64Ref(b) => Some(b),
             _ => None,
         }
     }
@@ -272,21 +259,18 @@ impl<'a> Base<'a> {
     pub fn as_byte(&'a self) -> Option<&'a u8> {
         match self {
             Base::Byte(b) => Some(b),
-            Base::ByteRef(b) => Some(b),
             _ => None,
         }
     }
     pub fn as_bool(&'a self) -> Option<&'a bool> {
         match self {
             Base::Boolean(b) => Some(b),
-            Base::BooleanRef(b) => Some(b),
             _ => None,
         }
     }
     pub fn as_unix_fd(&'a self) -> Option<&'a crate::wire::UnixFd> {
         match self {
             Base::UnixFd(b) => Some(b),
-            Base::UnixFdRef(b) => Some(b),
             _ => None,
         }
     }
@@ -308,56 +292,48 @@ impl<'a> Base<'a> {
     pub fn into_u64(self) -> Result<u64, Self> {
         match self {
             Base::Uint64(s) => Ok(s),
-            Base::Uint64Ref(s) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_u32(self) -> Result<u32, Self> {
         match self {
             Base::Uint32(s) => Ok(s),
-            Base::Uint32Ref(s) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_u16(self) -> Result<u16, Self> {
         match self {
             Base::Uint16(s) => Ok(s),
-            Base::Uint16Ref(s) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_i64(self) -> Result<i64, Self> {
         match self {
             Base::Int64(s) => Ok(s),
-            Base::Int64Ref(s) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_i32(self) -> Result<i32, Self> {
         match self {
             Base::Int32(s) => Ok(s),
-            Base::Int32Ref(s) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_i16(self) -> Result<i16, Self> {
         match self {
             Base::Int16(s) => Ok(s),
-            Base::Int16Ref(s) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_byte(self) -> Result<u8, Self> {
         match self {
             Base::Byte(s) => Ok(s),
-            Base::ByteRef(s) => Ok(*s),
             _ => Err(self),
         }
     }
     pub fn into_bool(self) -> Result<bool, Self> {
         match self {
             Base::Boolean(s) => Ok(s),
-            Base::BooleanRef(s) => Ok(*s),
             _ => Err(self),
         }
     }
@@ -385,19 +361,9 @@ impl<'a> std::convert::From<&Base<'a>> for signature::Base {
             Base::Signature(_) => signature::Base::Signature,
             Base::String(_) => signature::Base::String,
             Base::UnixFd(_) => signature::Base::UnixFd,
-            Base::BooleanRef(_) => signature::Base::Boolean,
-            Base::ByteRef(_) => signature::Base::Byte,
-            Base::DoubleRef(_) => signature::Base::Double,
-            Base::Int16Ref(_) => signature::Base::Int16,
-            Base::Int32Ref(_) => signature::Base::Int32,
-            Base::Int64Ref(_) => signature::Base::Int64,
-            Base::Uint16Ref(_) => signature::Base::Uint16,
-            Base::Uint32Ref(_) => signature::Base::Uint32,
-            Base::Uint64Ref(_) => signature::Base::Uint64,
             Base::ObjectPathRef(_) => signature::Base::ObjectPath,
             Base::SignatureRef(_) => signature::Base::Signature,
             Base::StringRef(_) => signature::Base::String,
-            Base::UnixFdRef(_) => signature::Base::UnixFd,
         }
     }
 }
@@ -682,27 +648,27 @@ impl<'a> std::convert::From<f64> for Base<'a> {
 }
 impl<'a> std::convert::From<&'a bool> for Base<'a> {
     fn from(s: &'a bool) -> Self {
-        Base::BooleanRef(s)
+        Base::Boolean(*s)
     }
 }
 impl<'a> std::convert::From<&'a u8> for Base<'a> {
     fn from(s: &'a u8) -> Self {
-        Base::ByteRef(s)
+        Base::Byte(*s)
     }
 }
 impl<'a> std::convert::From<&'a u16> for Base<'a> {
     fn from(s: &'a u16) -> Self {
-        Base::Uint16Ref(s)
+        Base::Uint16(*s)
     }
 }
 impl<'a> std::convert::From<&'a u32> for Base<'a> {
     fn from(s: &'a u32) -> Self {
-        Base::Uint32Ref(s)
+        Base::Uint32(*s)
     }
 }
 impl<'a> std::convert::From<&'a u64> for Base<'a> {
     fn from(s: &'a u64) -> Self {
-        Base::Uint64Ref(s)
+        Base::Uint64(*s)
     }
 }
 impl<'a> std::convert::From<&'a f64> for Base<'a> {
@@ -712,17 +678,17 @@ impl<'a> std::convert::From<&'a f64> for Base<'a> {
 }
 impl<'a> std::convert::From<&'a i16> for Base<'a> {
     fn from(s: &'a i16) -> Self {
-        Base::Int16Ref(s)
+        Base::Int16(*s)
     }
 }
 impl<'a> std::convert::From<&'a i32> for Base<'a> {
     fn from(s: &'a i32) -> Self {
-        Base::Int32Ref(s)
+        Base::Int32(*s)
     }
 }
 impl<'a> std::convert::From<&'a i64> for Base<'a> {
     fn from(s: &'a i64) -> Self {
-        Base::Int64Ref(s)
+        Base::Int64(*s)
     }
 }
 
