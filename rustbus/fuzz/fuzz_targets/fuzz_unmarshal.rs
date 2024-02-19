@@ -34,11 +34,11 @@ fn try_unmarhal_traits(msg: &rustbus::message_builder::MarshalledMessage) {
     msg.body.parser().get::<&str>().ok();
     msg.body
         .parser()
-        .get::<rustbus::wire::marshal::traits::ObjectPath<&str>>()
+        .get::<rustbus::wire::ObjectPath<&str>>()
         .ok();
     msg.body
         .parser()
-        .get::<rustbus::wire::marshal::traits::SignatureWrapper>()
+        .get::<rustbus::wire::SignatureWrapper<&str>>()
         .ok();
     msg.body.parser().get::<u64>().ok();
     msg.body.parser().get::<u32>().ok();
@@ -79,11 +79,11 @@ fn try_unmarhal_traits(msg: &rustbus::message_builder::MarshalledMessage) {
     msg.body.parser().get2::<u8, &str>().ok();
     msg.body
         .parser()
-        .get2::<&str, rustbus::wire::marshal::traits::ObjectPath<&str>>()
+        .get2::<&str, rustbus::wire::ObjectPath<&str>>()
         .ok();
     msg.body
         .parser()
-        .get2::<&str, rustbus::wire::marshal::traits::SignatureWrapper>()
+        .get2::<&str, rustbus::wire::SignatureWrapper<&str>>()
         .ok();
     msg.body.parser().get2::<&str, u64>().ok();
     msg.body.parser().get2::<&str, u32>().ok();
