@@ -53,11 +53,6 @@ impl UnmarshalContext<'_, '_> {
     }
 }
 
-impl From<crate::params::validation::Error> for UnmarshalError {
-    fn from(e: crate::params::validation::Error) -> Self {
-        UnmarshalError::Validation(e)
-    }
-}
 impl From<crate::signature::Error> for UnmarshalError {
     fn from(e: crate::signature::Error) -> Self {
         UnmarshalError::Validation(crate::params::validation::Error::InvalidSignature(e))

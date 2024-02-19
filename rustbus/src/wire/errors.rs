@@ -14,18 +14,12 @@ pub enum MarshalError {
     DupUnixFd(nix::Error),
     /// Errors occuring while validating the input
     #[error("Errors occured while validating: {0}")]
-    Validation(crate::params::validation::Error),
+    Validation(#[from] crate::params::validation::Error),
 }
 
 //--------
 // Conversion to MarshalError
 //--------
-
-impl From<crate::params::validation::Error> for MarshalError {
-    fn from(e: crate::params::validation::Error) -> Self {
-        MarshalError::Validation(e)
-    }
-}
 
 impl From<crate::signature::Error> for MarshalError {
     fn from(e: crate::signature::Error) -> Self {
@@ -60,7 +54,7 @@ pub enum UnmarshalError {
     WrongSignature,
     /// Any error encountered while validating input
     #[error("Error encountered while validating input: {0}")]
-    Validation(crate::params::validation::Error),
+    Validation(#[from] crate::params::validation::Error),
     /// A message contained an invalid header field
     #[error("A message contained an invalid header field")]
     InvalidHeaderField,

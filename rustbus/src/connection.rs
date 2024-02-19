@@ -26,13 +26,13 @@ use nix::sys::socket::UnixAddr;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("An io error occured: {0}")]
-    IoError(std::io::Error),
+    IoError(#[from] std::io::Error),
     #[error("A nix error occured: {0}")]
     NixError(nix::Error),
     #[error("An error occured while unmarshalling: {0}")]
-    UnmarshalError(crate::wire::errors::UnmarshalError),
+    UnmarshalError(#[from] crate::wire::errors::UnmarshalError),
     #[error("An error occured while marshalling: {0}")]
-    MarshalError(crate::wire::errors::MarshalError),
+    MarshalError(#[from] crate::wire::errors::MarshalError),
     #[error("Authentication failed")]
     AuthFailed,
     #[error("Negotiating unix fd usage failed")]
@@ -53,27 +53,9 @@ pub enum Error {
     ConnectionClosed,
 }
 
-impl std::convert::From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Error {
-        Error::IoError(e)
-    }
-}
-
-impl std::convert::From<crate::wire::errors::UnmarshalError> for Error {
-    fn from(e: crate::wire::errors::UnmarshalError) -> Error {
-        Error::UnmarshalError(e)
-    }
-}
-
 impl std::convert::From<nix::Error> for Error {
     fn from(e: nix::Error) -> Error {
         Error::NixError(e)
-    }
-}
-
-impl std::convert::From<crate::wire::errors::MarshalError> for Error {
-    fn from(e: crate::wire::errors::MarshalError) -> Error {
-        Error::MarshalError(e)
     }
 }
 
