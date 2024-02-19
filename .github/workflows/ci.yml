@@ -25,8 +25,7 @@ jobs:
   check-fuzz:
     name: Check fuzz builds
     runs-on: ubuntu-latest
-    env:
-      working-directory: rustbus
+    
     steps:
       - name: install nightly toolchain
         uses: actions-rs/toolchain@v1
@@ -41,11 +40,8 @@ jobs:
           args: -f cargo-fuzz
 
       - name: Run cargo fuzz build
-        uses: actions-rs/cargo@v1
-        with:
-          command: fuzz
-          toolchain: nightly
-          args: build
+        working-directory: rustbus
+        run: cargo +nightly fuzz build
 
   test:
     name: Test Suite
