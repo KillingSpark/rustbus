@@ -10,8 +10,8 @@ pub enum MarshalError {
     #[error("Tried to marshal an empty UnixFd")]
     EmptyUnixFd,
     /// Error while trying to dup a UnixFd
-    #[error("Error while trying to dup a UnixFd")]
-    DupUnixFd(nix::Error),
+    #[error("Error while trying to dup a UnixFd: {0}")]
+    DupUnixFd(std::io::ErrorKind),
     /// Errors occuring while validating the input
     #[error("Errors occured while validating: {0}")]
     Validation(#[from] crate::params::validation::Error),

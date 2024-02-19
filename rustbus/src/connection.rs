@@ -9,7 +9,7 @@ pub mod ll_conn;
 pub mod rpc_conn;
 
 use std::path::PathBuf;
-use std::time;
+use std::{io, time};
 
 use thiserror::Error;
 
@@ -26,9 +26,7 @@ use nix::sys::socket::UnixAddr;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("An io error occured: {0}")]
-    IoError(#[from] std::io::Error),
-    #[error("A nix error occured: {0}")]
-    NixError(nix::Error),
+    IoError(#[from] io::Error),
     #[error("An error occured while unmarshalling: {0}")]
     UnmarshalError(#[from] crate::wire::errors::UnmarshalError),
     #[error("An error occured while marshalling: {0}")]
@@ -53,12 +51,6 @@ pub enum Error {
     ConnectionClosed,
 }
 
-impl std::convert::From<nix::Error> for Error {
-    fn from(e: nix::Error) -> Error {
-        Error::NixError(e)
-    }
-}
-
 type Result<T> = std::result::Result<T, Error>;
 
 fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
@@ -78,7 +70,7 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
             "path" => {
                 let p = PathBuf::from(&value);
                 if p.exists() {
-                    return Ok(UnixAddr::new(&p)?);
+                    return Ok(UnixAddr::new(&p).map_err(io::Error::from)?);
                 } else {
                     return Err(Error::PathDoesNotExist(value.to_string()));
                 }
@@ -86,7 +78,7 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
             "abstract" => {
                 #[cfg(target_os = "linux")]
                 {
-                    return Ok(UnixAddr::new_abstract(value.as_bytes())?);
+                    return Ok(UnixAddr::new_abstract(value.as_bytes()).map_err(io::Error::from)?);
                 }
             }
             _ => {}
@@ -111,7 +103,7 @@ pub fn get_system_bus_path() -> Result<UnixAddr> {
     let ps = "/run/dbus/system_bus_socket";
     let p = PathBuf::from(&ps);
     if p.exists() {
-        Ok(UnixAddr::new(&p)?)
+        Ok(UnixAddr::new(&p).map_err(io::Error::from)?)
     } else {
         Err(Error::PathDoesNotExist(ps.to_owned()))
     }
