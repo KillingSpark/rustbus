@@ -22,6 +22,30 @@ jobs:
           with:
             command: check
 
+  check-fuzz:
+    name: Check fuzz builds
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+          
+      - name: install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+
+      - name: install cargo-fuzz
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: -f cargo-fuzz
+
+      - name: Run cargo fuzz build
+        working-directory: rustbus
+        run: cargo +nightly fuzz build
+
   test:
     name: Test Suite
     runs-on: ubuntu-latest
