@@ -154,12 +154,24 @@ where
     let alignment = E::alignment();
     ctx.align_to(alignment)?;
 
+    // Check that we will have a range of complete elements
     if bytes_in_array % alignment != 0 {
         return Err(UnmarshalError::NotAllBytesUsed);
     }
+    // Start at offset
+    let start_slice = &ctx.buf[ctx.offset..];
+    // Check that the buffer contains enough bytes
+    if bytes_in_array > start_slice.len() {
+        return Err(UnmarshalError::NotEnoughBytes);
+    }
+    // limit the source slice to assert that the memory access will be valid
+    let content_slice = &start_slice[..bytes_in_array];
+
+    // cast the slice from u8 to the target type
     let elem_cnt = bytes_in_array / alignment;
-    let ptr = &ctx.buf[ctx.offset..] as *const [u8] as *const E;
+    let ptr = content_slice as *const [u8] as *const E;
     let slice = std::slice::from_raw_parts(ptr, elem_cnt);
+
     ctx.offset += bytes_in_array;
     Ok((ctx.offset - start_offset, slice))
 }
