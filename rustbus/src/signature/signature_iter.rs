@@ -9,48 +9,54 @@
 /// assert_eq!(iter.next(), Some("a{s(st)}"));
 /// ```
 pub struct SignatureIter<'a> {
-    idx: usize,
     sigs: &'a str,
 }
 
 impl<'a> SignatureIter<'a> {
     /// This does not validate the content, it expects a valid signature.
     pub fn new(sigs: &'a str) -> SignatureIter<'a> {
-        SignatureIter { idx: 0, sigs }
+        SignatureIter { sigs }
     }
 
     /// This does not validate the content, it expects a valid signature.
     pub fn new_at_idx(sigs: &'a str, idx: usize) -> SignatureIter<'a> {
-        SignatureIter { idx, sigs }
+        if idx >= sigs.len() {
+            Self::new("")
+        } else {
+            SignatureIter {
+                sigs: sigs.split_at(idx).1,
+            }
+        }
     }
 }
 
 impl<'a> Iterator for SignatureIter<'a> {
     type Item = &'a str;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.idx >= self.sigs.len() {
+        if self.sigs.is_empty() {
             return None;
         }
-        let mut end_pos = self.idx;
+        let mut end_pos = 0;
         let mut open_brackets = 0;
         loop {
-            let current = self.sigs.chars().nth(end_pos).unwrap();
+            // A valid siganture consists of only ascii characters and
+            // `.chars().nth(end_pos)` takes linear time.
+            let current = *self.sigs.as_bytes().get(end_pos).unwrap();
             end_pos += 1;
 
-            if current == '(' || current == '{' {
-                open_brackets += 1;
-            } else if current == ')' || current == '}' {
-                open_brackets -= 1;
+            match current {
+                b'(' | b'{' => open_brackets += 1,
+                b')' | b'}' => open_brackets -= 1,
+                b'a' => continue,
+                _ => (),
             }
-            if current == 'a' {
-                continue;
-            }
+
             if open_brackets == 0 {
                 break;
             }
         }
-        let sig = &self.sigs[self.idx..end_pos];
-        self.idx += sig.len();
+        let (sig, rest) = self.sigs.split_at(end_pos);
+        self.sigs = rest;
         Some(sig)
     }
 }
