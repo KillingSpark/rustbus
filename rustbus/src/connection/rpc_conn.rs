@@ -3,11 +3,8 @@
 
 use super::ll_conn::DuplexConn;
 use super::*;
-use crate::message_builder::MarshalledMessage;
-use crate::message_builder::MessageType;
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::time;
+use crate::message_builder::{MarshalledMessage, MessageType};
+use std::collections::{HashMap, VecDeque};
 
 /// Convenience wrapper around the lowlevel connection
 /// ```rust,no_run

@@ -126,7 +126,6 @@ pub(crate) fn calc_timeout_left(start_time: &time::Instant, timeout: Timeout) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nix::sys::socket::UnixAddr;
 
     #[cfg(target_os = "linux")]
     #[test]

@@ -1,5 +1,4 @@
-use crate::wire::errors::MarshalError;
-use crate::wire::errors::UnmarshalError;
+use crate::wire::errors::{MarshalError, UnmarshalError};
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal::UnmarshalContext;
@@ -12,7 +11,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DupError {
-    Nix(nix::Error),
+    Io(io::ErrorKind),
     AlreadyTaken,
 }
 
@@ -76,7 +75,7 @@ impl UnixFdInner {
             Ok(new_fd) => Ok(Self {
                 inner: AtomicI32::new(new_fd),
             }),
-            Err(e) => Err(DupError::Nix(e)),
+            Err(e) => Err(DupError::Io(io::Error::from(e).kind())),
         }
     }
 }

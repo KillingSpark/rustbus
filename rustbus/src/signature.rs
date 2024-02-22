@@ -416,7 +416,6 @@ impl Type {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::string::String;
 
     #[test]
     fn test_base_to_str() {
