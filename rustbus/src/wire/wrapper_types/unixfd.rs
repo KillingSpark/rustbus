@@ -5,6 +5,7 @@ use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal::UnmarshalContext;
 use crate::{Marshal, Signature, Unmarshal};
 
+use std::io;
 use std::os::unix::io::RawFd;
 use std::sync::atomic::AtomicI32;
 use std::sync::Arc;
@@ -176,7 +177,8 @@ impl Signature for &dyn std::os::unix::io::AsRawFd {
 impl Marshal for &dyn std::os::unix::io::AsRawFd {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
         let fd = self.as_raw_fd();
-        let new_fd = nix::unistd::dup(fd).map_err(MarshalError::DupUnixFd)?;
+        let new_fd = nix::unistd::dup(fd)
+            .map_err(|err| MarshalError::DupUnixFd(io::Error::from(err).kind()))?;
         ctx.fds.push(UnixFd::new(new_fd));
 
         let idx = ctx.fds.len() - 1;

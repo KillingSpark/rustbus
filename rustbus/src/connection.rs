@@ -9,7 +9,7 @@ pub mod ll_conn;
 pub mod rpc_conn;
 
 use std::path::PathBuf;
-use std::time;
+use std::{io, time};
 
 use thiserror::Error;
 
@@ -26,13 +26,11 @@ use nix::sys::socket::UnixAddr;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("An io error occured: {0}")]
-    IoError(std::io::Error),
-    #[error("A nix error occured: {0}")]
-    NixError(nix::Error),
+    IoError(#[from] io::Error),
     #[error("An error occured while unmarshalling: {0}")]
-    UnmarshalError(crate::wire::errors::UnmarshalError),
+    UnmarshalError(#[from] crate::wire::errors::UnmarshalError),
     #[error("An error occured while marshalling: {0}")]
-    MarshalError(crate::wire::errors::MarshalError),
+    MarshalError(#[from] crate::wire::errors::MarshalError),
     #[error("Authentication failed")]
     AuthFailed,
     #[error("Negotiating unix fd usage failed")]
@@ -51,30 +49,6 @@ pub enum Error {
     TimedOut,
     #[error("Connection has been closed by the other side")]
     ConnectionClosed,
-}
-
-impl std::convert::From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Error {
-        Error::IoError(e)
-    }
-}
-
-impl std::convert::From<crate::wire::errors::UnmarshalError> for Error {
-    fn from(e: crate::wire::errors::UnmarshalError) -> Error {
-        Error::UnmarshalError(e)
-    }
-}
-
-impl std::convert::From<nix::Error> for Error {
-    fn from(e: nix::Error) -> Error {
-        Error::NixError(e)
-    }
-}
-
-impl std::convert::From<crate::wire::errors::MarshalError> for Error {
-    fn from(e: crate::wire::errors::MarshalError) -> Error {
-        Error::MarshalError(e)
-    }
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -96,7 +70,7 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
             "path" => {
                 let p = PathBuf::from(&value);
                 if p.exists() {
-                    return Ok(UnixAddr::new(&p)?);
+                    return Ok(UnixAddr::new(&p).map_err(io::Error::from)?);
                 } else {
                     return Err(Error::PathDoesNotExist(value.to_string()));
                 }
@@ -104,7 +78,7 @@ fn parse_dbus_addr_str(addr: &str) -> Result<UnixAddr> {
             "abstract" => {
                 #[cfg(target_os = "linux")]
                 {
-                    return Ok(UnixAddr::new_abstract(value.as_bytes())?);
+                    return Ok(UnixAddr::new_abstract(value.as_bytes()).map_err(io::Error::from)?);
                 }
             }
             _ => {}
@@ -129,7 +103,7 @@ pub fn get_system_bus_path() -> Result<UnixAddr> {
     let ps = "/run/dbus/system_bus_socket";
     let p = PathBuf::from(&ps);
     if p.exists() {
-        Ok(UnixAddr::new(&p)?)
+        Ok(UnixAddr::new(&p).map_err(io::Error::from)?)
     } else {
         Err(Error::PathDoesNotExist(ps.to_owned()))
     }

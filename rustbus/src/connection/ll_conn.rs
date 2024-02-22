@@ -7,8 +7,7 @@ use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal;
 use crate::wire::unmarshal;
 
-use std::io::IoSlice;
-use std::io::IoSliceMut;
+use std::io::{self, IoSlice, IoSliceMut};
 use std::time;
 
 use std::os::unix::io::AsRawFd;
@@ -88,7 +87,7 @@ impl RecvConn {
         )
         .map_err(|e| match e {
             nix::errno::Errno::EAGAIN => Error::TimedOut,
-            _ => Error::NixError(e),
+            _ => Error::IoError(e.into()),
         });
 
         self.stream.set_nonblocking(false)?;
@@ -436,7 +435,7 @@ impl SendMessageContext<'_> {
         self.conn.stream.set_write_timeout(old_timeout)?;
         self.conn.stream.set_nonblocking(false)?;
 
-        let bytes_sent = bytes_sent?;
+        let bytes_sent = bytes_sent.map_err(io::Error::from)?;
 
         self.state.bytes_sent += bytes_sent;
 
@@ -455,9 +454,10 @@ impl DuplexConn {
             socket::SockType::Stream,
             socket::SockFlag::empty(),
             None,
-        )?;
+        )
+        .map_err(io::Error::from)?;
 
-        connect(sock.as_raw_fd(), &addr)?;
+        connect(sock.as_raw_fd(), &addr).map_err(io::Error::from)?;
         let mut stream = UnixStream::from(sock);
         match auth::do_auth(&mut stream)? {
             auth::AuthResult::Ok => {}
