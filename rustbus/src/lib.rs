@@ -135,7 +135,7 @@ pub enum ByteOrder {
 }
 
 impl ByteOrder {
-    const NATIVE: Self = match cfg!(target_endian = "little") {
+    pub const NATIVE: Self = match cfg!(target_endian = "little") {
         true => ByteOrder::LittleEndian,
         false => ByteOrder::BigEndian,
     };
