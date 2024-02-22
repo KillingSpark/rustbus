@@ -17,12 +17,15 @@ impl<E: Signature> Signature for (E,) {
         8
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.starts_with('(') {
-            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
-            E::has_sig(iter.next().unwrap())
-        } else {
-            false
-        }
+        let Some(sig) = sig.strip_prefix('(') else {
+            return false;
+        };
+        let Some(sig) = sig.strip_suffix(')') else {
+            return false;
+        };
+        let mut iter = SignatureIter::new(sig);
+        let Some(s) = iter.next() else { return false };
+        iter.next().is_none() && E::has_sig(s)
     }
 }
 impl<E: Marshal> Marshal for (E,) {
@@ -50,12 +53,16 @@ impl<E1: Signature, E2: Signature> Signature for (E1, E2) {
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.starts_with('(') {
-            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
-            E1::has_sig(iter.next().unwrap()) && E2::has_sig(iter.next().unwrap())
-        } else {
-            false
-        }
+        let Some(sig) = sig.strip_prefix('(') else {
+            return false;
+        };
+        let Some(sig) = sig.strip_suffix(')') else {
+            return false;
+        };
+        let mut iter = SignatureIter::new(sig);
+        let Some(s1) = iter.next() else { return false };
+        let Some(s2) = iter.next() else { return false };
+        iter.next().is_none() && E1::has_sig(s1) && E2::has_sig(s2)
     }
 }
 impl<E1: Marshal, E2: Marshal> Marshal for (E1, E2) {
@@ -91,14 +98,17 @@ impl<E1: Signature, E2: Signature, E3: Signature> Signature for (E1, E2, E3) {
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.starts_with('(') {
-            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
-            E1::has_sig(iter.next().unwrap())
-                && E2::has_sig(iter.next().unwrap())
-                && E3::has_sig(iter.next().unwrap())
-        } else {
-            false
-        }
+        let Some(sig) = sig.strip_prefix('(') else {
+            return false;
+        };
+        let Some(sig) = sig.strip_suffix(')') else {
+            return false;
+        };
+        let mut iter = SignatureIter::new(sig);
+        let Some(s1) = iter.next() else { return false };
+        let Some(s2) = iter.next() else { return false };
+        let Some(s3) = iter.next() else { return false };
+        iter.next().is_none() && E1::has_sig(s1) && E2::has_sig(s2) && E3::has_sig(s3)
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal> Marshal for (E1, E2, E3) {
@@ -136,15 +146,22 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature> Signature for (
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.starts_with('(') {
-            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
-            E1::has_sig(iter.next().unwrap())
-                && E2::has_sig(iter.next().unwrap())
-                && E3::has_sig(iter.next().unwrap())
-                && E4::has_sig(iter.next().unwrap())
-        } else {
-            false
-        }
+        let Some(sig) = sig.strip_prefix('(') else {
+            return false;
+        };
+        let Some(sig) = sig.strip_suffix(')') else {
+            return false;
+        };
+        let mut iter = SignatureIter::new(sig);
+        let Some(s1) = iter.next() else { return false };
+        let Some(s2) = iter.next() else { return false };
+        let Some(s3) = iter.next() else { return false };
+        let Some(s4) = iter.next() else { return false };
+        iter.next().is_none()
+            && E1::has_sig(s1)
+            && E2::has_sig(s2)
+            && E3::has_sig(s3)
+            && E4::has_sig(s4)
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal> Marshal for (E1, E2, E3, E4) {
@@ -187,16 +204,24 @@ impl<E1: Signature, E2: Signature, E3: Signature, E4: Signature, E5: Signature> 
         s_buf.push_str(")");
     }
     fn has_sig(sig: &str) -> bool {
-        if sig.starts_with('(') {
-            let mut iter = SignatureIter::new(&sig[1..sig.len() - 1]);
-            E1::has_sig(iter.next().unwrap())
-                && E2::has_sig(iter.next().unwrap())
-                && E3::has_sig(iter.next().unwrap())
-                && E4::has_sig(iter.next().unwrap())
-                && E5::has_sig(iter.next().unwrap())
-        } else {
-            false
-        }
+        let Some(sig) = sig.strip_prefix('(') else {
+            return false;
+        };
+        let Some(sig) = sig.strip_suffix(')') else {
+            return false;
+        };
+        let mut iter = SignatureIter::new(sig);
+        let Some(s1) = iter.next() else { return false };
+        let Some(s2) = iter.next() else { return false };
+        let Some(s3) = iter.next() else { return false };
+        let Some(s4) = iter.next() else { return false };
+        let Some(s5) = iter.next() else { return false };
+        iter.next().is_none()
+            && E1::has_sig(s1)
+            && E2::has_sig(s2)
+            && E3::has_sig(s3)
+            && E4::has_sig(s4)
+            && E5::has_sig(s5)
     }
 }
 impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
