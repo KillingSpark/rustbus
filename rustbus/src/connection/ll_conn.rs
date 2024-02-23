@@ -101,7 +101,7 @@ impl RecvConn {
 
         self.cmsgs_in.extend(msg.cmsgs());
         let bytes = msg.bytes;
-        self.msg_buf_in.extend(&mut tmpbuf[..bytes].iter().copied());
+        self.msg_buf_in.extend_from_slice(&tmpbuf[..bytes]);
         Ok(())
     }
 
