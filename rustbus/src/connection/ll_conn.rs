@@ -42,7 +42,7 @@ pub struct DuplexConn {
 }
 
 impl RecvConn {
-    pub fn can_read_from_source(&self) -> nix::Result<bool> {
+    pub fn can_read_from_source(&self) -> io::Result<bool> {
         let mut fdset = nix::sys::select::FdSet::new();
         fdset.insert(&self.stream);
 
