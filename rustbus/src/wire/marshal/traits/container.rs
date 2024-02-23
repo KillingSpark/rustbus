@@ -304,7 +304,7 @@ impl<E: Marshal> Marshal for &[E] {
                 assert!(len <= u32::MAX as usize);
                 write_u32(len as u32, ctx.byteorder, ctx.buf);
                 ctx.align_to(alignment);
-                let ptr = *self as *const [E] as *const u8;
+                let ptr = self.as_ptr().cast::<u8>();
                 let slice = std::slice::from_raw_parts(ptr, len);
                 ctx.buf.extend_from_slice(slice);
                 return Ok(());

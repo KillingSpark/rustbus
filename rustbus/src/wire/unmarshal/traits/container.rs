@@ -169,7 +169,7 @@ where
 
     // cast the slice from u8 to the target type
     let elem_cnt = bytes_in_array / alignment;
-    let ptr = content_slice as *const [u8] as *const E;
+    let ptr = content_slice.as_ptr().cast::<E>();
     let slice = std::slice::from_raw_parts(ptr, elem_cnt);
 
     ctx.offset += bytes_in_array;
