@@ -35,7 +35,7 @@ fn read_message(stream: &mut UnixStream, buf: &mut Vec<u8>) -> std::io::Result<S
     let mut tmpbuf = [0u8; 512];
     while !has_line_ending(buf) {
         let bytes = stream.read(&mut tmpbuf[..])?;
-        buf.extend(&tmpbuf[..bytes])
+        buf.extend_from_slice(&tmpbuf[..bytes])
     }
     let idx = find_line_ending(buf).unwrap();
     let line = buf.drain(0..idx).collect::<Vec<_>>();
