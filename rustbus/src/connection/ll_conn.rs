@@ -33,6 +33,7 @@ pub struct RecvConn {
     stream: UnixStream,
 
     msg_buf_in: Vec<u8>,
+    msg_buf_filled: usize,
     cmsgs_in: Vec<ControlMessageOwned>,
 }
 
@@ -56,12 +57,11 @@ impl RecvConn {
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
     /// so we can process messages separatly and avoid leaking file descriptors to wrong messages
     fn refill_buffer(&mut self, max_buffer_size: usize, timeout: Timeout) -> Result<()> {
-        let bytes_to_read = max_buffer_size - self.msg_buf_in.len();
+        if self.msg_buf_in.len() < max_buffer_size {
+            self.msg_buf_in.resize(max_buffer_size, 0);
+        }
 
-        const BUFSIZE: usize = 512;
-        let mut tmpbuf = [0u8; BUFSIZE];
-
-        let iovec = IoSliceMut::new(&mut tmpbuf[..usize::min(bytes_to_read, BUFSIZE)]);
+        let iovec = IoSliceMut::new(&mut self.msg_buf_in[self.msg_buf_filled..max_buffer_size]);
 
         let mut cmsgspace = cmsg_space!([RawFd; 10]);
         let flags = MsgFlags::empty();
@@ -101,19 +101,18 @@ impl RecvConn {
 
         self.cmsgs_in.extend(msg.cmsgs());
         let bytes = msg.bytes;
-        self.msg_buf_in.extend_from_slice(&tmpbuf[..bytes]);
+        self.msg_buf_filled += bytes;
         Ok(())
     }
 
     pub fn bytes_needed_for_current_message(&self) -> Result<usize> {
-        if self.msg_buf_in.len() < 16 {
+        if self.msg_buf_filled < 16 {
             return Ok(16);
         }
-        let (_, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
-        let (_, header_fields_len) = crate::wire::util::parse_u32(
-            &self.msg_buf_in[unmarshal::HEADER_LEN..],
-            header.byteorder,
-        )?;
+        let msg_buf_in = &self.msg_buf_in[..self.msg_buf_filled];
+        let (_, header) = unmarshal::unmarshal_header(msg_buf_in, 0)?;
+        let (_, header_fields_len) =
+            crate::wire::util::parse_u32(&msg_buf_in[unmarshal::HEADER_LEN..], header.byteorder)?;
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
 
         let padding_between_header_and_body = 8 - ((complete_header_size) % 8);
@@ -130,7 +129,7 @@ impl RecvConn {
 
     // Checks if the internal buffer currently holds a complete message
     pub fn buffer_contains_whole_message(&self) -> Result<bool> {
-        if self.msg_buf_in.len() < 16 {
+        if self.msg_buf_filled < 16 {
             return Ok(false);
         }
         let bytes_needed = self.bytes_needed_for_current_message();
@@ -142,7 +141,7 @@ impl RecvConn {
                     Err(e)
                 }
             }
-            Ok(bytes_needed) => Ok(self.msg_buf_in.len() >= bytes_needed),
+            Ok(bytes_needed) => Ok(self.msg_buf_filled >= bytes_needed),
         }
     }
     /// Blocks until a message has been read from the conn or the timeout has been reached
@@ -170,21 +169,22 @@ impl RecvConn {
     /// Blocks until a message has been read from the conn or the timeout has been reached
     pub fn get_next_message(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
         self.read_whole_message(timeout)?;
-        let (hdrbytes, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
+        let msg_buf_in = &self.msg_buf_in[..self.msg_buf_filled];
+        let (hdrbytes, header) = unmarshal::unmarshal_header(&msg_buf_in, 0)?;
         let (dynhdrbytes, dynheader) =
-            unmarshal::unmarshal_dynamic_header(&header, &self.msg_buf_in, hdrbytes)?;
+            unmarshal::unmarshal_dynamic_header(&header, &msg_buf_in, hdrbytes)?;
 
         let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(
             &header,
             dynheader,
-            &self.msg_buf_in,
+            msg_buf_in,
             hdrbytes + dynhdrbytes,
         )?;
 
-        if self.msg_buf_in.len() != bytes_used + hdrbytes + dynhdrbytes {
+        if msg_buf_in.len() != bytes_used + hdrbytes + dynhdrbytes {
             return Err(Error::UnmarshalError(UnmarshalError::NotAllBytesUsed));
         }
-        self.msg_buf_in.clear();
+        self.msg_buf_filled = 0;
 
         for cmsg in &self.cmsgs_in {
             match cmsg {
@@ -481,6 +481,7 @@ impl DuplexConn {
             },
             recv: RecvConn {
                 msg_buf_in: Vec::new(),
+                msg_buf_filled: 0,
                 cmsgs_in: Vec::new(),
                 stream,
             },
