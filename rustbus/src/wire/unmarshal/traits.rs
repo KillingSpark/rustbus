@@ -169,9 +169,9 @@ mod test {
         // annotate the receiver with a type &str to unmarshal a &str
         "ABCD".marshal(ctx).unwrap();
         let _s: &str = unmarshal(&mut UnmarshalContext {
-            buf: &ctx.buf,
+            buf: ctx.buf,
             byteorder: ctx.byteorder,
-            fds: &ctx.fds,
+            fds: ctx.fds,
             offset: 0,
         })
         .unwrap()
@@ -181,9 +181,9 @@ mod test {
         ctx.buf.clear();
         true.marshal(ctx).unwrap();
         let _b: bool = unmarshal(&mut UnmarshalContext {
-            buf: &ctx.buf,
+            buf: ctx.buf,
             byteorder: ctx.byteorder,
-            fds: &ctx.fds,
+            fds: ctx.fds,
             offset: 0,
         })
         .unwrap()
@@ -193,9 +193,9 @@ mod test {
         ctx.buf.clear();
         0i32.marshal(ctx).unwrap();
         let _i = unmarshal::<i32>(&mut UnmarshalContext {
-            buf: &ctx.buf,
+            buf: ctx.buf,
             byteorder: ctx.byteorder,
-            fds: &ctx.fds,
+            fds: ctx.fds,
             offset: 0,
         })
         .unwrap()
@@ -206,9 +206,9 @@ mod test {
         fn x(_arg: (i32, i32, &str)) {}
         (0, 0, "ABCD").marshal(ctx).unwrap();
         let arg = unmarshal(&mut UnmarshalContext {
-            buf: &ctx.buf,
+            buf: ctx.buf,
             byteorder: ctx.byteorder,
-            fds: &ctx.fds,
+            fds: ctx.fds,
             offset: 0,
         })
         .unwrap()
@@ -480,10 +480,7 @@ mod test {
             SignatureWrapper::new("sy").unwrap(),
             parser.get::<Variant>().unwrap().get().unwrap()
         );
-        assert_eq!(
-            true,
-            parser.get::<Variant>().unwrap().get::<bool>().unwrap()
-        );
+        assert!(parser.get::<Variant>().unwrap().get::<bool>().unwrap());
 
         // check Array of variants
         let var_vec: Vec<Variant> = parser.get().unwrap();
@@ -499,7 +496,7 @@ mod test {
             SignatureWrapper::new("sy").unwrap(),
             var_vec[8].get().unwrap()
         );
-        assert_eq!(true, var_vec[9].get::<bool>().unwrap());
+        assert!(var_vec[9].get::<bool>().unwrap());
 
         // check Dict of {String, variants}
         let var_map: HashMap<String, Variant> = parser.get().unwrap();
@@ -515,6 +512,6 @@ mod test {
             SignatureWrapper::new("sy").unwrap(),
             var_map["8"].get().unwrap()
         );
-        assert_eq!(true, var_map["9"].get::<bool>().unwrap());
+        assert!(var_map["9"].get::<bool>().unwrap());
     }
 }

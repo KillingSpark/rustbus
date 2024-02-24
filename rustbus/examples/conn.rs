@@ -35,10 +35,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
     println!("\n");
 
     let reqname_serial = rpc_con
-        .send_message(&mut standard_messages::request_name(
-            "io.killing.spark".into(),
-            0,
-        ))?
+        .send_message(&mut standard_messages::request_name("io.killing.spark", 0))?
         .write_all()
         .unwrap();
 
@@ -73,7 +70,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
     println!("\n");
     println!("\n");
 
-    let mut sig_listen_msg = standard_messages::add_match("type='signal'".into());
+    let mut sig_listen_msg = standard_messages::add_match("type='signal'");
 
     //println!("Send message: {:?}", sig_listen_msg);
     rpc_con

@@ -20,7 +20,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
             .write_all()
             .unwrap();
 
-        con.send_message(&mut standard_messages::add_match("type='signal'".into()))?
+        con.send_message(&mut standard_messages::add_match("type='signal'"))?
             .write_all()
             .unwrap();
 
@@ -31,10 +31,9 @@ fn main() -> Result<(), rustbus::connection::Error> {
                 .dynheader
                 .interface
                 .eq(&Some("io.killing.spark".to_owned()))
+                && signal.dynheader.member.eq(&Some("TestSignal".to_owned()))
             {
-                if signal.dynheader.member.eq(&Some("TestSignal".to_owned())) {
-                    break signal;
-                }
+                break signal;
             }
         };
 

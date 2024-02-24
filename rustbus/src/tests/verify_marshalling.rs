@@ -244,7 +244,7 @@ fn verify_dict_marshalling() {
         byteorder: ByteOrder::LittleEndian,
     };
     let ctx = &mut ctx;
-    (&map).marshal(ctx).unwrap();
+    map.marshal(ctx).unwrap();
     assert_eq!(
         ctx.buf,
         // Note the longer \0 chain after the length. This is the needed padding after the u32 length and the dict-entry

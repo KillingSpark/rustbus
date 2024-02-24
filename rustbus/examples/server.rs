@@ -32,10 +32,7 @@ fn main() -> Result<(), rustbus::connection::Error> {
     let mut rpc_con = RpcConn::session_conn(Timeout::Infinite)?;
 
     let namereq_serial = rpc_con
-        .send_message(&mut standard_messages::request_name(
-            "io.killing.spark".into(),
-            0,
-        ))?
+        .send_message(&mut standard_messages::request_name("io.killing.spark", 0))?
         .write_all()
         .unwrap();
     let resp = rpc_con.wait_response(namereq_serial, Timeout::Infinite)?;

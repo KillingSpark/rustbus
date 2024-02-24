@@ -70,10 +70,10 @@ fn main() {
     con.send_hello(rustbus::connection::Timeout::Infinite)
         .unwrap();
 
-    if std::env::args().find(|arg| "server".eq(arg)).is_some() {
+    if std::env::args().any(|arg| "server".eq(&arg)) {
         con.send
             .send_message(&mut rustbus::standard_messages::request_name(
-                "killing.spark.io".into(),
+                "killing.spark.io",
                 rustbus::standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
             ))
             .unwrap()

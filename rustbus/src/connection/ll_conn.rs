@@ -170,9 +170,9 @@ impl RecvConn {
     pub fn get_next_message(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
         self.read_whole_message(timeout)?;
         let msg_buf_in = &self.msg_buf_in[..self.msg_buf_filled];
-        let (hdrbytes, header) = unmarshal::unmarshal_header(&msg_buf_in, 0)?;
+        let (hdrbytes, header) = unmarshal::unmarshal_header(msg_buf_in, 0)?;
         let (dynhdrbytes, dynheader) =
-            unmarshal::unmarshal_dynamic_header(&header, &msg_buf_in, hdrbytes)?;
+            unmarshal::unmarshal_dynamic_header(&header, msg_buf_in, hdrbytes)?;
 
         let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(
             &header,
