@@ -35,6 +35,7 @@ pub struct RecvConn {
     msg_buf_in: Vec<u8>,
     msg_buf_filled: usize,
     cmsgs_in: Vec<ControlMessageOwned>,
+    cmsgspace: Vec<u8>,
 }
 
 pub struct DuplexConn {
@@ -63,7 +64,7 @@ impl RecvConn {
 
         let iovec = IoSliceMut::new(&mut self.msg_buf_in[self.msg_buf_filled..max_buffer_size]);
 
-        let mut cmsgspace = cmsg_space!([RawFd; 10]);
+        self.cmsgspace.clear();
         let flags = MsgFlags::empty();
 
         let old_timeout = self.stream.read_timeout()?;
@@ -82,7 +83,7 @@ impl RecvConn {
         let msg = recvmsg::<SockaddrStorage>(
             self.stream.as_raw_fd(),
             iovec_mut,
-            Some(&mut cmsgspace),
+            Some(&mut self.cmsgspace),
             flags,
         )
         .map_err(|e| match e {
@@ -483,6 +484,7 @@ impl DuplexConn {
                 msg_buf_in: Vec::new(),
                 msg_buf_filled: 0,
                 cmsgs_in: Vec::new(),
+                cmsgspace: cmsg_space!([RawFd; 10]),
                 stream,
             },
         })
