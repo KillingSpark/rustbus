@@ -148,11 +148,11 @@ pub fn unmarshal_body<'a, 'e>(
 pub fn unmarshal_next_message(
     header: &Header,
     dynheader: DynamicHeader,
-    buf: &[u8],
+    mut buf: Vec<u8>,
     offset: usize,
 ) -> UnmarshalResult<MarshalledMessage> {
     let sig = dynheader.signature.clone().unwrap_or_else(|| "".to_owned());
-    let padding = align_offset(8, buf, offset)?;
+    let padding = align_offset(8, &buf, offset)?;
 
     if header.body_len == 0 {
         let msg = MarshalledMessage {
@@ -169,14 +169,12 @@ pub fn unmarshal_next_message(
             return Err(UnmarshalError::NotEnoughBytes);
         }
 
+        // TODO: keep the offset around instead of shifting the bytes.
+        drop(buf.drain(..offset));
+
         let msg = MarshalledMessage {
             dynheader,
-            body: MarshalledMessageBody::from_parts(
-                buf[offset..].to_vec(),
-                vec![],
-                sig,
-                header.byteorder,
-            ),
+            body: MarshalledMessageBody::from_parts(buf, vec![], sig, header.byteorder),
             typ: header.typ,
             flags: header.flags,
         };

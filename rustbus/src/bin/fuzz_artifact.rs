@@ -34,7 +34,7 @@ fn run_artifact(path: &str) {
     let (_bytes_used, msg) = match rustbus::wire::unmarshal::unmarshal_next_message(
         &header,
         dynheader,
-        data,
+        data.clone(),
         hdrbytes + dynhdrbytes,
     ) {
         Ok(msg) => msg,

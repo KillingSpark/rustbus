@@ -58,7 +58,7 @@ impl RecvConn {
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size
     /// so we can process messages separatly and avoid leaking file descriptors to wrong messages
     fn refill_buffer(&mut self, max_buffer_size: usize, timeout: Timeout) -> Result<()> {
-        if self.msg_buf_in.len() < max_buffer_size {
+        if self.msg_buf_in.len() != max_buffer_size {
             self.msg_buf_in.resize(max_buffer_size, 0);
         }
 
@@ -170,19 +170,19 @@ impl RecvConn {
     /// Blocks until a message has been read from the conn or the timeout has been reached
     pub fn get_next_message(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
         self.read_whole_message(timeout)?;
-        let msg_buf_in = &self.msg_buf_in[..self.msg_buf_filled];
-        let (hdrbytes, header) = unmarshal::unmarshal_header(msg_buf_in, 0)?;
+        debug_assert_eq!(self.msg_buf_filled, self.msg_buf_in.len());
+        let (hdrbytes, header) = unmarshal::unmarshal_header(&self.msg_buf_in, 0)?;
         let (dynhdrbytes, dynheader) =
-            unmarshal::unmarshal_dynamic_header(&header, msg_buf_in, hdrbytes)?;
+            unmarshal::unmarshal_dynamic_header(&header, &self.msg_buf_in, hdrbytes)?;
 
         let (bytes_used, mut msg) = unmarshal::unmarshal_next_message(
             &header,
             dynheader,
-            msg_buf_in,
+            std::mem::take(&mut self.msg_buf_in),
             hdrbytes + dynhdrbytes,
         )?;
 
-        if msg_buf_in.len() != bytes_used + hdrbytes + dynhdrbytes {
+        if self.msg_buf_filled != bytes_used + hdrbytes + dynhdrbytes {
             return Err(Error::UnmarshalError(UnmarshalError::NotAllBytesUsed));
         }
         self.msg_buf_filled = 0;
