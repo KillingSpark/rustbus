@@ -43,6 +43,7 @@ pub struct DuplexConn {
 }
 
 impl RecvConn {
+    #[deprecated = "use poll() or select() on the file descriptor"]
     pub fn can_read_from_source(&self) -> io::Result<bool> {
         let mut fdset = nix::sys::select::FdSet::new();
         fdset.insert(self.stream.as_fd());
