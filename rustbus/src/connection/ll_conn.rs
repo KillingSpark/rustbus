@@ -80,7 +80,7 @@ impl IncomingBuffer {
     fn take(&mut self) -> Vec<u8> {
         self.buf.truncate(self.filled);
         self.filled = 0;
-        std::mem::replace(&mut self.buf, Vec::new())
+        std::mem::take(&mut self.buf)
     }
 
     fn peek(&self) -> &[u8] {
