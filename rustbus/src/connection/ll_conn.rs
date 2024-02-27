@@ -8,6 +8,7 @@ use crate::wire::marshal;
 use crate::wire::unmarshal;
 
 use std::io::{self, IoSlice, IoSliceMut};
+use std::os::fd::AsFd;
 use std::time;
 
 use std::os::unix::io::AsRawFd;
@@ -44,13 +45,13 @@ pub struct DuplexConn {
 impl RecvConn {
     pub fn can_read_from_source(&self) -> io::Result<bool> {
         let mut fdset = nix::sys::select::FdSet::new();
-        fdset.insert(&self.stream);
+        fdset.insert(self.stream.as_fd());
 
         use nix::sys::time::TimeValLike;
         let mut zero_timeout = nix::sys::time::TimeVal::microseconds(0);
 
         nix::sys::select::select(None, Some(&mut fdset), None, None, Some(&mut zero_timeout))?;
-        Ok(fdset.contains(&self.stream))
+        Ok(fdset.contains(self.stream.as_fd()))
     }
 
     /// Reads from the source once but takes care that the internal buffer only reaches at maximum max_buffer_size

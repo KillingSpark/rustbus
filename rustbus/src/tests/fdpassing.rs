@@ -2,6 +2,7 @@ use crate::connection;
 use crate::message_builder::MessageBuilder;
 use std::io::Read;
 use std::io::Write;
+use std::os::fd::IntoRawFd;
 use std::os::unix::io::FromRawFd;
 
 const TEST_STRING: &str = "This will be sent over the fd\n";
@@ -30,8 +31,8 @@ fn test_fd_passing() {
     std::thread::sleep(std::time::Duration::from_secs(1));
 
     let rw = nix::unistd::pipe().unwrap();
-    let mut readfile = unsafe { std::fs::File::from_raw_fd(rw.0) };
-    send_fd(&mut con1, crate::wire::UnixFd::new(rw.1)).unwrap();
+    let mut readfile = std::fs::File::from(rw.0);
+    send_fd(&mut con1, crate::wire::UnixFd::new(rw.1.into_raw_fd())).unwrap();
 
     let sig = loop {
         let signal = con2.wait_signal(connection::Timeout::Infinite).unwrap();
