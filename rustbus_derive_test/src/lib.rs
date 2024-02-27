@@ -102,7 +102,7 @@ pub fn test_enum_derive() {
     }
 
     let v1 = Variant1::A("ABCD".into());
-    let v2 = Variant1::B("ABCD".into(), "EFGH".into());
+    let v2 = Variant1::B("ABCD", "EFGH".into());
     let v3 = Variant1::C {
         c1: "ABCD".into(),
         c2: "EFGH".into(),

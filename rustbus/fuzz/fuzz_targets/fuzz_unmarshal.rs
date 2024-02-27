@@ -17,7 +17,7 @@ fuzz_target!(|data: &[u8]| {
     let (_bytes_used, msg) = match rustbus::wire::unmarshal::unmarshal_next_message(
         &header,
         dynheader,
-        data,
+        data.to_vec(),
         hdrbytes + dynhdrbytes,
     ) {
         Ok(msg) => msg,

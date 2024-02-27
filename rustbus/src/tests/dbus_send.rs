@@ -33,7 +33,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
     // Request name
     let reqname_serial = rpc_con
         .send_message(&mut standard_messages::request_name(
-            "io.killing.spark.dbustest".into(),
+            "io.killing.spark.dbustest",
             0,
         ))?
         .write_all()
@@ -44,7 +44,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
     )?;
 
     let sig_serial = rpc_con
-        .send_message(&mut standard_messages::add_match("type='signal'".into()))?
+        .send_message(&mut standard_messages::add_match("type='signal'"))?
         .write_all()
         .map_err(force_finish_on_error)?;
     let _msg = rpc_con.wait_response(
@@ -53,7 +53,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
     )?;
 
     std::process::Command::new("dbus-send")
-        .args(&[
+        .args([
             "--dest=io.killing.spark.dbustest",
             "/",
             "io.killing.spark.dbustest.Member",
@@ -64,7 +64,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
         .unwrap();
 
     std::process::Command::new("dbus-send")
-        .args(&[
+        .args([
             "--dest=io.killing.spark.dbustest",
             "/",
             "io.killing.spark.dbustest.Member",
@@ -76,7 +76,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
         .unwrap();
 
     std::process::Command::new("dbus-send")
-        .args(&[
+        .args([
             "--dest=io.killing.spark.dbustest",
             "/",
             "io.killing.spark.dbustest.Member",
@@ -88,7 +88,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
         .unwrap();
 
     std::process::Command::new("dbus-send")
-        .args(&[
+        .args([
             "--dest=io.killing.spark.dbustest",
             "/",
             "io.killing.spark.dbustest.Member",
@@ -100,7 +100,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
         .unwrap();
 
     std::process::Command::new("dbus-send")
-        .args(&[
+        .args([
             "--dest=io.killing.spark.dbustest",
             "/",
             "io.killing.spark.dbustest.Member",
@@ -116,7 +116,7 @@ fn test_dbus_send_comp() -> Result<(), crate::connection::Error> {
         .unwrap();
 
     std::process::Command::new("dbus-send")
-        .args(&[
+        .args([
             "--dest=io.killing.spark.dbustest",
             "/",
             "io.killing.spark.dbustest.Member",

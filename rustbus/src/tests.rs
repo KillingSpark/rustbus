@@ -48,7 +48,8 @@ fn test_marshal_unmarshal() {
     let headers_plus_padding = hdrbytes + dynhdrbytes + (8 - ((hdrbytes + dynhdrbytes) % 8));
     assert_eq!(headers_plus_padding, buf.len());
 
-    let (_, unmarshed_msg) = unmarshal_next_message(&header, dynheader, msg.get_buf(), 0).unwrap();
+    let (_, unmarshed_msg) =
+        unmarshal_next_message(&header, dynheader, msg.get_buf().to_vec(), 0).unwrap();
 
     let msg = unmarshed_msg.unmarshall_all().unwrap();
 

@@ -157,8 +157,8 @@ fn test_variant_sig_macro() {
     crate::message_builder::marshal_as_variant(
         0xFFFFu64,
         crate::ByteOrder::LittleEndian,
-        &mut ctx.buf,
-        &mut ctx.fds,
+        ctx.buf,
+        ctx.fds,
     )
     .unwrap();
 
@@ -238,8 +238,8 @@ fn test_variant_sig_macro() {
     crate::message_builder::marshal_as_variant(
         ("", "", 100u8),
         crate::ByteOrder::LittleEndian,
-        &mut ctx.buf,
-        &mut ctx.fds,
+        ctx.buf,
+        ctx.fds,
     )
     .unwrap();
     let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext {
@@ -413,8 +413,8 @@ fn test_variant_var_macro() {
     crate::message_builder::marshal_as_variant(
         0xFFFFu64,
         crate::ByteOrder::LittleEndian,
-        &mut ctx.buf,
-        &mut ctx.fds,
+        ctx.buf,
+        ctx.fds,
     )
     .unwrap();
 
@@ -466,14 +466,11 @@ fn test_variant_var_macro() {
     dbus_variant_var!(MyVariant2, CaseMap => Map<'fds, 'buf>; CaseStruct => Struct<'fds, 'buf>);
 
     let mut map = Map::new();
-    map.insert(
-        "AAAA".into(),
-        (100, 20, (300, MyVariant::String("BBBB".into()))),
-    );
+    map.insert("AAAA".into(), (100, 20, (300, MyVariant::String("BBBB"))));
     map.insert("CCCC".into(), (400, 50, (600, MyVariant::V2(0))));
     map.insert("DDDD".into(), (500, 60, (700, MyVariant::Integer(10))));
     let v1 = MyVariant2::CaseMap(map);
-    let v2 = MyVariant2::CaseStruct((10, 20, MyVariant::String("AAAAA".into())));
+    let v2 = MyVariant2::CaseStruct((10, 20, MyVariant::String("AAAAA")));
     let v3 = MyVariant2::CaseStruct((30, 40, MyVariant::V2(10)));
     let v4 = MyVariant2::CaseStruct((30, 40, MyVariant::Integer(20)));
 
@@ -567,8 +564,8 @@ fn test_variant_var_macro() {
     crate::message_builder::marshal_as_variant(
         ("testtext", "moretesttext", 100u8),
         crate::ByteOrder::LittleEndian,
-        &mut ctx.buf,
-        &mut ctx.fds,
+        ctx.buf,
+        ctx.fds,
     )
     .unwrap();
     let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext {

@@ -20,12 +20,10 @@ fn test_fd_passing() {
         .unwrap()
         .write_all()
         .unwrap();
-    con2.send_message(&mut crate::standard_messages::add_match(
-        "type='signal'".into(),
-    ))
-    .unwrap()
-    .write_all()
-    .unwrap();
+    con2.send_message(&mut crate::standard_messages::add_match("type='signal'"))
+        .unwrap()
+        .write_all()
+        .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(1));
 
@@ -39,10 +37,9 @@ fn test_fd_passing() {
             .dynheader
             .interface
             .eq(&Some("io.killing.spark".to_owned()))
+            && signal.dynheader.member.eq(&Some("TestSignal".to_owned()))
         {
-            if signal.dynheader.member.eq(&Some("TestSignal".to_owned())) {
-                break signal;
-            }
+            break signal;
         }
     };
 
