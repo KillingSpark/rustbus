@@ -310,12 +310,9 @@ mod test {
 
         original.marshal(ctx).unwrap();
 
-        let (_, map) = std::collections::HashMap::<u64, &str>::unmarshal(&mut UnmarshalContext::new(
-            ctx.fds,
-            ctx.byteorder,
-            ctx.buf,
-            0,
-        ))
+        let (_, map) = std::collections::HashMap::<u64, &str>::unmarshal(
+            &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
+        )
         .unwrap();
         assert_eq!(original, map);
 
@@ -354,12 +351,7 @@ mod test {
         );
         let (_, (p, s, _fd)) =
             <(ObjectPath<String>, SignatureWrapper<&str>, UnixFd) as Unmarshal>::unmarshal(
-                &mut UnmarshalContext::new(
-                    ctx.fds,
-                    ctx.byteorder,
-                    ctx.buf,
-                    0,
-                ),
+                &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
             )
             .unwrap();
 

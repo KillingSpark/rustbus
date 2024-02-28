@@ -210,8 +210,8 @@ pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<&str> {
         return Err(UnmarshalError::NotEnoughBytes);
     }
     let sig_buf = &buf[1..][..len];
-    let string = std::str::from_utf8(sig_buf)
-        .map_err(|_| crate::params::validation::Error::InvalidUtf8)?;
+    let string =
+        std::str::from_utf8(sig_buf).map_err(|_| crate::params::validation::Error::InvalidUtf8)?;
     Ok((len + 2, string))
 }
 

@@ -4,8 +4,8 @@ use crate::params;
 use crate::signature;
 use crate::wire::errors::UnmarshalError;
 use crate::wire::unmarshal::base::unmarshal_base;
-use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::wire::unmarshal::UnmarshalResult;
+use crate::wire::unmarshal_context::UnmarshalContext;
 
 pub fn unmarshal_with_sig(
     sig: &signature::Type,
@@ -35,7 +35,7 @@ pub fn unmarshal_variant(
         return Err(UnmarshalError::WrongSignature);
     }
     let sig = sig.remove(0);
-    
+
     let (param_bytes_used, param) = unmarshal_with_sig(&sig, ctx)?;
     Ok((
         sig_bytes_used + param_bytes_used,
@@ -52,7 +52,6 @@ pub fn unmarshal_container(
             let start_len = ctx.remainder().len();
 
             let (bytes_in_len, bytes_in_array) = ctx.read_u32()?;
-            
 
             ctx.align_to(elem_sig.get_alignment())?;
 
@@ -85,7 +84,7 @@ pub fn unmarshal_container(
             let mut bytes_used_counter = 0;
             while bytes_used_counter < bytes_in_dict as usize {
                 bytes_used_counter += ctx.align_to(8)?;
-                
+
                 let (key_bytes, key) = unmarshal_base(*key_sig, ctx)?;
                 bytes_used_counter += key_bytes;
 

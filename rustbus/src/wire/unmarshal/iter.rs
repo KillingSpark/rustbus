@@ -143,12 +143,8 @@ impl<'a, 'parent> DictEntryIter<'a> {
         let iter = if self.counter == 0 {
             // read the key value
 
-            let mut ctx = UnmarshalContext::new(
-                &[],
-                self.byteorder,
-                self.source,
-                *self.current_offset,
-            );
+            let mut ctx =
+                UnmarshalContext::new(&[], self.byteorder, self.source, *self.current_offset);
 
             match unmarshal_base(self.key_sig, &mut ctx) {
                 Ok((bytes, param)) => {
@@ -241,12 +237,7 @@ impl<'a, 'parent> ParamIter<'a> {
 
         match new_sig {
             signature::Type::Base(b) => {
-                let mut ctx = UnmarshalContext::new(
-                    &[],
-                    byteorder,
-                    source,
-                    *offset,
-                );
+                let mut ctx = UnmarshalContext::new(&[], byteorder, source, *offset);
                 match unmarshal_base(*b, &mut ctx) {
                     Ok((bytes, param)) => {
                         *offset += bytes;

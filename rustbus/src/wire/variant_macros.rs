@@ -160,14 +160,10 @@ fn test_variant_sig_macro() {
     )
     .unwrap();
 
-    let (bytes, (uv1, uv2, uv3)) =
-        <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
-            ctx.fds,
-            ctx.byteorder,
-            ctx.buf,
-            0,
-        ))
-        .unwrap();
+    let (bytes, (uv1, uv2, uv3)) = <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
+        &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
+    )
+    .unwrap();
     assert_eq!(uv1, v1);
     assert_ne!(uv1, v2);
     assert_ne!(uv1, v3);
@@ -209,12 +205,7 @@ fn test_variant_sig_macro() {
     (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
-            &mut UnmarshalContext::new( 
-                ctx.fds,
-                ctx.byteorder,
-                ctx.buf,
-                0,
-            ),
+            &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
         )
         .unwrap();
     assert_eq!(uv1, v1);
@@ -419,12 +410,7 @@ fn test_variant_var_macro() {
 
     let (bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant, MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
-            &mut UnmarshalContext::new(
-                ctx.fds,
-                ctx.byteorder,
-                ctx.buf,
-                0,
-            ),
+            &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
         )
         .unwrap();
     assert!(match uv1 {
@@ -447,7 +433,7 @@ fn test_variant_var_macro() {
     eprintln!("Buffer: {:?}", ctx.buf);
     eprintln!("Buffer: {:?}", &ctx.buf[bytes..]);
 
-    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext::new (
+    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext::new(
         ctx.fds,
         ctx.byteorder,
         ctx.buf,
@@ -480,12 +466,7 @@ fn test_variant_var_macro() {
     (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
-            &mut UnmarshalContext::new(
-                ctx.fds,
-                ctx.byteorder,
-                ctx.buf,
-                0,
-            ),
+            &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
         )
         .unwrap();
     assert!(match uv1 {

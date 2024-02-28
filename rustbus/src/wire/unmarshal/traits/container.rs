@@ -50,14 +50,14 @@ where
 
         ctx.align_to(8)?;
         let (_bytes, val1) = E1::unmarshal(ctx)?;
-        
+
         ctx.align_to(E2::alignment())?;
         let (_bytes, val2) = E2::unmarshal(ctx)?;
         eprintln!("C");
-        
+
         ctx.align_to(E3::alignment())?;
         let (_bytes, val3) = E3::unmarshal(ctx)?;
-        
+
         let total_bytes = start_len - ctx.remainder().len();
         Ok((total_bytes, (val1, val2, val3)))
     }
@@ -81,7 +81,6 @@ where
 
         ctx.align_to(E3::alignment())?;
         let (_bytes, val3) = E3::unmarshal(ctx)?;
-
 
         ctx.align_to(E4::alignment())?;
         let (_bytes, val4) = E4::unmarshal(ctx)?;
@@ -301,13 +300,9 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
 
         ctx.align_to(sig.get_alignment())?;
 
-        let val_bytes = crate::wire::validate_raw::validate_marshalled(
-            ctx.byteorder,
-            0,
-            ctx.remainder(),
-            &sig,
-        )
-        .map_err(|e| e.1)?;
+        let val_bytes =
+            crate::wire::validate_raw::validate_marshalled(ctx.byteorder, 0, ctx.remainder(), &sig)
+                .map_err(|e| e.1)?;
 
         let (_, raw_content) = ctx.read_raw(val_bytes)?;
 

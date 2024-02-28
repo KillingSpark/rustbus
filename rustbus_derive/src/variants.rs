@@ -188,7 +188,7 @@ pub fn make_variant_unmarshal_impl(
             fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal_context::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::errors::UnmarshalError> {
                 let start_len = ctx.remainder().len();
                 let (sig_bytes, sig) = ctx.read_signature()?;
-                
+
                 #marshal
                 Err(::rustbus::wire::errors::UnmarshalError::NoMatchingVariantFound)
             }
