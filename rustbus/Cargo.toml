@@ -11,7 +11,7 @@ homepage = "https://github.com/KillingSpark/rustbus"
 
 [dependencies]
 nix = { version = "0.28", features = ["fs", "poll", "socket", "uio", "user"] }
-rustbus_derive = {version = "0.5.0", path = "../rustbus_derive"}
+rustbus_derive = {version = "0.6.0", path = "../rustbus_derive"}
 thiserror = "1.0"
 
 [dev-dependencies]

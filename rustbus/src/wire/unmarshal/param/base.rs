@@ -3,41 +3,32 @@
 use crate::params;
 use crate::signature;
 use crate::wire::errors::UnmarshalError;
-use crate::wire::unmarshal::UnmarshalContext;
 use crate::wire::unmarshal::UnmarshalResult;
-use crate::wire::util::*;
+use crate::wire::unmarshal_context::UnmarshalContext;
 
-pub fn unmarshal_base<'a>(
+pub fn unmarshal_base(
     typ: signature::Base,
     ctx: &mut UnmarshalContext,
-) -> UnmarshalResult<params::Base<'a>> {
-    let padding = ctx.align_to(typ.get_alignment())?;
-
-    let (bytes, param) = match typ {
+) -> UnmarshalResult<params::Base<'static>> {
+    match typ {
         signature::Base::Byte => {
-            if ctx.offset >= ctx.buf.len() {
-                return Err(UnmarshalError::NotEnoughBytes);
-            }
-            Ok((1, params::Base::Byte(ctx.buf[ctx.offset])))
+            let (bytes, val) = ctx.read_u8()?;
+            Ok((bytes, params::Base::Byte(val)))
         }
         signature::Base::Uint16 => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u16(slice, ctx.byteorder)?;
+            let (bytes, val) = ctx.read_u16()?;
             Ok((bytes, params::Base::Uint16(val)))
         }
         signature::Base::Int16 => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u16(slice, ctx.byteorder)?;
-            Ok((bytes, params::Base::Int16(val as i16)))
+            let (bytes, val) = ctx.read_i16()?;
+            Ok((bytes, params::Base::Int16(val)))
         }
         signature::Base::Uint32 => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u32(slice, ctx.byteorder)?;
+            let (bytes, val) = ctx.read_u32()?;
             Ok((bytes, params::Base::Uint32(val)))
         }
         signature::Base::UnixFd => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, idx) = parse_u32(slice, ctx.byteorder)?;
+            let (bytes, idx) = ctx.read_u32()?;
             if ctx.fds.len() <= idx as usize {
                 Err(UnmarshalError::BadFdIndex(idx as usize))
             } else {
@@ -46,28 +37,23 @@ pub fn unmarshal_base<'a>(
             }
         }
         signature::Base::Int32 => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u32(slice, ctx.byteorder)?;
-            Ok((bytes, params::Base::Int32(val as i32)))
+            let (bytes, val) = ctx.read_i32()?;
+            Ok((bytes, params::Base::Int32(val)))
         }
         signature::Base::Uint64 => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u64(slice, ctx.byteorder)?;
+            let (bytes, val) = ctx.read_u64()?;
             Ok((bytes, params::Base::Uint64(val)))
         }
         signature::Base::Int64 => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u64(slice, ctx.byteorder)?;
+            let (bytes, val) = ctx.read_i64()?;
             Ok((bytes, params::Base::Int64(val as i64)))
         }
         signature::Base::Double => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u64(slice, ctx.byteorder)?;
+            let (bytes, val) = ctx.read_u64()?;
             Ok((bytes, params::Base::Double(val)))
         }
         signature::Base::Boolean => {
-            let slice = &ctx.buf[ctx.offset..];
-            let (bytes, val) = parse_u32(slice, ctx.byteorder)?;
+            let (bytes, val) = ctx.read_u32()?;
             match val {
                 0 => Ok((bytes, params::Base::Boolean(false))),
                 1 => Ok((bytes, params::Base::Boolean(true))),
@@ -75,20 +61,18 @@ pub fn unmarshal_base<'a>(
             }
         }
         signature::Base::String => {
-            let (bytes, string) = unmarshal_string(ctx.byteorder, &ctx.buf[ctx.offset..])?;
-            Ok((bytes, params::Base::String(string)))
+            let (bytes, string) = ctx.read_str()?;
+            Ok((bytes, params::Base::String(string.into())))
         }
         signature::Base::ObjectPath => {
-            let (bytes, string) = unmarshal_string(ctx.byteorder, &ctx.buf[ctx.offset..])?;
-            crate::params::validate_object_path(&string)?;
-            Ok((bytes, params::Base::ObjectPath(string)))
+            let (bytes, string) = ctx.read_str()?;
+            crate::params::validate_object_path(string)?;
+            Ok((bytes, params::Base::ObjectPath(string.into())))
         }
         signature::Base::Signature => {
-            let (bytes, string) = unmarshal_signature(&ctx.buf[ctx.offset..])?;
+            let (bytes, string) = ctx.read_signature()?;
             crate::params::validate_signature(string)?;
             Ok((bytes, params::Base::Signature(string.to_owned())))
         }
-    }?;
-    ctx.offset += bytes;
-    Ok((padding + bytes, param))
+    }
 }

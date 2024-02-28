@@ -5,7 +5,7 @@ use crate::params;
 use crate::signature;
 use crate::wire::errors::UnmarshalError;
 use crate::wire::unmarshal::base::unmarshal_base;
-use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::ByteOrder;
 
 pub struct MessageIter<'a> {
@@ -55,12 +55,12 @@ impl<'a> MessageIter<'a> {
         if self.counter >= self.sig.len() {
             None
         } else {
-            let ctx = &mut crate::wire::unmarshal::UnmarshalContext {
-                buf: self.source,
-                fds: &[],
-                byteorder: self.byteorder,
-                offset: *self.current_offset,
-            };
+            let ctx = &mut crate::wire::unmarshal::UnmarshalContext::new(
+                &[],
+                self.byteorder,
+                self.source,
+                *self.current_offset,
+            );
             let (bytes, val) = match T::unmarshal(ctx) {
                 Err(e) => return Some(Err(e)),
                 Ok(t) => t,
@@ -143,12 +143,12 @@ impl<'a, 'parent> DictEntryIter<'a> {
         let iter = if self.counter == 0 {
             // read the key value
 
-            let mut ctx = UnmarshalContext {
-                byteorder: self.byteorder,
-                buf: self.source,
-                offset: *self.current_offset,
-                fds: &Vec::new(),
-            };
+            let mut ctx = UnmarshalContext::new(
+                &[],
+                self.byteorder,
+                self.source,
+                *self.current_offset,
+            );
 
             match unmarshal_base(self.key_sig, &mut ctx) {
                 Ok((bytes, param)) => {
@@ -241,12 +241,12 @@ impl<'a, 'parent> ParamIter<'a> {
 
         match new_sig {
             signature::Type::Base(b) => {
-                let mut ctx = UnmarshalContext {
+                let mut ctx = UnmarshalContext::new(
+                    &[],
                     byteorder,
-                    buf: source,
-                    offset: *offset,
-                    fds: &Vec::new(),
-                };
+                    source,
+                    *offset,
+                );
                 match unmarshal_base(*b, &mut ctx) {
                     Ok((bytes, param)) => {
                         *offset += bytes;

@@ -227,7 +227,7 @@ impl Marshal for Variant<'_, '_> {
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'buf, 'fds> {
     fn unmarshal(
-        ctx: &mut crate::wire::unmarshal::UnmarshalContext<'fds, 'buf>,
+        ctx: &mut crate::wire::unmarshal_context::UnmarshalContext<'fds, 'buf>,
     ) -> crate::wire::unmarshal::UnmarshalResult<Self> {
         crate::wire::unmarshal::container::unmarshal_variant(ctx)
     }

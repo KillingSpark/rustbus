@@ -6,6 +6,7 @@ pub mod unmarshal;
 pub mod util;
 pub mod validate_raw;
 pub mod variant_macros;
+pub mod unmarshal_context;
 
 mod wrapper_types;
 pub use wrapper_types::unixfd::UnixFd;

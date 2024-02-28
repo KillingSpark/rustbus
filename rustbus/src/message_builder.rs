@@ -5,7 +5,7 @@ use crate::wire::errors::MarshalError;
 use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::{Marshal, SignatureBuffer};
 use crate::wire::marshal::MarshalContext;
-use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::wire::validate_raw;
 use crate::wire::UnixFd;
 use crate::ByteOrder;
@@ -790,12 +790,12 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
                 return Err(UnmarshalError::WrongSignature);
             }
 
-            let mut ctx = UnmarshalContext {
-                byteorder: self.body.byteorder,
-                buf: self.body.get_buf(),
-                offset: self.buf_idx,
-                fds: &self.body.raw_fds,
-            };
+            let mut ctx = UnmarshalContext::new(
+                &self.body.raw_fds,
+                self.body.byteorder,
+                self.body.get_buf(),
+                self.buf_idx,
+            );
             match T::unmarshal(&mut ctx) {
                 Ok((bytes, res)) => {
                     self.buf_idx += bytes;
@@ -904,12 +904,12 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get_param(&mut self) -> Result<crate::params::Param, UnmarshalError> {
         if let Some(sig_str) = self.get_next_sig() {
-            let mut ctx = UnmarshalContext {
-                byteorder: self.body.byteorder,
-                buf: self.body.get_buf(),
-                offset: self.buf_idx,
-                fds: &self.body.raw_fds,
-            };
+            let mut ctx = UnmarshalContext::new(
+                &self.body.raw_fds,
+                self.body.byteorder,
+                self.body.get_buf(),
+                self.buf_idx,
+            );
 
             let sig = &crate::signature::Type::parse_description(sig_str).unwrap()[0];
 

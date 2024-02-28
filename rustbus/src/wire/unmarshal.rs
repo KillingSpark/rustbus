@@ -23,6 +23,8 @@ pub mod traits;
 
 use container::*;
 
+use super::unmarshal_context::UnmarshalContext;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Header {
     pub byteorder: ByteOrder,
@@ -31,26 +33,6 @@ pub struct Header {
     pub version: u8,
     pub body_len: u32,
     pub serial: u32,
-}
-
-pub struct UnmarshalContext<'fds, 'buf> {
-    pub fds: &'fds [crate::wire::UnixFd],
-    pub buf: &'buf [u8],
-    pub byteorder: ByteOrder,
-    pub offset: usize,
-}
-
-impl UnmarshalContext<'_, '_> {
-    pub fn align_to(&mut self, alignment: usize) -> Result<usize, UnmarshalError> {
-        let padding = crate::wire::util::align_offset(alignment, self.buf, self.offset)?;
-
-        if self.offset + padding > self.buf.len() {
-            Err(UnmarshalError::NotEnoughBytes)
-        } else {
-            self.offset += padding;
-            Ok(padding)
-        }
-    }
 }
 
 impl From<crate::signature::Error> for UnmarshalError {
@@ -128,15 +110,10 @@ pub fn unmarshal_body<'a, 'e>(
     buf: &[u8],
     fds: &[crate::wire::UnixFd],
     offset: usize,
-) -> UnmarshalResult<Vec<params::Param<'a, 'e>>> {
+) -> UnmarshalResult<Vec<params::Param<'static, 'static>>> {
     let mut params = Vec::new();
     let mut body_bytes_used = 0;
-    let mut ctx = UnmarshalContext {
-        fds,
-        buf,
-        byteorder,
-        offset,
-    };
+    let mut ctx = UnmarshalContext::new(fds, byteorder, buf, offset);
     for param_sig in sigs {
         let (bytes, new_param) = unmarshal_with_sig(param_sig, &mut ctx)?;
         params.push(new_param);

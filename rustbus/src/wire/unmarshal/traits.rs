@@ -2,7 +2,7 @@
 
 use crate::wire::marshal::traits::Signature;
 use crate::wire::unmarshal;
-use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::unmarshal_context::UnmarshalContext;
 
 // these contain the implementations
 mod base;
@@ -31,7 +31,7 @@ pub use container::*;
 /// use rustbus::wire::marshal::traits::Signature;
 /// use rustbus::signature;
 /// use rustbus::wire::unmarshal;
-/// use rustbus::wire::unmarshal::UnmarshalContext;
+/// use rustbus::wire::unmarshal_context::UnmarshalContext;
 /// use rustbus::wire::unmarshal::traits::Unmarshal;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
 /// use rustbus::wire::marshal::traits::SignatureBuffer;
@@ -91,7 +91,7 @@ pub use container::*;
 /// ```rust
 /// use rustbus::Unmarshal;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
-/// use rustbus::wire::unmarshal::UnmarshalContext;
+/// use rustbus::wire::unmarshal_context::UnmarshalContext;
 /// use rustbus::wire::marshal::traits::Signature;
 /// use rustbus::wire::marshal::traits::SignatureBuffer;
 /// use rustbus::signature;
@@ -168,36 +168,36 @@ mod test {
 
         // annotate the receiver with a type &str to unmarshal a &str
         "ABCD".marshal(ctx).unwrap();
-        let _s: &str = unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
+        let _s: &str = unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap()
         .1;
 
         // annotate the receiver with a type bool to unmarshal a bool
         ctx.buf.clear();
         true.marshal(ctx).unwrap();
-        let _b: bool = unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
+        let _b: bool = unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap()
         .1;
 
         // can also use turbofish syntax
         ctx.buf.clear();
         0i32.marshal(ctx).unwrap();
-        let _i = unmarshal::<i32>(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
+        let _i = unmarshal::<i32>(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap()
         .1;
 
@@ -205,12 +205,12 @@ mod test {
         ctx.buf.clear();
         fn x(_arg: (i32, i32, &str)) {}
         (0, 0, "ABCD").marshal(ctx).unwrap();
-        let arg = unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
+        let arg = unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap()
         .1;
         x(arg);
@@ -238,12 +238,12 @@ mod test {
         orig.marshal(ctx).unwrap();
         assert_eq!(&ctx.buf[..4], &[0, 4, 0, 0]);
         assert_eq!(ctx.buf.len(), 1028);
-        let (bytes, unorig) = <&[u8] as Unmarshal>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+        let (bytes, unorig) = <&[u8] as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap();
         assert_eq!(bytes, orig.len() + 4);
         assert_eq!(orig, unorig);
@@ -264,12 +264,12 @@ mod test {
         orig.marshal(ctx).unwrap();
 
         // unorig[x] points into the appropriate region in buf, and unorigs lifetime is bound to buf
-        let (_bytes, unorig) = <Vec<&[u8]> as Unmarshal>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+        let (_bytes, unorig) = <Vec<&[u8]> as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap();
         assert_eq!(orig, unorig);
     }
@@ -291,12 +291,12 @@ mod test {
         let original = &["a", "b"];
         original.marshal(ctx).unwrap();
 
-        let (_, v) = Vec::<&str>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+        let (_, v) = Vec::<&str>::unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap();
 
         assert_eq!(original, v.as_slice());
@@ -310,12 +310,12 @@ mod test {
 
         original.marshal(ctx).unwrap();
 
-        let (_, map) = std::collections::HashMap::<u64, &str>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+        let (_, map) = std::collections::HashMap::<u64, &str>::unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap();
         assert_eq!(original, map);
 
@@ -324,12 +324,12 @@ mod test {
         let orig = (30u8, true, 100u8, -123i32);
         orig.marshal(ctx).unwrap();
         type ST = (u8, bool, u8, i32);
-        let s = ST::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+        let s = ST::unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap()
         .1;
         assert_eq!(orig, s);
@@ -354,12 +354,12 @@ mod test {
         );
         let (_, (p, s, _fd)) =
             <(ObjectPath<String>, SignatureWrapper<&str>, UnixFd) as Unmarshal>::unmarshal(
-                &mut UnmarshalContext {
-                    buf: ctx.buf,
-                    fds: ctx.fds,
-                    byteorder: ctx.byteorder,
-                    offset: 0,
-                },
+                &mut UnmarshalContext::new(
+                    ctx.fds,
+                    ctx.byteorder,
+                    ctx.buf,
+                    0,
+                ),
             )
             .unwrap();
 

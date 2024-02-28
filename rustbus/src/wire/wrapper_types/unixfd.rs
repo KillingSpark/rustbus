@@ -1,7 +1,7 @@
 use crate::wire::errors::{MarshalError, UnmarshalError};
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
-use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::{Marshal, Signature, Unmarshal};
 
 use std::io;

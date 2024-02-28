@@ -185,11 +185,10 @@ pub fn make_variant_unmarshal_impl(
     quote! {
         impl #impl_gen ::rustbus::Unmarshal<'__internal_buf, '_> for #ident #typ_gen #clause_gen {
             #[inline]
-            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::errors::UnmarshalError> {
-                let start_offset = ctx.offset;
-                let (sig_bytes, sig) = ::rustbus::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
-                ctx.offset += sig_bytes;
-
+            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal_context::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::errors::UnmarshalError> {
+                let start_len = ctx.remainder().len();
+                let (sig_bytes, sig) = ctx.read_signature()?;
+                
                 #marshal
                 Err(::rustbus::wire::errors::UnmarshalError::NoMatchingVariantFound)
             }
@@ -230,7 +229,7 @@ fn variant_unmarshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStre
                             #field_names: <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
                         )*
                     };
-                    let total_bytes = ctx.offset - start_offset;
+                    let total_bytes = start_len - ctx.remainder().len();
                     return Ok((total_bytes, this));
                 }
             }
@@ -252,7 +251,7 @@ fn variant_unmarshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStre
                             <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
                         )*
                     );
-                    let total_bytes = ctx.offset - start_offset;
+                    let total_bytes = start_len - ctx.remainder().len();
                     return Ok((total_bytes, this));
                 }
             }
@@ -268,7 +267,7 @@ fn variant_unmarshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStre
                     let this = #enum_name::#name(
                         <#ty as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
                     );
-                    let total_bytes = ctx.offset - start_offset;
+                    let total_bytes = start_len - ctx.remainder().len();
                     return Ok((total_bytes, this));
                 }
             }

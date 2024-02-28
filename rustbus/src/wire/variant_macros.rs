@@ -98,18 +98,17 @@ macro_rules! dbus_variant_sig_unmarshal {
     ($vname: ident, $($name: ident => $typ: path)+) => {
         impl<'buf, 'fds> $crate::Unmarshal<'buf, 'fds> for $vname {
             fn unmarshal(
-                ctx: &mut $crate::wire::unmarshal::UnmarshalContext<'fds, 'buf>,
+                ctx: &mut $crate::wire::unmarshal_context::UnmarshalContext<'fds, 'buf>,
             ) -> $crate::wire::unmarshal::UnmarshalResult<Self> {
                 use $crate::Signature;
 
-                let (sig_bytes, sig_str) = $crate::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
+                let (sig_bytes, sig_str) = ctx.read_signature()?;
                 let mut sig = $crate::signature::Type::parse_description(&sig_str)?;
                 let sig = if sig.len() == 1 {
                     sig.remove(0)
                 } else {
                     return Err($crate::wire::errors::UnmarshalError::WrongSignature);
                 };
-                ctx.offset += sig_bytes;
 
                 $(
                 if sig == <$typ as Signature>::signature() {
@@ -118,9 +117,8 @@ macro_rules! dbus_variant_sig_unmarshal {
                 }
                 )+
                 let vbytes = $crate::wire::validate_raw::validate_marshalled(
-                    ctx.byteorder, ctx.offset, ctx.buf, &sig
+                    ctx.byteorder, 0, ctx.remainder(), &sig
                 ).map_err(|e| e.1)?;
-                ctx.offset += vbytes;
 
                 Ok((sig_bytes + vbytes, Self::Catchall(sig)))
             }
@@ -134,7 +132,7 @@ fn test_variant_sig_macro() {
     use crate::Unmarshal;
 
     use crate::wire::marshal::MarshalContext;
-    use crate::wire::unmarshal::UnmarshalContext;
+    use crate::wire::unmarshal_context::UnmarshalContext;
 
     let mut fds = Vec::new();
     let mut ctxbuf = Vec::new();
@@ -163,12 +161,12 @@ fn test_variant_sig_macro() {
     .unwrap();
 
     let (bytes, (uv1, uv2, uv3)) =
-        <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
+        <(MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap();
     assert_eq!(uv1, v1);
     assert_ne!(uv1, v2);
@@ -179,12 +177,12 @@ fn test_variant_sig_macro() {
 
     assert_eq!(uv3, v3);
 
-    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext {
-        buf: ctx.buf,
-        fds: ctx.fds,
-        byteorder: ctx.byteorder,
-        offset: bytes,
-    })
+    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext::new(
+        ctx.fds,
+        ctx.byteorder,
+        ctx.buf,
+        bytes,
+    ))
     .unwrap();
     assert_eq!(
         uv4,
@@ -211,12 +209,12 @@ fn test_variant_sig_macro() {
     (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
-            &mut UnmarshalContext {
-                buf: ctx.buf,
-                fds: ctx.fds,
-                byteorder: ctx.byteorder,
-                offset: 0,
-            },
+            &mut UnmarshalContext::new( 
+                ctx.fds,
+                ctx.byteorder,
+                ctx.buf,
+                0,
+            ),
         )
         .unwrap();
     assert_eq!(uv1, v1);
@@ -242,12 +240,12 @@ fn test_variant_sig_macro() {
         ctx.fds,
     )
     .unwrap();
-    let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext {
-        buf: ctx.buf,
-        fds: ctx.fds,
-        byteorder: ctx.byteorder,
-        offset: 0,
-    })
+    let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
+        ctx.fds,
+        ctx.byteorder,
+        ctx.buf,
+        0,
+    ))
     .unwrap();
     assert_eq!(
         uv,
@@ -358,25 +356,26 @@ macro_rules! dbus_variant_var_unmarshal {
     ($vname: ident, $($name: ident => $typ: ty)+) => {
         impl<'buf, 'fds> $crate::Unmarshal<'buf,'fds> for $vname <'fds, 'buf> {
             fn unmarshal(
-                ctx: &mut $crate::wire::unmarshal::UnmarshalContext<'fds, 'buf>
+                ctx: &mut $crate::wire::unmarshal_context::UnmarshalContext<'fds, 'buf>
             ) -> $crate::wire::unmarshal::UnmarshalResult<Self> {
                 use $crate::Signature;
                 use $crate::Unmarshal;
                 use $crate::wire::marshal::traits::SignatureBuffer;
 
-                let (sig_bytes, sig_str) = $crate::wire::util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
+                let (sig_bytes, sig_str) = ctx.read_signature()?;
+                eprintln!("Sig: {:?} {:?}", sig_str, ctx.remainder());
                 let mut var_sig = SignatureBuffer::new();
                 $(
                 var_sig.clear();
                 <$typ as Signature>::sig_str(&mut var_sig);
                 if sig_str == var_sig.as_ref() {
-                    ctx.offset += sig_bytes;
                     let (vbytes, v) = <$typ as $crate::Unmarshal>::unmarshal(ctx)?;
                     return Ok((sig_bytes + vbytes, Self::$name(v)));
                 }
                 )+
+                ctx.reset(sig_bytes);
                 let (vbytes,var) = <$crate::wire::unmarshal::traits::Variant as Unmarshal>::unmarshal(ctx)?;
-                Ok((sig_bytes + vbytes, Self::Catchall(var)))
+                Ok((vbytes, Self::Catchall(var)))
             }
         }
     };
@@ -388,7 +387,7 @@ fn test_variant_var_macro() {
     use crate::Unmarshal;
 
     use crate::wire::marshal::MarshalContext;
-    use crate::wire::unmarshal::UnmarshalContext;
+    use crate::wire::unmarshal_context::UnmarshalContext;
 
     let mut fds = Vec::new();
     let mut buf = Vec::new();
@@ -420,12 +419,12 @@ fn test_variant_var_macro() {
 
     let (bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant, MyVariant, MyVariant, MyVariant) as Unmarshal>::unmarshal(
-            &mut UnmarshalContext {
-                buf: ctx.buf,
-                fds: ctx.fds,
-                byteorder: ctx.byteorder,
-                offset: 0,
-            },
+            &mut UnmarshalContext::new(
+                ctx.fds,
+                ctx.byteorder,
+                ctx.buf,
+                0,
+            ),
         )
         .unwrap();
     assert!(match uv1 {
@@ -445,12 +444,15 @@ fn test_variant_var_macro() {
         _ => false,
     });
 
-    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext {
-        buf: ctx.buf,
-        fds: ctx.fds,
-        byteorder: ctx.byteorder,
-        offset: bytes,
-    })
+    eprintln!("Buffer: {:?}", ctx.buf);
+    eprintln!("Buffer: {:?}", &ctx.buf[bytes..]);
+
+    let (_bytes, uv4) = MyVariant::unmarshal(&mut UnmarshalContext::new (
+        ctx.fds,
+        ctx.byteorder,
+        ctx.buf,
+        bytes,
+    ))
     .unwrap();
 
     assert!(match uv4 {
@@ -478,12 +480,12 @@ fn test_variant_var_macro() {
     (&v1, &v2, &v3, &v4).marshal(ctx).unwrap();
     let (_bytes, (uv1, uv2, uv3, uv4)) =
         <(MyVariant2, MyVariant2, MyVariant2, MyVariant2) as Unmarshal>::unmarshal(
-            &mut UnmarshalContext {
-                buf: ctx.buf,
-                fds: ctx.fds,
-                byteorder: ctx.byteorder,
-                offset: 0,
-            },
+            &mut UnmarshalContext::new(
+                ctx.fds,
+                ctx.byteorder,
+                ctx.buf,
+                0,
+            ),
         )
         .unwrap();
     assert!(match uv1 {
@@ -568,12 +570,12 @@ fn test_variant_var_macro() {
         ctx.fds,
     )
     .unwrap();
-    let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext {
-        buf: ctx.buf,
-        fds: ctx.fds,
-        byteorder: ctx.byteorder,
-        offset: 0,
-    })
+    let (_bytes, uv) = <MyVariant2 as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
+        ctx.fds,
+        ctx.byteorder,
+        ctx.buf,
+        0,
+    ))
     .unwrap();
     assert!(match uv {
         MyVariant2::Catchall(var) => {
