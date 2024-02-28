@@ -58,7 +58,7 @@ pub use container::*;
 ///
 /// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
 ///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-///         let start_offset = ctx.offset;
+///         let start_len = ctx.remainder().len();
 ///         // check that we are aligned properly!
 ///         // This is necessary at the start of each struct! They need to be aligned to 8 bytes!
 ///         let padding = ctx.align_to(Self::alignment())?;
@@ -70,7 +70,7 @@ pub use container::*;
 ///         // ....
 ///         
 ///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
-///         let total_bytes = ctx.offset - start_offset;
+///         let total_bytes = start_len - ctx.remainder().len();
 ///         Ok((total_bytes, MyStruct{mycoolint}))
 ///     }
 /// }
@@ -119,7 +119,7 @@ pub use container::*;
 ///
 /// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
 ///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> UnmarshalResult<Self> {
-///         let start_offset = ctx.offset;
+///         let start_len = ctx.remainder().len();
 ///         // check that we are aligned properly
 ///         let padding = ctx.align_to(Self::alignment())?;
 ///
@@ -128,7 +128,7 @@ pub use container::*;
 ///         let unmarshalled_stuff = unmarshal_stuff_from_raw(&raw_data);
 ///
 ///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
-///         let total_bytes = ctx.offset - start_offset;
+///         let total_bytes = start_len - ctx.remainder().len();
 ///         Ok((total_bytes, MyStruct{mycoolint: unmarshalled_stuff}))
 ///     }
 /// }
