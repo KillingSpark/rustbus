@@ -229,7 +229,7 @@ impl Default for MarshalledMessage {
 
 impl MarshalledMessage {
     pub fn get_buf(&self) -> &[u8] {
-        &self.body.buf
+        self.body.get_buf()
     }
     pub fn get_sig(&self) -> &str {
         &self.body.sig
@@ -272,7 +272,7 @@ impl MarshalledMessage {
             let (_, params) = crate::wire::unmarshal::unmarshal_body(
                 self.body.byteorder,
                 &sigs,
-                &self.body.buf,
+                self.body.get_buf(),
                 &self.body.raw_fds,
                 0,
             )?;
@@ -291,7 +291,8 @@ impl MarshalledMessage {
 /// And you can of course write an Marshal impl for your own datastrcutures
 #[derive(Debug)]
 pub struct MarshalledMessageBody {
-    pub(crate) buf: Vec<u8>,
+    buf: Vec<u8>,
+    buf_offset: usize,
 
     // out of band data
     pub(crate) raw_fds: Vec<crate::wire::UnixFd>,
@@ -337,6 +338,7 @@ impl MarshalledMessageBody {
     pub fn new() -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
+            buf_offset: 0,
             raw_fds: Vec::new(),
             sig: SignatureBuffer::new(),
             byteorder: ByteOrder::NATIVE,
@@ -347,6 +349,7 @@ impl MarshalledMessageBody {
     pub fn with_byteorder(b: ByteOrder) -> Self {
         MarshalledMessageBody {
             buf: Vec::new(),
+            buf_offset: 0,
             raw_fds: Vec::new(),
             sig: SignatureBuffer::new(),
             byteorder: b,
@@ -355,6 +358,7 @@ impl MarshalledMessageBody {
 
     pub fn from_parts(
         buf: Vec<u8>,
+        buf_offset: usize,
         raw_fds: Vec<crate::wire::UnixFd>,
         sig: String,
         byteorder: ByteOrder,
@@ -362,11 +366,17 @@ impl MarshalledMessageBody {
         let sig = SignatureBuffer::from_string(sig);
         Self {
             buf,
+            buf_offset,
             raw_fds,
             sig,
             byteorder,
         }
     }
+
+    pub(crate) fn get_buf(&self) -> &[u8] {
+        &self.buf[self.buf_offset..]
+    }
+
     /// Get a clone of all the `UnixFd`s in the body.
     ///
     /// Some of the `UnixFd`s may already have their `RawFd`s taken.
@@ -379,6 +389,7 @@ impl MarshalledMessageBody {
     pub fn reset(&mut self) {
         self.sig.clear();
         self.buf.clear();
+        self.buf_offset = 0;
     }
 
     /// Reserves space for `additional` bytes in the internal buffer. This is useful to reduce the amount of allocations done while marshalling,
@@ -390,13 +401,8 @@ impl MarshalledMessageBody {
     /// Push a Param with the old nested enum/struct approach. This is still supported for the case that in some corner cases
     /// the new trait/type based API does not work.
     pub fn push_old_param(&mut self, p: &crate::params::Param) -> Result<(), MarshalError> {
-        let mut ctx = MarshalContext {
-            buf: &mut self.buf,
-            fds: &mut self.raw_fds,
-            byteorder: self.byteorder,
-        };
-        let ctx = &mut ctx;
-        crate::wire::marshal::container::marshal_param(p, ctx)?;
+        let mut ctx = self.create_ctx();
+        crate::wire::marshal::container::marshal_param(p, &mut ctx)?;
         p.sig().to_str(self.sig.to_string_mut());
         Ok(())
     }
@@ -522,16 +528,16 @@ impl MarshalledMessageBody {
     }
     /// Validate the all the marshalled elements of the body.
     pub fn validate(&self) -> Result<(), UnmarshalError> {
-        if self.sig.is_empty() && self.buf.is_empty() {
+        if self.sig.is_empty() && self.get_buf().is_empty() {
             return Ok(());
         }
         let types = crate::signature::Type::parse_description(&self.sig)?;
         let mut used = 0;
         for typ in types {
-            used += validate_raw::validate_marshalled(self.byteorder, used, &self.buf, &typ)
+            used += validate_raw::validate_marshalled(self.byteorder, used, self.get_buf(), &typ)
                 .map_err(|(_, e)| e)?;
         }
-        if used == self.buf.len() {
+        if used == self.get_buf().len() {
             Ok(())
         } else {
             Err(UnmarshalError::NotAllBytesUsed)
@@ -552,7 +558,7 @@ fn test_marshal_trait() {
 
     assert_eq!(
         vec![12, 0, 0, 0, 8, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0],
-        body.buf
+        body.get_buf()
     );
     assert_eq!(body.sig.as_str(), "aat");
 
@@ -563,7 +569,7 @@ fn test_marshal_trait() {
     body.push_param(&map).unwrap();
     assert_eq!(
         vec![12, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'a', 0, 0, 0, 4, 0, 0, 0,],
-        body.buf
+        body.get_buf()
     );
     assert_eq!(body.sig.as_str(), "a{su}");
 
@@ -572,7 +578,7 @@ fn test_marshal_trait() {
     assert_eq!(body.sig.as_str(), "(tsb)");
     assert_eq!(
         vec![11, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, b's', b't', b'r', 0, 1, 0, 0, 0,],
-        body.buf
+        body.get_buf()
     );
 
     struct MyStruct {
@@ -620,7 +626,7 @@ fn test_marshal_trait() {
     assert_eq!(body.sig.as_str(), "(ts)");
     assert_eq!(
         vec![100, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'A', 0,],
-        body.buf
+        body.get_buf()
     );
 
     let mut body = MarshalledMessageBody::new();
@@ -638,7 +644,7 @@ fn test_marshal_trait() {
             28, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, b'a', 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
             0, b'a', 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0
         ],
-        body.buf
+        body.get_buf()
     );
 
     // try to unmarshal stuff
@@ -786,7 +792,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
             let mut ctx = UnmarshalContext {
                 byteorder: self.body.byteorder,
-                buf: &self.body.buf,
+                buf: self.body.get_buf(),
                 offset: self.buf_idx,
                 fds: &self.body.raw_fds,
             };
@@ -900,7 +906,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
         if let Some(sig_str) = self.get_next_sig() {
             let mut ctx = UnmarshalContext {
                 byteorder: self.body.byteorder,
-                buf: &self.body.buf,
+                buf: self.body.get_buf(),
                 offset: self.buf_idx,
                 fds: &self.body.raw_fds,
             };
