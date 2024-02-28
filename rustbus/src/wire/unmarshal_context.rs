@@ -111,11 +111,11 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
     }
 
     pub fn read_raw(&mut self, length: usize) -> UnmarshalResult<&'buf [u8]> {
-        if length as usize > self.remainder().len() {
+        if length > self.remainder().len() {
             return Err(UnmarshalError::NotEnoughBytes);
         }
 
-        let elements = &&self.buf[self.offset..][..length as usize];
+        let elements = &&self.buf[self.offset..][..length];
         self.offset += length;
 
         Ok((length, elements))

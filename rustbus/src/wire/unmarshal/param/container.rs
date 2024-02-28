@@ -24,8 +24,8 @@ pub fn unmarshal_with_sig(
     Ok((bytes, param))
 }
 
-pub fn unmarshal_variant<'a, 'e>(
-    ctx: &mut UnmarshalContext<'_, 'a>,
+pub fn unmarshal_variant(
+    ctx: &mut UnmarshalContext,
 ) -> UnmarshalResult<params::Variant<'static, 'static>> {
     let (sig_bytes_used, sig_str) = ctx.read_signature()?;
 

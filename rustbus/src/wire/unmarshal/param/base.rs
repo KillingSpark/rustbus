@@ -46,7 +46,7 @@ pub fn unmarshal_base(
         }
         signature::Base::Int64 => {
             let (bytes, val) = ctx.read_i64()?;
-            Ok((bytes, params::Base::Int64(val as i64)))
+            Ok((bytes, params::Base::Int64(val)))
         }
         signature::Base::Double => {
             let (bytes, val) = ctx.read_u64()?;

@@ -104,7 +104,7 @@ pub fn unmarshal_dynamic_header(
     Ok((fields_bytes_used, hdr))
 }
 
-pub fn unmarshal_body<'a, 'e>(
+pub fn unmarshal_body(
     byteorder: ByteOrder,
     sigs: &[crate::signature::Type],
     buf: &[u8],
