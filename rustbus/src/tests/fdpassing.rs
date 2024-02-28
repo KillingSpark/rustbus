@@ -107,7 +107,7 @@ fn test_fd_marshalling() {
     sig.body.push_param(&test_fd3).unwrap();
 
     // assert the correct representation, where fds have been put into the fd array and the index is marshalled in the message
-    assert_eq!(sig.body.buf, &[0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
+    assert_eq!(sig.body.get_buf(), &[0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
     assert_ne!(&sig.body.raw_fds[0], &test_fd1);
     assert_ne!(&sig.body.raw_fds[1], &test_fd2);
     assert_ne!(&sig.body.raw_fds[2], &test_fd3);
