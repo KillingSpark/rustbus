@@ -126,6 +126,7 @@ impl<E: Signature + Clone> Signature for Cow<'_, [E]> {
         <[E]>::has_sig(sig)
     }
 }
+
 /// for byte arrays we can give an efficient method of decoding. This will bind the returned slice to the lifetime of the buffer.
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf [u8] {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
@@ -161,6 +162,7 @@ where
 
     Ok((start_len - ctx.remainder().len(), slice))
 }
+
 impl<'buf, 'fds, E: Unmarshal<'buf, 'fds> + Clone> Unmarshal<'buf, 'fds> for Cow<'buf, [E]> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         unsafe {
@@ -175,6 +177,7 @@ impl<'buf, 'fds, E: Unmarshal<'buf, 'fds> + Clone> Unmarshal<'buf, 'fds> for Cow
         Vec::unmarshal(ctx).map(|o| (o.0, Cow::Owned(o.1)))
     }
 }
+
 impl<'buf, 'fds, E: Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for Vec<E> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         unsafe {
@@ -250,6 +253,7 @@ pub struct Variant<'fds, 'buf> {
     pub(crate) buf: &'buf [u8],
     pub(crate) fds: &'fds [crate::wire::UnixFd],
 }
+
 impl<'buf, 'fds> Variant<'fds, 'buf> {
     /// Get the [`Type`] of the value contained by the variant.
     ///
@@ -269,6 +273,7 @@ impl<'buf, 'fds> Variant<'fds, 'buf> {
         T::unmarshal(&mut ctx).map(|r| r.1)
     }
 }
+
 impl Signature for Variant<'_, '_> {
     fn signature() -> signature::Type {
         signature::Type::Container(signature::Container::Variant)
@@ -284,9 +289,11 @@ impl Signature for Variant<'_, '_> {
         sig.starts_with('v')
     }
 }
+
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         let start_len = ctx.remainder().len();
+
         let (_, desc) = ctx.read_signature()?;
 
         let mut sigs = match signature::Type::parse_description(desc) {
@@ -317,5 +324,30 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
                 fds: ctx.fds,
             },
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::message_builder::MarshalledMessageBody;
+
+    #[test]
+    fn todo_name() {
+        let mut m = MarshalledMessageBody::new();
+        m.push_param("test.interface").unwrap();
+        m.push_param("test_property").unwrap();
+        m.push_param(crate::wire::marshal::traits::Variant(42u8))
+            .unwrap();
+
+        eprintln!("Buffer: {:?}", m.get_buf());
+
+        let mut parser = m.parser();
+        assert_eq!(parser.get::<&str>().unwrap(), "test.interface");
+        assert_eq!(parser.get::<&str>().unwrap(), "test_property");
+        assert_eq!(parser.get_next_sig().unwrap(), "v");
+        let variant = parser
+            .get::<crate::wire::unmarshal::traits::Variant>()
+            .unwrap();
+        assert_eq!(variant.get::<u8>().unwrap(), 42);
     }
 }

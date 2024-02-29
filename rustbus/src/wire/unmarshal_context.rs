@@ -58,10 +58,10 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
     }
 
     pub fn read_u16(&mut self) -> UnmarshalResult<u16> {
-        self.align_to(2)?;
+        let padding = self.align_to(2)?;
         let (consumed_value, value) = parse_u16(self.remainder(), self.byteorder)?;
         self.offset += consumed_value;
-        Ok((consumed_value, value))
+        Ok((consumed_value + padding, value))
     }
 
     pub fn read_i32(&mut self) -> UnmarshalResult<i32> {
@@ -70,10 +70,10 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
     }
 
     pub fn read_u32(&mut self) -> UnmarshalResult<u32> {
-        self.align_to(4)?;
+        let padding = self.align_to(4)?;
         let (consumed_value, value) = parse_u32(self.remainder(), self.byteorder)?;
         self.offset += consumed_value;
-        Ok((consumed_value, value))
+        Ok((consumed_value + padding, value))
     }
 
     pub fn read_i64(&mut self) -> UnmarshalResult<i64> {
@@ -82,17 +82,17 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
     }
 
     pub fn read_u64(&mut self) -> UnmarshalResult<u64> {
-        self.align_to(8)?;
+        let padding = self.align_to(8)?;
         let (consumed_value, value) = parse_u64(self.remainder(), self.byteorder)?;
         self.offset += consumed_value;
-        Ok((consumed_value, value))
+        Ok((consumed_value + padding, value))
     }
 
     pub fn read_str(&mut self) -> UnmarshalResult<&'buf str> {
-        self.align_to(4)?;
+        let padding = self.align_to(4)?;
         let (consumed_value, value) = unmarshal_str(self.byteorder, &self.buf[self.offset..])?;
         self.offset += consumed_value;
-        Ok((consumed_value, value))
+        Ok((consumed_value + padding, value))
     }
 
     pub fn read_signature(&mut self) -> UnmarshalResult<&'buf str> {
