@@ -451,5 +451,27 @@ mod test {
             var_map["8"].get().unwrap()
         );
         assert!(var_map["9"].get::<bool>().unwrap());
+
+        let mut body = MarshalledMessageBody::new();
+        let orig = (10u8, 100u32, 20u8, 200u64);
+        body.push_variant(&orig).unwrap();
+        let unmarshalled = body
+            .parser()
+            .get::<Variant>()
+            .unwrap()
+            .get::<(u8, u32, u8, u64)>()
+            .unwrap();
+        assert_eq!(orig, unmarshalled);
+
+        let mut body = MarshalledMessageBody::new();
+        let orig = (10u8, 100u32, SignatureWrapper::new("").unwrap(), 200u64);
+        body.push_variant(&orig).unwrap();
+        let unmarshalled = body
+            .parser()
+            .get::<Variant>()
+            .unwrap()
+            .get::<(u8, u32, SignatureWrapper<&str>, u64)>()
+            .unwrap();
+        assert_eq!(orig, unmarshalled);
     }
 }
