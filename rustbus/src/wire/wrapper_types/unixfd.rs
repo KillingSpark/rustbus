@@ -1,4 +1,4 @@
-use crate::wire::errors::{MarshalError, UnmarshalError};
+use crate::wire::errors::MarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::marshal::MarshalContext;
 use crate::wire::unmarshal_context::UnmarshalContext;
@@ -191,14 +191,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for UnixFd {
     fn unmarshal(
         ctx: &mut UnmarshalContext<'fds, 'buf>,
     ) -> crate::wire::unmarshal::UnmarshalResult<Self> {
-        let idx = u32::unmarshal(ctx)?;
-
-        if ctx.fds.len() <= idx as usize {
-            Err(UnmarshalError::BadFdIndex(idx as usize))
-        } else {
-            let val = &ctx.fds[idx as usize];
-            Ok(val.clone())
-        }
+        ctx.read_unixfd()
     }
 }
 

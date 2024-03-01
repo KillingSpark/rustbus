@@ -51,8 +51,7 @@ pub fn unmarshal_container(
             ctx.align_to(elem_sig.get_alignment())?;
 
             let mut elements = Vec::new();
-            let raw_elements = ctx.read_raw(bytes_in_array)?;
-            let mut ctx = UnmarshalContext::new(ctx.fds, ctx.byteorder, raw_elements, 0);
+            let mut ctx = ctx.sub_context(bytes_in_array)?;
             while !ctx.remainder().is_empty() {
                 let element = unmarshal_with_sig(elem_sig, &mut ctx)?;
                 elements.push(element);
@@ -69,8 +68,7 @@ pub fn unmarshal_container(
             ctx.align_to(8)?;
 
             let mut elements = std::collections::HashMap::new();
-            let raw_elements = ctx.read_raw(bytes_in_dict)?;
-            let mut ctx = UnmarshalContext::new(ctx.fds, ctx.byteorder, raw_elements, 0);
+            let mut ctx = ctx.sub_context(bytes_in_dict)?;
             while !ctx.remainder().is_empty() {
                 ctx.align_to(8)?;
 

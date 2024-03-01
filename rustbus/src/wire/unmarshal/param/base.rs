@@ -28,13 +28,8 @@ pub fn unmarshal_base(
             Ok(params::Base::Uint32(val))
         }
         signature::Base::UnixFd => {
-            let idx = ctx.read_u32()?;
-            if ctx.fds.len() <= idx as usize {
-                Err(UnmarshalError::BadFdIndex(idx as usize))
-            } else {
-                let val = &ctx.fds[idx as usize];
-                Ok(params::Base::UnixFd(val.clone()))
-            }
+            let val = ctx.read_unixfd()?;
+            Ok(params::Base::UnixFd(val))
         }
         signature::Base::Int32 => {
             let val = ctx.read_i32()?;

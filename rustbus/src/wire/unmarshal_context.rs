@@ -4,11 +4,13 @@ use super::{
     errors::UnmarshalError,
     unmarshal::UnmarshalResult,
     util::{parse_u16, parse_u32, parse_u64, unmarshal_signature, unmarshal_str},
+    UnixFd,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct UnmarshalContext<'fds, 'buf> {
-    pub fds: &'fds [crate::wire::UnixFd],
     pub byteorder: ByteOrder,
+    fds: &'fds [crate::wire::UnixFd],
     cursor: Cursor<'buf>,
 }
 
@@ -24,6 +26,11 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
             byteorder,
             cursor: Cursor { buf, offset },
         }
+    }
+
+    pub fn sub_context(&mut self, length: usize) -> UnmarshalResult<UnmarshalContext<'fds, 'buf>> {
+        let region = self.read_raw(length)?;
+        Ok(UnmarshalContext::new(self.fds, self.byteorder, region, 0))
     }
 
     pub fn align_to(&mut self, alignment: usize) -> Result<usize, UnmarshalError> {
@@ -52,6 +59,16 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
 
     pub fn read_u32(&mut self) -> UnmarshalResult<u32> {
         self.cursor.read_u32(self.byteorder)
+    }
+
+    pub fn read_unixfd(&mut self) -> UnmarshalResult<UnixFd> {
+        let idx = self.cursor.read_u32(self.byteorder)?;
+        if self.fds.len() <= idx as usize {
+            Err(UnmarshalError::BadFdIndex(idx as usize))
+        } else {
+            let val = &self.fds[idx as usize];
+            Ok(val.clone())
+        }
     }
 
     pub fn read_i64(&mut self) -> UnmarshalResult<i64> {
@@ -83,6 +100,7 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Cursor<'a> {
     buf: &'a [u8],
     offset: usize,

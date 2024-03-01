@@ -5,7 +5,6 @@ use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::unmarshal;
 use crate::wire::unmarshal_context::UnmarshalContext;
-use crate::ByteOrder;
 use crate::Signature;
 use crate::Unmarshal;
 use std::borrow::Cow;
@@ -185,8 +184,7 @@ impl<'buf, 'fds, E: Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for Vec<E> {
         ctx.align_to(E::alignment())?;
 
         let mut elements = Vec::new();
-        let raw_elements = ctx.read_raw(bytes_in_array)?;
-        let mut ctx = UnmarshalContext::new(ctx.fds, ctx.byteorder, raw_elements, 0);
+        let mut ctx = ctx.sub_context(bytes_in_array)?;
         while !ctx.remainder().is_empty() {
             ctx.align_to(E::alignment())?;
             let element = E::unmarshal(&mut ctx)?;
@@ -208,8 +206,7 @@ impl<'buf, 'fds, K: Unmarshal<'buf, 'fds> + std::hash::Hash + Eq, V: Unmarshal<'
         ctx.align_to(8)?;
 
         let mut map = std::collections::HashMap::new();
-        let raw_elements = ctx.read_raw(bytes_in_array)?;
-        let mut ctx = UnmarshalContext::new(ctx.fds, ctx.byteorder, raw_elements, 0);
+        let mut ctx = ctx.sub_context(bytes_in_array)?;
         while !ctx.remainder().is_empty() {
             // Always align to 8
             ctx.align_to(8)?;
@@ -229,10 +226,7 @@ impl<'buf, 'fds, K: Unmarshal<'buf, 'fds> + std::hash::Hash + Eq, V: Unmarshal<'
 #[derive(Debug)]
 pub struct Variant<'fds, 'buf> {
     pub(crate) sig: signature::Type,
-    pub(crate) byteorder: ByteOrder,
-    pub(crate) offset: usize,
-    pub(crate) buf: &'buf [u8],
-    pub(crate) fds: &'fds [crate::wire::UnixFd],
+    pub(crate) sub_ctx: UnmarshalContext<'fds, 'buf>,
 }
 
 impl<'buf, 'fds> Variant<'fds, 'buf> {
@@ -250,7 +244,7 @@ impl<'buf, 'fds> Variant<'fds, 'buf> {
         if self.sig != T::signature() {
             return Err(UnmarshalError::WrongSignature);
         }
-        let mut ctx = UnmarshalContext::new(self.fds, self.byteorder, self.buf, self.offset);
+        let mut ctx = self.sub_ctx;
         T::unmarshal(&mut ctx)
     }
 }
@@ -290,14 +284,9 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
             crate::wire::validate_raw::validate_marshalled(ctx.byteorder, 0, ctx.remainder(), &sig)
                 .map_err(|e| e.1)?;
 
-        let raw_content = ctx.read_raw(val_bytes)?;
-
         Ok(Variant {
             sig,
-            buf: raw_content,
-            offset: 0,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
+            sub_ctx: ctx.sub_context(val_bytes)?,
         })
     }
 }
