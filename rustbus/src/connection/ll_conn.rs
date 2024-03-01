@@ -238,7 +238,7 @@ impl RecvConn {
                 }
                 _ => {
                     // TODO what to do?
-                    eprintln!("Cmsg other than ScmRights: {:?}", cmsg);
+                    // eprintln!("Cmsg other than ScmRights: {:?}", cmsg);
                 }
             }
         }

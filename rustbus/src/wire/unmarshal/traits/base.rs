@@ -62,8 +62,8 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for f64 {
     }
 }
 
-impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf str {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+impl<'buf> Unmarshal<'buf, '_> for &'buf str {
+    fn unmarshal(ctx: &mut UnmarshalContext<'_, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         ctx.read_str()
     }
 }

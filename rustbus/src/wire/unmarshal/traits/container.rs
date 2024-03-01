@@ -296,14 +296,12 @@ mod tests {
     use crate::message_builder::MarshalledMessageBody;
 
     #[test]
-    fn todo_name() {
+    fn variant_with_sig() {
         let mut m = MarshalledMessageBody::new();
         m.push_param("test.interface").unwrap();
         m.push_param("test_property").unwrap();
         m.push_param(crate::wire::marshal::traits::Variant(42u8))
             .unwrap();
-
-        eprintln!("Buffer: {:?}", m.get_buf());
 
         let mut parser = m.parser();
         assert_eq!(parser.get::<&str>().unwrap(), "test.interface");

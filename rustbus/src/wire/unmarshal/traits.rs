@@ -140,15 +140,19 @@ pub fn unmarshal<'buf, 'fds, T: Unmarshal<'buf, 'fds>>(
 
 #[cfg(test)]
 mod test {
+    use std::fmt::Debug;
+
     use super::unmarshal;
     use super::Unmarshal;
     use super::UnmarshalContext;
     use super::Variant;
     use crate::wire::marshal::MarshalContext;
+    use crate::wire::UnixFd;
     use crate::ByteOrder;
     use crate::Marshal;
     use crate::Signature;
 
+    // TODO this is more of a doc test?
     #[test]
     fn test_generic_unmarshal() {
         let mut fds = Vec::new();
@@ -206,36 +210,44 @@ mod test {
         x(arg);
     }
 
+    pub fn roundtrip<'a, T>(original: T, fds: &'a mut Vec<UnixFd>, buf: &'a mut Vec<u8>)
+    where
+        T: Unmarshal<'a, 'a>,
+        T: Marshal,
+        T: Debug,
+        T: Eq,
+    {
+        fds.clear();
+        buf.clear();
+        let byteorder = ByteOrder::LittleEndian;
+
+        original
+            .marshal(&mut MarshalContext {
+                buf: buf,
+                fds: fds,
+                byteorder,
+            })
+            .unwrap();
+
+        let unmarshalled =
+            T::unmarshal(&mut UnmarshalContext::new(fds, byteorder, buf, 0)).unwrap();
+        eprintln!("{fds:?}");
+        assert_eq!(original, unmarshalled);
+    }
+
     #[test]
     fn test_unmarshal_byte_array() {
-        use crate::wire::marshal::MarshalContext;
-        use crate::Marshal;
+        let mut fds = vec![];
+        let mut buf = vec![];
 
         let mut orig = vec![];
         for x in 0..1024 {
             orig.push((x % 255) as u8);
         }
+        roundtrip(orig, &mut fds, &mut buf);
 
-        let mut fds = Vec::new();
-        let mut buf = Vec::new();
-        let mut ctx = MarshalContext {
-            buf: &mut buf,
-            fds: &mut fds,
-            byteorder: ByteOrder::LittleEndian,
-        };
-        let ctx = &mut ctx;
-
-        orig.marshal(ctx).unwrap();
-        assert_eq!(&ctx.buf[..4], &[0, 4, 0, 0]);
-        assert_eq!(ctx.buf.len(), 1028);
-        let unorig = <&[u8] as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
-            ctx.fds,
-            ctx.byteorder,
-            ctx.buf,
-            0,
-        ))
-        .unwrap();
-        assert_eq!(orig, unorig);
+        assert_eq!(&buf[..4], &[0, 4, 0, 0]);
+        assert_eq!(buf.len(), 1028);
 
         // even slices of slices of u8 work efficiently
         let mut orig1 = vec![];
@@ -248,106 +260,49 @@ mod test {
         }
 
         let orig = vec![orig1.as_slice(), orig2.as_slice()];
-
-        ctx.buf.clear();
-        orig.marshal(ctx).unwrap();
-
-        // unorig[x] points into the appropriate region in buf, and unorigs lifetime is bound to buf
-        let unorig = <Vec<&[u8]> as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
-            ctx.fds,
-            ctx.byteorder,
-            ctx.buf,
-            0,
-        ))
-        .unwrap();
-        assert_eq!(orig, unorig);
+        roundtrip(orig, &mut fds, &mut buf);
     }
 
     #[test]
     fn test_unmarshal_traits() {
-        use crate::wire::marshal::MarshalContext;
-        use crate::Marshal;
+        let mut fds = vec![];
+        let mut buf = vec![];
 
-        let mut fds = Vec::new();
-        let mut buf = Vec::new();
-        let mut ctx = MarshalContext {
-            buf: &mut buf,
-            fds: &mut fds,
-            byteorder: ByteOrder::LittleEndian,
-        };
-        let ctx = &mut ctx;
-
-        let original = &["a", "b"];
-        original.marshal(ctx).unwrap();
-
-        let v = Vec::<&str>::unmarshal(&mut UnmarshalContext::new(
-            ctx.fds,
-            ctx.byteorder,
-            ctx.buf,
-            0,
-        ))
-        .unwrap();
-
-        assert_eq!(original, v.as_slice());
-
-        ctx.buf.clear();
+        let original = vec!["a", "b"];
+        roundtrip(original, &mut fds, &mut buf);
 
         let mut original = std::collections::HashMap::new();
         original.insert(0u64, "abc");
         original.insert(1u64, "dce");
         original.insert(2u64, "fgh");
-
-        original.marshal(ctx).unwrap();
-
-        let map = std::collections::HashMap::<u64, &str>::unmarshal(&mut UnmarshalContext::new(
-            ctx.fds,
-            ctx.byteorder,
-            ctx.buf,
-            0,
-        ))
-        .unwrap();
-        assert_eq!(original, map);
-
-        ctx.buf.clear();
+        roundtrip(original, &mut fds, &mut buf);
 
         let orig = (30u8, true, 100u8, -123i32);
-        orig.marshal(ctx).unwrap();
-        type ST = (u8, bool, u8, i32);
-        let s = ST::unmarshal(&mut UnmarshalContext::new(
-            ctx.fds,
-            ctx.byteorder,
-            ctx.buf,
-            0,
-        ))
-        .unwrap();
-        assert_eq!(orig, s);
+        roundtrip(orig, &mut fds, &mut buf);
 
-        ctx.buf.clear();
-
-        use crate::wire::UnixFd;
         use crate::wire::{ObjectPath, SignatureWrapper};
-        let orig_fd = UnixFd::new(nix::unistd::dup(1).unwrap());
         let orig = (
+            1u8,
             ObjectPath::new("/a/b/c").unwrap(),
             SignatureWrapper::new("ss(aiau)").unwrap(),
-            &orig_fd,
+            0u32,
         );
-        orig.marshal(ctx).unwrap();
+        roundtrip(orig, &mut fds, &mut buf);
         assert_eq!(
-            ctx.buf,
+            &buf,
             &[
-                6, 0, 0, 0, b'/', b'a', b'/', b'b', b'/', b'c', 0, 8, b's', b's', b'(', b'a', b'i',
-                b'a', b'u', b')', 0, 0, 0, 0, 0, 0, 0, 0
+                1, 0, 0, 0, 6, 0, 0, 0, b'/', b'a', b'/', b'b', b'/', b'c', 0, 8, b's', b's', b'(',
+                b'a', b'i', b'a', b'u', b')', 0, 0, 0, 0, 0, 0, 0, 0
             ]
         );
-        let (p, s, _fd) =
-            <(ObjectPath<String>, SignatureWrapper<&str>, UnixFd) as Unmarshal>::unmarshal(
-                &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
-            )
-            .unwrap();
 
-        assert_eq!(p.as_ref(), "/a/b/c");
-        assert_eq!(s.as_ref(), "ss(aiau)");
+        let orig = (
+            1u8,
+            ObjectPath::new("/a/b/c").unwrap(),
+            1u8,
+            0xFFFFFFFFFFFFFFFFu64,
+        );
+        roundtrip(orig, &mut fds, &mut buf);
     }
 
     #[test]
