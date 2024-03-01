@@ -4,21 +4,21 @@ extern crate libfuzzer_sys;
 extern crate rustbus;
 
 fuzz_target!(|data: &[u8]| {
-    let (hdrbytes, header) = match rustbus::wire::unmarshal::unmarshal_header(data, 0) {
+    let mut cursor = rustbus::wire::unmarshal_context::Cursor::new(data);
+    let header = match rustbus::wire::unmarshal::unmarshal_header(&mut cursor) {
         Ok(head) => head,
         Err(_) => return,
     };
-    let (dynhdrbytes, dynheader) =
-        match rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, data, hdrbytes) {
-            Ok(head) => head,
-            Err(_) => return,
-        };
+    let dynheader = match rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, &mut cursor) {
+        Ok(head) => head,
+        Err(_) => return,
+    };
 
-    let (_bytes_used, msg) = match rustbus::wire::unmarshal::unmarshal_next_message(
+    let msg = match rustbus::wire::unmarshal::unmarshal_next_message(
         &header,
         dynheader,
         data.to_vec(),
-        hdrbytes + dynhdrbytes,
+        cursor.consumed(),
     ) {
         Ok(msg) => msg,
         Err(_) => return,
