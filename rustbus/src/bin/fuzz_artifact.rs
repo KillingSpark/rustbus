@@ -2,6 +2,8 @@
 
 use std::io::Read;
 
+use rustbus::wire::unmarshal_context::Cursor;
+
 fn main() {
     for path in std::env::args().skip(1) {
         println!("Run artifact: {}", path);
@@ -16,26 +18,26 @@ fn run_artifact(path: &str) {
     file.read_to_end(&mut data).unwrap();
     let data = &data;
 
-    let (hdrbytes, header) = match rustbus::wire::unmarshal::unmarshal_header(data, 0) {
+    let mut cursor = Cursor::new(data);
+    let header = match rustbus::wire::unmarshal::unmarshal_header(&mut cursor) {
         Ok(head) => head,
         Err(_) => return,
     };
 
     println!("Header: {:?}", header);
 
-    let (dynhdrbytes, dynheader) =
-        match rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, data, hdrbytes) {
-            Ok(head) => head,
-            Err(_) => return,
-        };
+    let dynheader = match rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, &mut cursor) {
+        Ok(head) => head,
+        Err(_) => return,
+    };
 
     println!("Dynheader: {:?}", dynheader);
 
-    let (_bytes_used, msg) = match rustbus::wire::unmarshal::unmarshal_next_message(
+    let msg = match rustbus::wire::unmarshal::unmarshal_next_message(
         &header,
         dynheader,
         data.clone(),
-        hdrbytes + dynhdrbytes,
+        cursor.consumed(),
     ) {
         Ok(msg) => msg,
         Err(_) => return,

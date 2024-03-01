@@ -46,10 +46,10 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for u8 {
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for bool {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, val) = ctx.read_u32()?;
+        let val = ctx.read_u32()?;
         match val {
-            0 => Ok((bytes, false)),
-            1 => Ok((bytes, true)),
+            0 => Ok(false),
+            1 => Ok(true),
             _ => Err(UnmarshalError::InvalidBoolean),
         }
     }
@@ -57,8 +57,8 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for bool {
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for f64 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, val) = ctx.read_u64()?;
-        Ok((bytes, f64::from_bits(val)))
+        let val = ctx.read_u64()?;
+        Ok(f64::from_bits(val))
     }
 }
 
@@ -70,7 +70,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf str {
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for String {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        ctx.read_str().map(|(bytes, val)| (bytes, val.to_owned()))
+        ctx.read_str().map(|val| val.to_owned())
     }
 }
 
@@ -78,16 +78,16 @@ impl<'buf, 'fds, S: AsRef<str> + From<&'buf str> + Unmarshal<'buf, 'fds>> Unmars
     for SignatureWrapper<S>
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, val) = ctx.read_signature()?;
+        let val = ctx.read_signature()?;
         let sig = SignatureWrapper::new(val.into())?;
-        Ok((bytes, sig))
+        Ok(sig)
     }
 }
 
 impl<'buf, 'fds, S: AsRef<str> + Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for ObjectPath<S> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, val) = <S as Unmarshal>::unmarshal(ctx)?;
+        let val = <S as Unmarshal>::unmarshal(ctx)?;
         let path = ObjectPath::new(val)?;
-        Ok((bytes, path))
+        Ok(path)
     }
 }

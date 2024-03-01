@@ -191,13 +191,13 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for UnixFd {
     fn unmarshal(
         ctx: &mut UnmarshalContext<'fds, 'buf>,
     ) -> crate::wire::unmarshal::UnmarshalResult<Self> {
-        let (bytes, idx) = u32::unmarshal(ctx)?;
+        let idx = u32::unmarshal(ctx)?;
 
         if ctx.fds.len() <= idx as usize {
             Err(UnmarshalError::BadFdIndex(idx as usize))
         } else {
             let val = &ctx.fds[idx as usize];
-            Ok((bytes, val.clone()))
+            Ok(val.clone())
         }
     }
 }

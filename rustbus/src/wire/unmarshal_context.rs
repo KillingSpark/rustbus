@@ -9,8 +9,7 @@ use super::{
 pub struct UnmarshalContext<'fds, 'buf> {
     pub fds: &'fds [crate::wire::UnixFd],
     pub byteorder: ByteOrder,
-    buf: &'buf [u8],
-    offset: usize,
+    cursor: Cursor<'buf>,
 }
 
 impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
@@ -23,9 +22,79 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
         Self {
             fds,
             byteorder,
-            buf,
-            offset,
+            cursor: Cursor { buf, offset },
         }
+    }
+
+    pub fn align_to(&mut self, alignment: usize) -> Result<usize, UnmarshalError> {
+        self.cursor.align_to(alignment)
+    }
+
+    pub fn remainder(&self) -> &[u8] {
+        self.cursor.remainder()
+    }
+
+    pub fn read_u8(&mut self) -> UnmarshalResult<u8> {
+        self.cursor.read_u8()
+    }
+
+    pub fn read_i16(&mut self) -> UnmarshalResult<i16> {
+        self.cursor.read_i16(self.byteorder)
+    }
+
+    pub fn read_u16(&mut self) -> UnmarshalResult<u16> {
+        self.cursor.read_u16(self.byteorder)
+    }
+
+    pub fn read_i32(&mut self) -> UnmarshalResult<i32> {
+        self.cursor.read_i32(self.byteorder)
+    }
+
+    pub fn read_u32(&mut self) -> UnmarshalResult<u32> {
+        self.cursor.read_u32(self.byteorder)
+    }
+
+    pub fn read_i64(&mut self) -> UnmarshalResult<i64> {
+        self.cursor.read_i64(self.byteorder)
+    }
+
+    pub fn read_u64(&mut self) -> UnmarshalResult<u64> {
+        self.cursor.read_u64(self.byteorder)
+    }
+
+    pub fn read_str(&mut self) -> UnmarshalResult<&'buf str> {
+        self.cursor.read_str(self.byteorder)
+    }
+
+    pub fn read_signature(&mut self) -> UnmarshalResult<&'buf str> {
+        self.cursor.read_signature()
+    }
+
+    pub fn read_u8_slice(&mut self) -> UnmarshalResult<&'buf [u8]> {
+        self.cursor.read_u8_slice(self.byteorder)
+    }
+
+    pub fn read_raw(&mut self, length: usize) -> UnmarshalResult<&'buf [u8]> {
+        self.cursor.read_raw(length)
+    }
+
+    pub fn reset(&mut self, reset_by: usize) {
+        self.cursor.reset(reset_by)
+    }
+}
+
+pub struct Cursor<'a> {
+    buf: &'a [u8],
+    offset: usize,
+}
+
+impl<'buf> Cursor<'buf> {
+    pub fn new(buf: &[u8]) -> Cursor {
+        Cursor { buf, offset: 0 }
+    }
+
+    pub fn consumed(&self) -> usize {
+        self.offset
     }
 
     pub fn align_to(&mut self, alignment: usize) -> Result<usize, UnmarshalError> {
@@ -48,66 +117,63 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
             Err(UnmarshalError::NotEnoughBytes)
         } else {
             self.offset += 1;
-            Ok((1, self.buf[self.offset - 1]))
+            Ok(self.buf[self.offset - 1])
         }
     }
 
-    pub fn read_i16(&mut self) -> UnmarshalResult<i16> {
-        self.read_u16()
-            .map(|(consumed, value)| (consumed, value as i16))
+    pub fn read_i16(&mut self, byteorder: ByteOrder) -> UnmarshalResult<i16> {
+        self.read_u16(byteorder).map(|value| value as i16)
     }
 
-    pub fn read_u16(&mut self) -> UnmarshalResult<u16> {
-        let padding = self.align_to(2)?;
-        let (consumed_value, value) = parse_u16(self.remainder(), self.byteorder)?;
-        self.offset += consumed_value;
-        Ok((consumed_value + padding, value))
+    pub fn read_u16(&mut self, byteorder: ByteOrder) -> UnmarshalResult<u16> {
+        self.align_to(2)?;
+        let value = parse_u16(self.remainder(), byteorder)?;
+        self.offset += 2;
+        Ok(value)
     }
 
-    pub fn read_i32(&mut self) -> UnmarshalResult<i32> {
-        self.read_u32()
-            .map(|(consumed, value)| (consumed, value as i32))
+    pub fn read_i32(&mut self, byteorder: ByteOrder) -> UnmarshalResult<i32> {
+        self.read_u32(byteorder).map(|value| value as i32)
     }
 
-    pub fn read_u32(&mut self) -> UnmarshalResult<u32> {
-        let padding = self.align_to(4)?;
-        let (consumed_value, value) = parse_u32(self.remainder(), self.byteorder)?;
-        self.offset += consumed_value;
-        Ok((consumed_value + padding, value))
+    pub fn read_u32(&mut self, byteorder: ByteOrder) -> UnmarshalResult<u32> {
+        self.align_to(4)?;
+        let value = parse_u32(self.remainder(), byteorder)?;
+        self.offset += 4;
+        Ok(value)
     }
 
-    pub fn read_i64(&mut self) -> UnmarshalResult<i64> {
-        self.read_u64()
-            .map(|(consumed, value)| (consumed, value as i64))
+    pub fn read_i64(&mut self, byteorder: ByteOrder) -> UnmarshalResult<i64> {
+        self.read_u64(byteorder).map(|value| value as i64)
     }
 
-    pub fn read_u64(&mut self) -> UnmarshalResult<u64> {
-        let padding = self.align_to(8)?;
-        let (consumed_value, value) = parse_u64(self.remainder(), self.byteorder)?;
-        self.offset += consumed_value;
-        Ok((consumed_value + padding, value))
+    pub fn read_u64(&mut self, byteorder: ByteOrder) -> UnmarshalResult<u64> {
+        self.align_to(8)?;
+        let value = parse_u64(self.remainder(), byteorder)?;
+        self.offset += 8;
+        Ok(value)
     }
 
-    pub fn read_str(&mut self) -> UnmarshalResult<&'buf str> {
-        let padding = self.align_to(4)?;
-        let (consumed_value, value) = unmarshal_str(self.byteorder, &self.buf[self.offset..])?;
-        self.offset += consumed_value;
-        Ok((consumed_value + padding, value))
+    pub fn read_str(&mut self, byteorder: ByteOrder) -> UnmarshalResult<&'buf str> {
+        self.align_to(4)?;
+        let (bytes, value) = unmarshal_str(byteorder, &self.buf[self.offset..])?;
+        self.offset += bytes;
+        Ok(value)
     }
 
     pub fn read_signature(&mut self) -> UnmarshalResult<&'buf str> {
-        let (consumed_value, value) = unmarshal_signature(&self.buf[self.offset..])?;
-        self.offset += consumed_value;
-        Ok((consumed_value, value))
+        let (bytes, value) = unmarshal_signature(&self.buf[self.offset..])?;
+        self.offset += bytes;
+        Ok(value)
     }
 
-    pub fn read_u8_slice(&mut self) -> UnmarshalResult<&'buf [u8]> {
-        let (bytes_in_len, bytes_in_array) = self.read_u32()?;
+    pub fn read_u8_slice(&mut self, byteorder: ByteOrder) -> UnmarshalResult<&'buf [u8]> {
+        self.align_to(4)?;
+        let bytes_in_array = self.read_u32(byteorder)?;
 
-        let (_, elements) = self.read_raw(bytes_in_array as usize)?;
+        let elements = self.read_raw(bytes_in_array as usize)?;
 
-        let total_bytes_used = bytes_in_len + bytes_in_array as usize;
-        Ok((total_bytes_used, elements))
+        Ok(elements)
     }
 
     pub fn read_raw(&mut self, length: usize) -> UnmarshalResult<&'buf [u8]> {
@@ -118,10 +184,14 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
         let elements = &&self.buf[self.offset..][..length];
         self.offset += length;
 
-        Ok((length, elements))
+        Ok(elements)
     }
 
     pub fn reset(&mut self, reset_by: usize) {
         self.offset -= reset_by;
+    }
+
+    pub fn advance(&mut self, advance_by: usize) {
+        self.offset += advance_by;
     }
 }

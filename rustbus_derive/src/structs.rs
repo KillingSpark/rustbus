@@ -50,7 +50,7 @@ pub fn make_struct_unmarshal_impl(
     quote! {
         impl #impl_gen ::rustbus::Unmarshal<'__internal_buf, '_> for #ident #typ_gen #clause_gen {
             #[inline]
-            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal_context::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::errors::UnmarshalError> {
+            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal_context::UnmarshalContext<'_,'__internal_buf>) -> Result<Self, ::rustbus::wire::errors::UnmarshalError> {
                 #marshal
             }
         }
@@ -102,16 +102,14 @@ fn struct_field_unmarshal(fields: &syn::Fields) -> TokenStream {
     let field_types = fields.iter().map(|field| field.ty.to_token_stream());
 
     quote! {
-            let start_len = ctx.remainder().len();
             ctx.align_to(8)?;
 
             let this = Self{
                 #(
-                    #field_names: <#field_types as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
+                    #field_names: <#field_types as ::rustbus::Unmarshal>::unmarshal(ctx)?,
                 )*
             };
-            let total_bytes = start_len - ctx.remainder().len();
-            Ok((total_bytes, this))
+            Ok(this)
     }
 }
 fn struct_field_sigs(fields: &syn::Fields) -> TokenStream {

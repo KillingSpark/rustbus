@@ -269,14 +269,13 @@ impl MarshalledMessage {
         } else {
             let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)?;
 
-            let (_, params) = crate::wire::unmarshal::unmarshal_body(
+            crate::wire::unmarshal::unmarshal_body(
                 self.body.byteorder,
                 &sigs,
                 self.body.get_buf(),
                 &self.body.raw_fds,
                 0,
-            )?;
-            params
+            )?
         };
         Ok(message::Message {
             dynheader: self.dynheader,
@@ -797,8 +796,8 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
                 self.buf_idx,
             );
             match T::unmarshal(&mut ctx) {
-                Ok((bytes, res)) => {
-                    self.buf_idx += bytes;
+                Ok(res) => {
+                    self.buf_idx = self.body.get_buf().len() - ctx.remainder().len();
                     self.sig_idx += expected_sig.len();
                     Ok(res)
                 }
@@ -914,8 +913,8 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
             let sig = &crate::signature::Type::parse_description(sig_str).unwrap()[0];
 
             match crate::wire::unmarshal::container::unmarshal_with_sig(sig, &mut ctx) {
-                Ok((bytes, res)) => {
-                    self.buf_idx += bytes;
+                Ok(res) => {
+                    self.buf_idx = self.body.get_buf().len() - ctx.remainder().len();
                     self.sig_idx += sig_str.len();
                     Ok(res)
                 }

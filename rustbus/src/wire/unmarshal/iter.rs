@@ -61,11 +61,11 @@ impl<'a> MessageIter<'a> {
                 self.source,
                 *self.current_offset,
             );
-            let (bytes, val) = match T::unmarshal(ctx) {
+            let val = match T::unmarshal(ctx) {
                 Err(e) => return Some(Err(e)),
                 Ok(t) => t,
             };
-            *self.current_offset += bytes;
+            *self.current_offset = self.source.len() - ctx.remainder().len();
             Some(Ok(val))
         }
     }
@@ -147,8 +147,8 @@ impl<'a, 'parent> DictEntryIter<'a> {
                 UnmarshalContext::new(&[], self.byteorder, self.source, *self.current_offset);
 
             match unmarshal_base(self.key_sig, &mut ctx) {
-                Ok((bytes, param)) => {
-                    *self.current_offset += bytes;
+                Ok(param) => {
+                    *self.current_offset = self.source.len() - ctx.remainder().len();
                     Some(Ok(ParamIter::Base(param)))
                 }
                 Err(e) => Some(Err(e)),
@@ -239,8 +239,8 @@ impl<'a, 'parent> ParamIter<'a> {
             signature::Type::Base(b) => {
                 let mut ctx = UnmarshalContext::new(&[], byteorder, source, *offset);
                 match unmarshal_base(*b, &mut ctx) {
-                    Ok((bytes, param)) => {
-                        *offset += bytes;
+                    Ok(param) => {
+                        *offset = source.len() - ctx.remainder().len();
                         Some(Ok(ParamIter::Base(param)))
                     }
                     Err(e) => Some(Err(e)),
@@ -325,8 +325,7 @@ fn make_new_array_iter<'a>(
     el_sig: &'a signature::Type,
 ) -> Result<ArrayIter<'a>, UnmarshalError> {
     // get child array size
-    let (bytes, array_len_bytes) = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
-    debug_assert_eq!(bytes, 4);
+    let array_len_bytes = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
 
     // move offset
     *offset += 4;
@@ -377,8 +376,7 @@ fn make_new_dict_iter<'a>(
     val_sig: &'a signature::Type,
 ) -> Result<DictIter<'a>, UnmarshalError> {
     // get child array size
-    let (bytes, array_len_bytes) = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
-    debug_assert_eq!(bytes, 4);
+    let array_len_bytes = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
 
     // move offset
     *offset += 4;

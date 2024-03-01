@@ -58,20 +58,17 @@ pub use container::*;
 ///
 /// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
 ///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-///         let start_len = ctx.remainder().len();
 ///         // check that we are aligned properly!
 ///         // This is necessary at the start of each struct! They need to be aligned to 8 bytes!
-///         let padding = ctx.align_to(Self::alignment())?;
+///         ctx.align_to(Self::alignment())?;
 ///
 ///         // decode some stuff and adjust offset
-///         let (bytes, mycoolint) = u64::unmarshal(ctx)?;
+///         let mycoolint = u64::unmarshal(ctx)?;
 ///         
 ///         // some more decoding if the struct had more fields
 ///         // ....
 ///         
-///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
-///         let total_bytes = start_len - ctx.remainder().len();
-///         Ok((total_bytes, MyStruct{mycoolint}))
+///         Ok(MyStruct{mycoolint})
 ///     }
 /// }
 /// ```
@@ -119,17 +116,14 @@ pub use container::*;
 ///
 /// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
 ///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> UnmarshalResult<Self> {
-///         let start_len = ctx.remainder().len();
 ///         // check that we are aligned properly
 ///         let padding = ctx.align_to(Self::alignment())?;
 ///
 ///         // get the slice that contains marshalled data, and unmarshal it directly here!
-///         let (bytes, raw_data) = <&[u8] as Unmarshal>::unmarshal(ctx)?;
+///         let raw_data = <&[u8] as Unmarshal>::unmarshal(ctx)?;
 ///         let unmarshalled_stuff = unmarshal_stuff_from_raw(&raw_data);
 ///
-///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
-///         let total_bytes = start_len - ctx.remainder().len();
-///         Ok((total_bytes, MyStruct{mycoolint: unmarshalled_stuff}))
+///         Ok(MyStruct{mycoolint: unmarshalled_stuff})
 ///     }
 /// }
 /// ```
@@ -174,8 +168,7 @@ mod test {
             ctx.buf,
             0,
         ))
-        .unwrap()
-        .1;
+        .unwrap();
 
         // annotate the receiver with a type bool to unmarshal a bool
         ctx.buf.clear();
@@ -186,8 +179,7 @@ mod test {
             ctx.buf,
             0,
         ))
-        .unwrap()
-        .1;
+        .unwrap();
 
         // can also use turbofish syntax
         ctx.buf.clear();
@@ -198,8 +190,7 @@ mod test {
             ctx.buf,
             0,
         ))
-        .unwrap()
-        .1;
+        .unwrap();
 
         // No type info on let arg = unmarshal(...) is needed if it can be derived by other means
         ctx.buf.clear();
@@ -211,8 +202,7 @@ mod test {
             ctx.buf,
             0,
         ))
-        .unwrap()
-        .1;
+        .unwrap();
         x(arg);
     }
 
@@ -238,14 +228,13 @@ mod test {
         orig.marshal(ctx).unwrap();
         assert_eq!(&ctx.buf[..4], &[0, 4, 0, 0]);
         assert_eq!(ctx.buf.len(), 1028);
-        let (bytes, unorig) = <&[u8] as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
+        let unorig = <&[u8] as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
             ctx.fds,
             ctx.byteorder,
             ctx.buf,
             0,
         ))
         .unwrap();
-        assert_eq!(bytes, orig.len() + 4);
         assert_eq!(orig, unorig);
 
         // even slices of slices of u8 work efficiently
@@ -264,7 +253,7 @@ mod test {
         orig.marshal(ctx).unwrap();
 
         // unorig[x] points into the appropriate region in buf, and unorigs lifetime is bound to buf
-        let (_bytes, unorig) = <Vec<&[u8]> as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
+        let unorig = <Vec<&[u8]> as Unmarshal>::unmarshal(&mut UnmarshalContext::new(
             ctx.fds,
             ctx.byteorder,
             ctx.buf,
@@ -291,7 +280,7 @@ mod test {
         let original = &["a", "b"];
         original.marshal(ctx).unwrap();
 
-        let (_, v) = Vec::<&str>::unmarshal(&mut UnmarshalContext::new(
+        let v = Vec::<&str>::unmarshal(&mut UnmarshalContext::new(
             ctx.fds,
             ctx.byteorder,
             ctx.buf,
@@ -310,9 +299,12 @@ mod test {
 
         original.marshal(ctx).unwrap();
 
-        let (_, map) = std::collections::HashMap::<u64, &str>::unmarshal(
-            &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
-        )
+        let map = std::collections::HashMap::<u64, &str>::unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
         .unwrap();
         assert_eq!(original, map);
 
@@ -327,8 +319,7 @@ mod test {
             ctx.buf,
             0,
         ))
-        .unwrap()
-        .1;
+        .unwrap();
         assert_eq!(orig, s);
 
         ctx.buf.clear();
@@ -349,7 +340,7 @@ mod test {
                 b'a', b'u', b')', 0, 0, 0, 0, 0, 0, 0, 0
             ]
         );
-        let (_, (p, s, _fd)) =
+        let (p, s, _fd) =
             <(ObjectPath<String>, SignatureWrapper<&str>, UnixFd) as Unmarshal>::unmarshal(
                 &mut UnmarshalContext::new(ctx.fds, ctx.byteorder, ctx.buf, 0),
             )

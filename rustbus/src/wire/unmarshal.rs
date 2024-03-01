@@ -23,7 +23,7 @@ pub mod traits;
 
 use container::*;
 
-use super::unmarshal_context::UnmarshalContext;
+use super::unmarshal_context::{Cursor, UnmarshalContext};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Header {
@@ -49,59 +49,54 @@ impl UnmarshalError {
     }
 }
 
+pub type UnmarshalResult<T> = std::result::Result<T, UnmarshalError>;
+
 pub const HEADER_LEN: usize = 12;
 
-pub type UnmarshalResult<T> = std::result::Result<(usize, T), UnmarshalError>;
-
-pub fn unmarshal_header(buf: &[u8], offset: usize) -> UnmarshalResult<Header> {
-    if buf.len() < offset + HEADER_LEN {
+pub fn unmarshal_header(cursor: &mut Cursor) -> UnmarshalResult<Header> {
+    if cursor.remainder().len() < HEADER_LEN {
         return Err(UnmarshalError::NotEnoughBytes);
     }
-    let header_slice = &buf[offset..offset + HEADER_LEN];
 
-    let byteorder = match header_slice[0] {
+    let byteorder = match cursor.read_u8()? {
         b'l' => ByteOrder::LittleEndian,
         b'B' => ByteOrder::BigEndian,
         _ => return Err(UnmarshalError::InvalidByteOrder),
     };
 
-    let typ = match header_slice[1] {
+    let typ = match cursor.read_u8()? {
         1 => MessageType::Call,
         2 => MessageType::Reply,
         3 => MessageType::Error,
         4 => MessageType::Signal,
         _ => return Err(UnmarshalError::InvalidMessageType),
     };
-    let flags = header_slice[2];
-    let version = header_slice[3];
-    let (_, body_len) = parse_u32(&header_slice[4..8], byteorder)?;
-    let (_, serial) = parse_u32(&header_slice[8..12], byteorder)?;
+    let flags = cursor.read_u8()?;
+    let version = cursor.read_u8()?;
+    let body_len = cursor.read_u32(byteorder)?;
+    let serial = cursor.read_u32(byteorder)?;
 
-    Ok((
-        HEADER_LEN,
-        Header {
-            byteorder,
-            typ,
-            flags,
-            version,
-            body_len,
-            serial,
-        },
-    ))
+    Ok(Header {
+        byteorder,
+        typ,
+        flags,
+        version,
+        body_len,
+        serial,
+    })
 }
 
 pub fn unmarshal_dynamic_header(
     header: &Header,
-    buf: &[u8],
-    offset: usize,
+    cursor: &mut Cursor,
 ) -> UnmarshalResult<DynamicHeader> {
-    let (fields_bytes_used, fields) = unmarshal_header_fields(header, buf, offset)?;
+    let fields = unmarshal_header_fields(header, cursor)?;
     let mut hdr = DynamicHeader {
         serial: Some(header.serial),
         ..Default::default()
     };
     collect_header_fields(&fields, &mut hdr);
-    Ok((fields_bytes_used, hdr))
+    Ok(hdr)
 }
 
 pub fn unmarshal_body(
@@ -112,14 +107,12 @@ pub fn unmarshal_body(
     offset: usize,
 ) -> UnmarshalResult<Vec<params::Param<'static, 'static>>> {
     let mut params = Vec::new();
-    let mut body_bytes_used = 0;
     let mut ctx = UnmarshalContext::new(fds, byteorder, buf, offset);
     for param_sig in sigs {
-        let (bytes, new_param) = unmarshal_with_sig(param_sig, &mut ctx)?;
+        let new_param = unmarshal_with_sig(param_sig, &mut ctx)?;
         params.push(new_param);
-        body_bytes_used += bytes;
     }
-    Ok((body_bytes_used, params))
+    Ok(params)
 }
 
 pub fn unmarshal_next_message(
@@ -138,12 +131,15 @@ pub fn unmarshal_next_message(
             typ: header.typ,
             flags: header.flags,
         };
-        Ok((padding, msg))
+        Ok(msg)
     } else {
         let offset = offset + padding;
 
         if buf[offset..].len() < (header.body_len as usize) {
             return Err(UnmarshalError::NotEnoughBytes);
+        }
+        if buf[offset..].len() != header.body_len as usize {
+            return Err(UnmarshalError::NotAllBytesUsed);
         }
 
         let msg = MarshalledMessage {
@@ -152,46 +148,40 @@ pub fn unmarshal_next_message(
             typ: header.typ,
             flags: header.flags,
         };
-        Ok((padding + header.body_len as usize, msg))
+        Ok(msg)
     }
 }
 
 fn unmarshal_header_fields(
     header: &Header,
-    buf: &[u8],
-    offset: usize,
+    cursor: &mut Cursor,
 ) -> UnmarshalResult<Vec<HeaderField>> {
-    let (_, header_fields_bytes) = parse_u32(&buf[offset..], header.byteorder)?;
-    let offset = offset + 4;
+    let header_fields_bytes = cursor.read_u32(header.byteorder)?;
 
-    if offset + header_fields_bytes as usize > buf.len() {
+    if cursor.remainder().len() < header_fields_bytes as usize {
         return Err(UnmarshalError::NotEnoughBytes);
     }
 
+    let mut cursor = Cursor::new(cursor.read_raw(header_fields_bytes as usize)?);
     let mut fields = Vec::new();
-    let mut bytes_used_counter = 0;
 
-    while bytes_used_counter < header_fields_bytes as usize {
-        match unmarshal_header_field(header, buf, offset + bytes_used_counter) {
-            Ok((bytes_used, field)) => {
+    while !cursor.remainder().is_empty() {
+        match unmarshal_header_field(header, &mut cursor) {
+            Ok(field) => {
                 fields.push(field);
-                bytes_used_counter += bytes_used;
             }
             Err(UnmarshalError::UnknownHeaderField) => {
-                // for the unknown header field code which is always one byte
-                bytes_used_counter += 1;
-
                 // try to validate that there is indeed a valid dbus variant. This is mandatory so the message follows the spec,
                 // even if we just ignore the contents.
                 match crate::wire::validate_raw::validate_marshalled(
                     header.byteorder,
-                    offset + bytes_used_counter,
-                    buf,
+                    0,
+                    cursor.remainder(),
                     &crate::signature::Type::Container(crate::signature::Container::Variant),
                 ) {
                     Ok(bytes) => {
                         // ignore happy path, but increase counter.
-                        bytes_used_counter += bytes;
+                        cursor.advance(bytes);
                     }
                     // if the unknown header contains invalid values this is still an error, and the message should be treated as unreadable
                     Err((_bytes, err)) => return Err(err),
@@ -203,112 +193,88 @@ fn unmarshal_header_fields(
     params::validate_header_fields(header.typ, &fields)
         .map_err(|_| UnmarshalError::InvalidHeaderFields)?;
 
-    Ok((header_fields_bytes as usize + 4, fields))
+    Ok(fields)
 }
 
-fn unmarshal_header_field(
-    header: &Header,
-    buf: &[u8],
-    offset: usize,
-) -> UnmarshalResult<HeaderField> {
-    // align to 8 because the header fields are an array structs `a(yv)`
-    let padding = align_offset(8, buf, offset)?;
-    let offset = offset + padding;
+fn unmarshal_header_field(header: &Header, cursor: &mut Cursor) -> UnmarshalResult<HeaderField> {
+    // align to 8 because the header fields are an array of structs `a(yv)`
+    cursor.align_to(8)?;
 
-    // check that there is enough bytes in the buffer after padding
-    if buf.len() <= offset {
-        return Err(UnmarshalError::NotEnoughBytes);
-    }
-    let typ = buf[offset];
-    let typ_bytes_used = 1;
-    let offset = offset + typ_bytes_used;
+    let typ = cursor.read_u8()?;
 
-    let (sig_bytes_used, sig_str) = unmarshal_signature(&buf[offset..])?;
+    let sig_str = cursor.read_signature()?;
     let mut sig =
         signature::Type::parse_description(sig_str).map_err(|_| UnmarshalError::NoSignature)?;
-    let offset = offset + sig_bytes_used;
 
     if sig.len() != 1 {
         // There must be exactly one type in the signature!
         return Err(UnmarshalError::NoSignature);
     }
     let sig = sig.remove(0);
-    let (field_bytes_used, field) = match typ {
+    match typ {
         1 => match sig {
             signature::Type::Base(signature::Base::ObjectPath) => {
-                let (b, objpath) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                crate::params::validate_object_path(&objpath)?;
-                (b, Ok(HeaderField::Path(objpath)))
+                let objpath = cursor.read_str(header.byteorder)?;
+                crate::params::validate_object_path(objpath)?;
+                Ok(HeaderField::Path(objpath.to_owned()))
             }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         2 => match sig {
-            signature::Type::Base(signature::Base::String) => {
-                let (b, int) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(HeaderField::Interface(int)))
-            }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            signature::Type::Base(signature::Base::String) => Ok(HeaderField::Interface(
+                cursor.read_str(header.byteorder)?.to_owned(),
+            )),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         3 => match sig {
-            signature::Type::Base(signature::Base::String) => {
-                let (b, mem) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(HeaderField::Member(mem)))
-            }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            signature::Type::Base(signature::Base::String) => Ok(HeaderField::Member(
+                cursor.read_str(header.byteorder)?.to_owned(),
+            )),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         4 => match sig {
-            signature::Type::Base(signature::Base::String) => {
-                let (b, name) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(HeaderField::ErrorName(name)))
-            }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            signature::Type::Base(signature::Base::String) => Ok(HeaderField::ErrorName(
+                cursor.read_str(header.byteorder)?.to_owned(),
+            )),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         5 => match sig {
             signature::Type::Base(signature::Base::Uint32) => {
-                let (b, serial) = parse_u32(&buf[offset..], header.byteorder)?;
-                (b, Ok(HeaderField::ReplySerial(serial)))
+                Ok(HeaderField::ReplySerial(cursor.read_u32(header.byteorder)?))
             }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         6 => match sig {
-            signature::Type::Base(signature::Base::String) => {
-                let (b, dest) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(HeaderField::Destination(dest)))
-            }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            signature::Type::Base(signature::Base::String) => Ok(HeaderField::Destination(
+                cursor.read_str(header.byteorder)?.to_owned(),
+            )),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         7 => match sig {
-            signature::Type::Base(signature::Base::String) => {
-                let (b, snd) = unmarshal_string(header.byteorder, &buf[offset..])?;
-                (b, Ok(HeaderField::Sender(snd)))
-            }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            signature::Type::Base(signature::Base::String) => Ok(HeaderField::Sender(
+                cursor.read_str(header.byteorder)?.to_owned(),
+            )),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         8 => match sig {
             signature::Type::Base(signature::Base::Signature) => {
-                let (b, sig) = unmarshal_signature(&buf[offset..])?;
+                let sig = cursor.read_signature()?;
                 // empty signature is allowed here
                 if !sig.is_empty() {
                     crate::params::validate_signature(sig)?;
                 }
-                (b, Ok(HeaderField::Signature(sig.to_owned())))
+                Ok(HeaderField::Signature(sig.to_owned()))
             }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            _ => Err(UnmarshalError::WrongSignature),
         },
         9 => match sig {
             signature::Type::Base(signature::Base::Uint32) => {
-                let (b, fds) = parse_u32(&buf[offset..], header.byteorder)?;
-                (b, Ok(HeaderField::UnixFds(fds)))
+                Ok(HeaderField::UnixFds(cursor.read_u32(header.byteorder)?))
             }
-            _ => (0, Err(UnmarshalError::WrongSignature)),
+            _ => Err(UnmarshalError::WrongSignature),
         },
-        0 => (0, Err(UnmarshalError::InvalidHeaderField)),
-        _ => (0, Err(UnmarshalError::UnknownHeaderField)),
-    };
-    let sum_bytes_used = padding + typ_bytes_used + sig_bytes_used + field_bytes_used;
-    match field {
-        Ok(field) => Ok((sum_bytes_used, field)),
-        Err(e) => Err(e),
+        0 => Err(UnmarshalError::InvalidHeaderField),
+        _ => Err(UnmarshalError::UnknownHeaderField),
     }
 }
 

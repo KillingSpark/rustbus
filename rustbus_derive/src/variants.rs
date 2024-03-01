@@ -185,9 +185,8 @@ pub fn make_variant_unmarshal_impl(
     quote! {
         impl #impl_gen ::rustbus::Unmarshal<'__internal_buf, '_> for #ident #typ_gen #clause_gen {
             #[inline]
-            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal_context::UnmarshalContext<'_,'__internal_buf>) -> Result<(usize,Self), ::rustbus::wire::errors::UnmarshalError> {
-                let start_len = ctx.remainder().len();
-                let (sig_bytes, sig) = ctx.read_signature()?;
+            fn unmarshal(ctx: &mut ::rustbus::wire::unmarshal_context::UnmarshalContext<'_,'__internal_buf>) -> Result<Self, ::rustbus::wire::errors::UnmarshalError> {
+                let sig = ctx.read_signature()?;
 
                 #marshal
                 Err(::rustbus::wire::errors::UnmarshalError::NoMatchingVariantFound)
@@ -226,11 +225,10 @@ fn variant_unmarshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStre
                     ctx.align_to(8)?;
                     let this = #enum_name::#name{
                         #(
-                            #field_names: <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
+                            #field_names: <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?,
                         )*
                     };
-                    let total_bytes = start_len - ctx.remainder().len();
-                    return Ok((total_bytes, this));
+                    return Ok(this);
                 }
             }
         } else if variant.fields.iter().next().unwrap().ident.is_none() && variant.fields.len() > 1
@@ -248,11 +246,10 @@ fn variant_unmarshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStre
                     ctx.align_to(8)?;
                     let this = #enum_name::#name(
                         #(
-                            <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
+                            <#field_types2 as ::rustbus::Unmarshal>::unmarshal(ctx)?,
                         )*
                     );
-                    let total_bytes = start_len - ctx.remainder().len();
-                    return Ok((total_bytes, this));
+                    return Ok(this);
                 }
             }
         } else {
@@ -265,10 +262,9 @@ fn variant_unmarshal(enum_name: syn::Ident, variant: &syn::Variant) -> TokenStre
 
                 if sig.eq(sig_str.as_ref()) {
                     let this = #enum_name::#name(
-                        <#ty as ::rustbus::Unmarshal>::unmarshal(ctx)?.1,
+                        <#ty as ::rustbus::Unmarshal>::unmarshal(ctx)?,
                     );
-                    let total_bytes = start_len - ctx.remainder().len();
-                    return Ok((total_bytes, this));
+                    return Ok(this);
                 }
             }
         }

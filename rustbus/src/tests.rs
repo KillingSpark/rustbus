@@ -4,6 +4,7 @@ use crate::wire::marshal::marshal;
 use crate::wire::unmarshal::unmarshal_dynamic_header;
 use crate::wire::unmarshal::unmarshal_header;
 use crate::wire::unmarshal::unmarshal_next_message;
+use crate::wire::unmarshal_context::Cursor;
 
 mod dbus_send;
 mod fdpassing;
@@ -42,13 +43,15 @@ fn test_marshal_unmarshal() {
     msg.dynheader.serial = Some(1);
     let mut buf = Vec::new();
     marshal(&msg, 0, &mut buf).unwrap();
-    let (hdrbytes, header) = unmarshal_header(&buf, 0).unwrap();
-    let (dynhdrbytes, dynheader) = unmarshal_dynamic_header(&header, &buf, hdrbytes).unwrap();
 
-    let headers_plus_padding = hdrbytes + dynhdrbytes + (8 - ((hdrbytes + dynhdrbytes) % 8));
+    let mut cursor = Cursor::new(&buf);
+    let header = unmarshal_header(&mut cursor).unwrap();
+    let dynheader = unmarshal_dynamic_header(&header, &mut cursor).unwrap();
+
+    let headers_plus_padding = cursor.consumed() + (8 - ((cursor.consumed()) % 8));
     assert_eq!(headers_plus_padding, buf.len());
 
-    let (_, unmarshed_msg) =
+    let unmarshed_msg =
         unmarshal_next_message(&header, dynheader, msg.get_buf().to_vec(), 0).unwrap();
 
     let msg = unmarshed_msg.unmarshall_all().unwrap();
