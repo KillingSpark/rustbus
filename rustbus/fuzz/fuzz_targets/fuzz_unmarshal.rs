@@ -5,23 +5,20 @@ extern crate rustbus;
 
 fuzz_target!(|data: &[u8]| {
     let mut cursor = rustbus::wire::unmarshal_context::Cursor::new(data);
-    let header = match rustbus::wire::unmarshal::unmarshal_header(&mut cursor) {
-        Ok(head) => head,
-        Err(_) => return,
+    let Ok(header) = rustbus::wire::unmarshal::unmarshal_header(&mut cursor) else {
+        return;
     };
-    let dynheader = match rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, &mut cursor) {
-        Ok(head) => head,
-        Err(_) => return,
+    let Ok(dynheader) = rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, &mut cursor) else {
+        return;
     };
 
-    let msg = match rustbus::wire::unmarshal::unmarshal_next_message(
+    let Ok(msg) = rustbus::wire::unmarshal::unmarshal_next_message(
         &header,
         dynheader,
         data.to_vec(),
         cursor.consumed(),
-    ) {
-        Ok(msg) => msg,
-        Err(_) => return,
+    ) else {
+        return;
     };
     try_unmarhal_traits(&msg);
     msg.unmarshall_all().ok();

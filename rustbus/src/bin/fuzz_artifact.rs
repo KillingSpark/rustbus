@@ -19,28 +19,26 @@ fn run_artifact(path: &str) {
     let data = &data;
 
     let mut cursor = Cursor::new(data);
-    let header = match rustbus::wire::unmarshal::unmarshal_header(&mut cursor) {
-        Ok(head) => head,
-        Err(_) => return,
+    let Ok(header) = rustbus::wire::unmarshal::unmarshal_header(&mut cursor) else {
+        return;
     };
 
     println!("Header: {:?}", header);
 
-    let dynheader = match rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, &mut cursor) {
-        Ok(head) => head,
-        Err(_) => return,
+    let Ok(dynheader) = rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, &mut cursor)
+    else {
+        return;
     };
 
     println!("Dynheader: {:?}", dynheader);
 
-    let msg = match rustbus::wire::unmarshal::unmarshal_next_message(
+    let Ok(msg) = rustbus::wire::unmarshal::unmarshal_next_message(
         &header,
         dynheader,
         data.clone(),
         cursor.consumed(),
-    ) {
-        Ok(msg) => msg,
-        Err(_) => return,
+    ) else {
+        return;
     };
 
     println!("Message: {:?}", msg);

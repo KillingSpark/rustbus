@@ -269,9 +269,8 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         let desc = ctx.read_signature()?;
 
-        let mut sigs = match signature::Type::parse_description(desc) {
-            Ok(sigs) => sigs,
-            Err(_) => return Err(UnmarshalError::WrongSignature),
+        let Ok(mut sigs) = signature::Type::parse_description(desc) else {
+            return Err(UnmarshalError::WrongSignature);
         };
         if sigs.len() != 1 {
             return Err(UnmarshalError::WrongSignature);
