@@ -292,7 +292,8 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
 
 #[cfg(test)]
 mod tests {
-    use crate::message_builder::MarshalledMessageBody;
+    use crate::{message_builder::MarshalledMessageBody, ByteOrder};
+    use std::borrow::Cow;
 
     #[test]
     fn variant_with_sig() {
@@ -321,13 +322,32 @@ mod tests {
         m.push_param(&[0u8, 1, 2, 3, 4, 5, 6]).unwrap(); // Array as ref
         m.push_param(-2000i16).unwrap();
         m.push_param(&[0u8, 1, 2, 3, 4, 5, 6, 7][..]).unwrap(); // Slice
+        m.push_param([-100i16, -200, -300, -400, -500, -600])
+            .unwrap(); // Array by value
 
         let mut parser = m.parser();
+        assert!(parser.get::<Cow<[i16]>>().is_err());
         assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5]);
         assert_eq!(parser.get::<u8>().unwrap(), 0);
         assert_eq!(parser.get::<i16>().unwrap(), -10);
         assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5, 6]);
         assert_eq!(parser.get::<i16>().unwrap(), -2000);
         assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5, 6, 7]);
+        assert!(matches!(
+            parser.get::<Cow<[i16]>>().unwrap(),
+            Cow::Borrowed(&[-100i16, -200, -300, -400, -500, -600])
+        ));
+
+        let non_native_byteorder = match cfg!(target_endian = "little") {
+            true => ByteOrder::BigEndian,
+            false => ByteOrder::LittleEndian,
+        };
+        let mut m = MarshalledMessageBody::with_byteorder(non_native_byteorder);
+        m.push_param([-100i16, -200, -300, -400, -500, -600])
+            .unwrap();
+        let mut parser = m.parser();
+        let unmarshalled = parser.get::<Cow<[i16]>>().unwrap();
+        assert!(matches!(unmarshalled, Cow::Owned(_)));
+        assert_eq!(unmarshalled, vec![-100i16, -200, -300, -400, -500, -600])
     }
 }
