@@ -311,4 +311,23 @@ mod tests {
             .unwrap();
         assert_eq!(variant.get::<u8>().unwrap(), 42);
     }
+
+    #[test]
+    fn array() {
+        let mut m = MarshalledMessageBody::new();
+        m.push_param([0u8, 1, 2, 3, 4, 5]).unwrap(); // Array by value
+        m.push_param(0u8).unwrap();
+        m.push_param(-10i16).unwrap();
+        m.push_param(&[0u8, 1, 2, 3, 4, 5, 6]).unwrap(); // Array as ref
+        m.push_param(-2000i16).unwrap();
+        m.push_param(&[0u8, 1, 2, 3, 4, 5, 6, 7][..]).unwrap(); // Slice
+
+        let mut parser = m.parser();
+        assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5]);
+        assert_eq!(parser.get::<u8>().unwrap(), 0);
+        assert_eq!(parser.get::<i16>().unwrap(), -10);
+        assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(parser.get::<i16>().unwrap(), -2000);
+        assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5, 6, 7]);
+    }
 }

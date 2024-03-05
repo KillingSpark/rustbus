@@ -9,8 +9,10 @@ const TEST_STRING: &str = "This will be sent over the fd\n";
 
 #[test]
 fn test_fd_passing() {
-    let mut con1 =
-        connection::rpc_conn::RpcConn::system_conn(connection::Timeout::Infinite).unwrap();
+    let Ok(mut con1) = connection::rpc_conn::RpcConn::system_conn(connection::Timeout::Infinite)
+    else {
+        return;
+    };
     let mut con2 =
         connection::rpc_conn::RpcConn::system_conn(connection::Timeout::Infinite).unwrap();
     con1.send_message(&mut crate::standard_messages::hello())

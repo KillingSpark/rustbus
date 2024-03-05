@@ -210,7 +210,7 @@ mod test {
         x(arg);
     }
 
-    pub fn roundtrip<'a, T>(original: T, fds: &'a mut Vec<UnixFd>, buf: &'a mut Vec<u8>)
+    fn roundtrip<'a, T>(original: T, fds: &'a mut Vec<UnixFd>, buf: &'a mut Vec<u8>)
     where
         T: Unmarshal<'a, 'a>,
         T: Marshal,
@@ -223,8 +223,8 @@ mod test {
 
         original
             .marshal(&mut MarshalContext {
-                buf: buf,
-                fds: fds,
+                buf,
+                fds,
                 byteorder,
             })
             .unwrap();
@@ -275,6 +275,18 @@ mod test {
         original.insert(0u64, "abc");
         original.insert(1u64, "dce");
         original.insert(2u64, "fgh");
+        roundtrip(original, &mut fds, &mut buf);
+
+        let mut original = std::collections::HashMap::new();
+        original.insert(0u8, "abc");
+        original.insert(1u8, "dce");
+        original.insert(2u8, "fgh");
+        roundtrip(original, &mut fds, &mut buf);
+
+        let mut original = std::collections::HashMap::new();
+        original.insert(0i16, "abc");
+        original.insert(1i16, "dce");
+        original.insert(2i16, "fgh");
         roundtrip(original, &mut fds, &mut buf);
 
         let orig = (30u8, true, 100u8, -123i32);

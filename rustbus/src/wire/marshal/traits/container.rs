@@ -241,7 +241,7 @@ impl<E1: Marshal, E2: Marshal, E3: Marshal, E4: Marshal, E5: Marshal> Marshal
 
 impl<E: Marshal> Marshal for Vec<E> {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
-        self.as_slice().marshal(ctx)
+        <&[E] as Marshal>::marshal(&self.as_slice(), ctx)
     }
 }
 
@@ -270,7 +270,30 @@ impl<E: Signature> Signature for [E] {
 }
 impl<E: Marshal> Marshal for [E] {
     fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
-        (&self).marshal(ctx)
+        <&[E] as Marshal>::marshal(&self, ctx)
+    }
+}
+
+impl<E: Signature, const N: usize> Signature for [E; N] {
+    #[inline]
+    fn signature() -> crate::signature::Type {
+        <[E]>::signature()
+    }
+    #[inline]
+    fn alignment() -> usize {
+        <[E]>::alignment()
+    }
+    #[inline]
+    fn sig_str(s_buf: &mut SignatureBuffer) {
+        <[E]>::sig_str(s_buf)
+    }
+    fn has_sig(sig: &str) -> bool {
+        <[E]>::has_sig(sig)
+    }
+}
+impl<E: Marshal, const N: usize> Marshal for [E; N] {
+    fn marshal(&self, ctx: &mut MarshalContext) -> Result<(), MarshalError> {
+        <&[E] as Marshal>::marshal(&self.as_slice(), ctx)
     }
 }
 
