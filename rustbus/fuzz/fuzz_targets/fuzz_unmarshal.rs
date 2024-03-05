@@ -17,6 +17,7 @@ fuzz_target!(|data: &[u8]| {
         dynheader,
         data.to_vec(),
         cursor.consumed(),
+        vec![],
     ) else {
         return;
     };
