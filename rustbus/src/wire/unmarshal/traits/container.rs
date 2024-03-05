@@ -4,6 +4,7 @@ use crate::signature;
 use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::unmarshal;
+use crate::wire::unmarshal::UnmarshalResult;
 use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::Signature;
 use crate::Unmarshal;
@@ -247,6 +248,22 @@ impl<'buf, 'fds> Variant<'fds, 'buf> {
         let mut ctx = self.sub_ctx;
         T::unmarshal(&mut ctx)
     }
+
+    pub fn unmarshal_with_sig(
+        sig: signature::Type,
+        ctx: &mut UnmarshalContext<'fds, 'buf>,
+    ) -> UnmarshalResult<Self> {
+        ctx.align_to(sig.get_alignment())?;
+
+        let val_bytes =
+            crate::wire::validate_raw::validate_marshalled(ctx.byteorder, 0, ctx.remainder(), &sig)
+                .map_err(|e| e.1)?;
+
+        Ok(Variant {
+            sig,
+            sub_ctx: ctx.sub_context(val_bytes)?,
+        })
+    }
 }
 
 impl Signature for Variant<'_, '_> {
@@ -277,16 +294,7 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
         }
         let sig = sigs.remove(0);
 
-        ctx.align_to(sig.get_alignment())?;
-
-        let val_bytes =
-            crate::wire::validate_raw::validate_marshalled(ctx.byteorder, 0, ctx.remainder(), &sig)
-                .map_err(|e| e.1)?;
-
-        Ok(Variant {
-            sig,
-            sub_ctx: ctx.sub_context(val_bytes)?,
-        })
+        Self::unmarshal_with_sig(sig, ctx)
     }
 }
 

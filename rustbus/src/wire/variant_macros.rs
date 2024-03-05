@@ -341,7 +341,6 @@ macro_rules! dbus_variant_var_unmarshal {
                 ctx: &mut $crate::wire::unmarshal_context::UnmarshalContext<'fds, 'buf>
             ) -> $crate::wire::unmarshal::UnmarshalResult<Self> {
                 use $crate::Signature;
-                use $crate::Unmarshal;
                 use $crate::wire::marshal::traits::SignatureBuffer;
 
                 let sig_str = ctx.read_signature()?;
@@ -354,9 +353,14 @@ macro_rules! dbus_variant_var_unmarshal {
                     return Ok(Self::$name(v));
                 }
                 )+
-                // TODO this should just be a function on Variant that takes the signature str
-                ctx.reset(1 + sig_str.as_bytes().len() + 1);
-                let var = <$crate::wire::unmarshal::traits::Variant as Unmarshal>::unmarshal(ctx)?;
+                let Ok(mut sigs) = $crate::signature::Type::parse_description(sig_str) else {
+                    return Err($crate::wire::errors::UnmarshalError::WrongSignature);
+                };
+                if sigs.len() != 1 {
+                    return Err($crate::wire::errors::UnmarshalError::WrongSignature);
+                }
+                let sig = sigs.remove(0);
+                let var = $crate::wire::unmarshal::traits::Variant::unmarshal_with_sig(sig, ctx)?;
                 Ok(Self::Catchall(var))
             }
         }

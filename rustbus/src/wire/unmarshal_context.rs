@@ -94,10 +94,6 @@ impl<'fds, 'buf> UnmarshalContext<'fds, 'buf> {
     pub fn read_raw(&mut self, length: usize) -> UnmarshalResult<&'buf [u8]> {
         self.cursor.read_raw(length)
     }
-
-    pub fn reset(&mut self, reset_by: usize) {
-        self.cursor.reset(reset_by)
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -203,10 +199,6 @@ impl<'buf> Cursor<'buf> {
         self.offset += length;
 
         Ok(elements)
-    }
-
-    pub fn reset(&mut self, reset_by: usize) {
-        self.offset -= reset_by;
     }
 
     pub fn advance(&mut self, advance_by: usize) {
