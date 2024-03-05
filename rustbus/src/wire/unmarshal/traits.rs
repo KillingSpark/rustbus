@@ -74,8 +74,12 @@ pub use container::*;
 /// ```
 ///
 /// This is of course just an example, this could be solved by using
-/// ```rust,ignore
-/// let (bytes, mycoolint) =  <(u64,) as Unmarshal>::unmarshal(...)
+/// ```rust
+/// use rustbus::wire::unmarshal_context::UnmarshalContext;
+/// use rustbus::wire::unmarshal::traits::Unmarshal;
+/// fn foo(ctx: &mut UnmarshalContext) {
+///     let mycoolint =  <(u64,) as Unmarshal>::unmarshal(ctx).unwrap();
+/// }
 /// ```
 ///
 /// ## Cool things you can do
