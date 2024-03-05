@@ -1,11 +1,13 @@
 //! Build new messages that you want to send over a connection
+use std::os::fd::RawFd;
+
 use crate::params::message;
 use crate::signature::SignatureIter;
 use crate::wire::errors::MarshalError;
 use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::{Marshal, SignatureBuffer};
 use crate::wire::marshal::MarshalContext;
-use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::wire::validate_raw;
 use crate::wire::UnixFd;
 use crate::ByteOrder;
@@ -269,14 +271,13 @@ impl MarshalledMessage {
         } else {
             let sigs: Vec<_> = crate::signature::Type::parse_description(&self.body.sig)?;
 
-            let (_, params) = crate::wire::unmarshal::unmarshal_body(
+            crate::wire::unmarshal::unmarshal_body(
                 self.body.byteorder,
                 &sigs,
                 self.body.get_buf(),
                 &self.body.raw_fds,
                 0,
-            )?;
-            params
+            )?
         };
         Ok(message::Message {
             dynheader: self.dynheader,
@@ -295,10 +296,10 @@ pub struct MarshalledMessageBody {
     buf_offset: usize,
 
     // out of band data
-    pub(crate) raw_fds: Vec<crate::wire::UnixFd>,
+    raw_fds: Vec<crate::wire::UnixFd>,
 
     sig: SignatureBuffer,
-    pub(crate) byteorder: ByteOrder,
+    byteorder: ByteOrder,
 }
 
 impl Default for MarshalledMessageBody {
@@ -377,11 +378,22 @@ impl MarshalledMessageBody {
         &self.buf[self.buf_offset..]
     }
 
+    pub fn get_raw_fds(&self) -> Vec<RawFd> {
+        self.raw_fds
+            .iter()
+            .filter_map(|fd| fd.get_raw_fd())
+            .collect::<Vec<RawFd>>()
+    }
+
+    pub fn byteorder(&self) -> ByteOrder {
+        self.byteorder
+    }
+
     /// Get a clone of all the `UnixFd`s in the body.
     ///
     /// Some of the `UnixFd`s may already have their `RawFd`s taken.
-    pub fn get_fds(&self) -> Vec<UnixFd> {
-        self.raw_fds.clone()
+    pub fn get_fds(&self) -> &[UnixFd] {
+        &self.raw_fds
     }
     /// Clears the buffer and signature but holds on to the memory allocations. You can now start pushing new
     /// params as if this were a new message. This allows to reuse the OutMessage for the same dbus-message with different
@@ -790,15 +802,15 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
                 return Err(UnmarshalError::WrongSignature);
             }
 
-            let mut ctx = UnmarshalContext {
-                byteorder: self.body.byteorder,
-                buf: self.body.get_buf(),
-                offset: self.buf_idx,
-                fds: &self.body.raw_fds,
-            };
+            let mut ctx = UnmarshalContext::new(
+                &self.body.raw_fds,
+                self.body.byteorder,
+                self.body.get_buf(),
+                self.buf_idx,
+            );
             match T::unmarshal(&mut ctx) {
-                Ok((bytes, res)) => {
-                    self.buf_idx += bytes;
+                Ok(res) => {
+                    self.buf_idx = self.body.get_buf().len() - ctx.remainder().len();
                     self.sig_idx += expected_sig.len();
                     Ok(res)
                 }
@@ -904,18 +916,18 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
     pub fn get_param(&mut self) -> Result<crate::params::Param, UnmarshalError> {
         if let Some(sig_str) = self.get_next_sig() {
-            let mut ctx = UnmarshalContext {
-                byteorder: self.body.byteorder,
-                buf: self.body.get_buf(),
-                offset: self.buf_idx,
-                fds: &self.body.raw_fds,
-            };
+            let mut ctx = UnmarshalContext::new(
+                &self.body.raw_fds,
+                self.body.byteorder,
+                self.body.get_buf(),
+                self.buf_idx,
+            );
 
             let sig = &crate::signature::Type::parse_description(sig_str).unwrap()[0];
 
             match crate::wire::unmarshal::container::unmarshal_with_sig(sig, &mut ctx) {
-                Ok((bytes, res)) => {
-                    self.buf_idx += bytes;
+                Ok(res) => {
+                    self.buf_idx = self.body.get_buf().len() - ctx.remainder().len();
                     self.sig_idx += sig_str.len();
                     Ok(res)
                 }

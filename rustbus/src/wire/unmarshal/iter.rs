@@ -5,7 +5,7 @@ use crate::params;
 use crate::signature;
 use crate::wire::errors::UnmarshalError;
 use crate::wire::unmarshal::base::unmarshal_base;
-use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::ByteOrder;
 
 pub struct MessageIter<'a> {
@@ -55,17 +55,17 @@ impl<'a> MessageIter<'a> {
         if self.counter >= self.sig.len() {
             None
         } else {
-            let ctx = &mut crate::wire::unmarshal::UnmarshalContext {
-                buf: self.source,
-                fds: &[],
-                byteorder: self.byteorder,
-                offset: *self.current_offset,
-            };
-            let (bytes, val) = match T::unmarshal(ctx) {
+            let ctx = &mut crate::wire::unmarshal::UnmarshalContext::new(
+                &[],
+                self.byteorder,
+                self.source,
+                *self.current_offset,
+            );
+            let val = match T::unmarshal(ctx) {
                 Err(e) => return Some(Err(e)),
                 Ok(t) => t,
             };
-            *self.current_offset += bytes;
+            *self.current_offset = self.source.len() - ctx.remainder().len();
             Some(Ok(val))
         }
     }
@@ -143,16 +143,12 @@ impl<'a, 'parent> DictEntryIter<'a> {
         let iter = if self.counter == 0 {
             // read the key value
 
-            let mut ctx = UnmarshalContext {
-                byteorder: self.byteorder,
-                buf: self.source,
-                offset: *self.current_offset,
-                fds: &Vec::new(),
-            };
+            let mut ctx =
+                UnmarshalContext::new(&[], self.byteorder, self.source, *self.current_offset);
 
             match unmarshal_base(self.key_sig, &mut ctx) {
-                Ok((bytes, param)) => {
-                    *self.current_offset += bytes;
+                Ok(param) => {
+                    *self.current_offset = self.source.len() - ctx.remainder().len();
                     Some(Ok(ParamIter::Base(param)))
                 }
                 Err(e) => Some(Err(e)),
@@ -241,15 +237,10 @@ impl<'a, 'parent> ParamIter<'a> {
 
         match new_sig {
             signature::Type::Base(b) => {
-                let mut ctx = UnmarshalContext {
-                    byteorder,
-                    buf: source,
-                    offset: *offset,
-                    fds: &Vec::new(),
-                };
+                let mut ctx = UnmarshalContext::new(&[], byteorder, source, *offset);
                 match unmarshal_base(*b, &mut ctx) {
-                    Ok((bytes, param)) => {
-                        *offset += bytes;
+                    Ok(param) => {
+                        *offset = source.len() - ctx.remainder().len();
                         Some(Ok(ParamIter::Base(param)))
                     }
                     Err(e) => Some(Err(e)),
@@ -334,8 +325,7 @@ fn make_new_array_iter<'a>(
     el_sig: &'a signature::Type,
 ) -> Result<ArrayIter<'a>, UnmarshalError> {
     // get child array size
-    let (bytes, array_len_bytes) = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
-    debug_assert_eq!(bytes, 4);
+    let array_len_bytes = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
 
     // move offset
     *offset += 4;
@@ -386,8 +376,7 @@ fn make_new_dict_iter<'a>(
     val_sig: &'a signature::Type,
 ) -> Result<DictIter<'a>, UnmarshalError> {
     // get child array size
-    let (bytes, array_len_bytes) = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
-    debug_assert_eq!(bytes, 4);
+    let array_len_bytes = crate::wire::util::parse_u32(&source[*offset..], byteorder)?;
 
     // move offset
     *offset += 4;

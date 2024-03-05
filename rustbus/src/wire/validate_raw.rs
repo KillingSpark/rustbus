@@ -92,7 +92,7 @@ pub fn validate_marshalled_base(
             }
             let offset = offset + padding;
             let slice = &buf[offset..offset + 4];
-            let (_, val) =
+            let val =
                 crate::wire::util::parse_u32(slice, byteorder).map_err(|err| (offset, err))?;
             match val {
                 0 => Ok(4 + padding),
@@ -134,7 +134,7 @@ pub fn validate_marshalled_container(
         signature::Container::Array(elem_sig) => {
             let padding = util::align_offset(4, buf, offset).map_err(|err| (offset, err))?;
             let offset = offset + padding;
-            let (_, bytes_in_array) =
+            let bytes_in_array =
                 util::parse_u32(&buf[offset..], byteorder).map_err(|err| (offset, err))?;
             let offset = offset + 4;
 
@@ -176,7 +176,7 @@ pub fn validate_marshalled_container(
         signature::Container::Dict(key_sig, val_sig) => {
             let padding = util::align_offset(4, buf, offset).map_err(|err| (offset, err))?;
             let offset = offset + padding;
-            let (_, bytes_in_dict) =
+            let bytes_in_dict =
                 util::parse_u32(&buf[offset..], byteorder).map_err(|err| (offset, err))?;
             let offset = offset + 4;
 

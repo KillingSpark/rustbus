@@ -147,7 +147,7 @@ pub fn parse_u64(number: &[u8], byteorder: ByteOrder) -> UnmarshalResult<u64> {
                 + ((number[0] as u64) << 56)
         }
     };
-    Ok((8, val))
+    Ok(val)
 }
 
 pub fn parse_u32(number: &[u8], byteorder: ByteOrder) -> UnmarshalResult<u32> {
@@ -168,7 +168,7 @@ pub fn parse_u32(number: &[u8], byteorder: ByteOrder) -> UnmarshalResult<u32> {
                 + ((number[0] as u32) << 24)
         }
     };
-    Ok((4, val))
+    Ok(val)
 }
 
 pub fn parse_u16(number: &[u8], byteorder: ByteOrder) -> UnmarshalResult<u16> {
@@ -179,7 +179,7 @@ pub fn parse_u16(number: &[u8], byteorder: ByteOrder) -> UnmarshalResult<u16> {
         ByteOrder::LittleEndian => (number[0] as u16) + ((number[1] as u16) << 8),
         ByteOrder::BigEndian => (number[1] as u16) + ((number[0] as u16) << 8),
     };
-    Ok((2, val))
+    Ok(val)
 }
 
 pub fn align_offset(align_to: usize, buf: &[u8], offset: usize) -> Result<usize, UnmarshalError> {
@@ -201,7 +201,7 @@ pub fn align_offset(align_to: usize, buf: &[u8], offset: usize) -> Result<usize,
     Ok(padding_delete)
 }
 
-pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<&str> {
+pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<(usize, &str)> {
     if buf.is_empty() {
         return Err(UnmarshalError::NotEnoughBytes);
     }
@@ -209,19 +209,22 @@ pub fn unmarshal_signature(buf: &[u8]) -> UnmarshalResult<&str> {
     if buf.len() < len + 2 {
         return Err(UnmarshalError::NotEnoughBytes);
     }
-    let sig_buf = &buf[1..];
-    let string = std::str::from_utf8(&sig_buf[..len])
-        .map_err(|_| crate::params::validation::Error::InvalidUtf8)?;
+    let sig_buf = &buf[1..][..len];
+    let string =
+        std::str::from_utf8(sig_buf).map_err(|_| crate::params::validation::Error::InvalidUtf8)?;
     Ok((len + 2, string))
 }
 
-pub fn unmarshal_string(byteorder: ByteOrder, buf: &[u8]) -> UnmarshalResult<String> {
+pub fn unmarshal_string(byteorder: ByteOrder, buf: &[u8]) -> UnmarshalResult<(usize, String)> {
     let (bytes, string) = unmarshal_str(byteorder, buf)?;
     Ok((bytes, string.into()))
 }
 
-pub fn unmarshal_str<'r, 'a: 'r>(byteorder: ByteOrder, buf: &'a [u8]) -> UnmarshalResult<&'r str> {
-    let len = parse_u32(buf, byteorder)?.1 as usize;
+pub fn unmarshal_str<'r, 'a: 'r>(
+    byteorder: ByteOrder,
+    buf: &'a [u8],
+) -> UnmarshalResult<(usize, &'r str)> {
+    let len = parse_u32(buf, byteorder)? as usize;
     if buf.len() < len + 5 {
         return Err(UnmarshalError::NotEnoughBytes);
     }

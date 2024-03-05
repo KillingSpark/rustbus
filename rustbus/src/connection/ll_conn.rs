@@ -18,6 +18,8 @@ use nix::sys::socket::{
     SockaddrStorage, UnixAddr,
 };
 
+use crate::wire::unmarshal_context::Cursor;
+
 /// A lowlevel abstraction over the raw unix socket
 #[derive(Debug)]
 pub struct SendConn {
@@ -166,8 +168,8 @@ impl RecvConn {
             return Ok(16);
         }
         let msg_buf_in = &self.msg_buf_in.peek();
-        let (_, header) = unmarshal::unmarshal_header(msg_buf_in, 0)?;
-        let (_, header_fields_len) =
+        let header = unmarshal::unmarshal_header(&mut Cursor::new(msg_buf_in))?;
+        let header_fields_len =
             crate::wire::util::parse_u32(&msg_buf_in[unmarshal::HEADER_LEN..], header.byteorder)?;
         let complete_header_size = unmarshal::HEADER_LEN + header_fields_len as usize + 4; // +4 because the length of the header fields does not count
 
@@ -225,22 +227,22 @@ impl RecvConn {
     /// Blocks until a message has been read from the conn or the timeout has been reached
     pub fn get_next_message(&mut self, timeout: Timeout) -> Result<MarshalledMessage> {
         self.read_whole_message(timeout)?;
-        let (hdrbytes, header) = unmarshal::unmarshal_header(self.msg_buf_in.peek(), 0)?;
-        let (dynhdrbytes, dynheader) =
-            unmarshal::unmarshal_dynamic_header(&header, self.msg_buf_in.peek(), hdrbytes)?;
+
+        let mut cursor = Cursor::new(self.msg_buf_in.peek());
+        let header = unmarshal::unmarshal_header(&mut cursor)?;
+        let dynheader = unmarshal::unmarshal_dynamic_header(&header, &mut cursor)?;
+        let header_bytes_consumed = cursor.consumed();
 
         let buf = self.msg_buf_in.take();
-        let buf_len = buf.len();
-        let (bytes_used, mut msg) =
-            unmarshal::unmarshal_next_message(&header, dynheader, buf, hdrbytes + dynhdrbytes)?;
+        let raw_fds = std::mem::take(&mut self.fds_in);
 
-        msg.body.raw_fds = std::mem::take(&mut self.fds_in);
-
-        if buf_len != bytes_used + hdrbytes + dynhdrbytes {
-            return Err(Error::UnmarshalError(UnmarshalError::NotAllBytesUsed));
-        }
-
-        Ok(msg)
+        Ok(unmarshal::unmarshal_next_message(
+            &header,
+            dynheader,
+            buf,
+            header_bytes_consumed,
+            raw_fds,
+        )?)
     }
 }
 
@@ -454,12 +456,7 @@ impl SendMessageContext<'_> {
         // if this is not the first write for this message do not send the raw_fds again. This would lead to unexpected
         // duplicated FDs on the other end!
         let raw_fds = if self.state.bytes_sent == 0 {
-            self.msg
-                .body
-                .raw_fds
-                .iter()
-                .filter_map(|fd| fd.get_raw_fd())
-                .collect::<Vec<RawFd>>()
+            self.msg.body.get_raw_fds()
         } else {
             vec![]
         };

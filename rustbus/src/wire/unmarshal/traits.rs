@@ -2,7 +2,7 @@
 
 use crate::wire::marshal::traits::Signature;
 use crate::wire::unmarshal;
-use crate::wire::unmarshal::UnmarshalContext;
+use crate::wire::unmarshal_context::UnmarshalContext;
 
 // these contain the implementations
 mod base;
@@ -31,7 +31,7 @@ pub use container::*;
 /// use rustbus::wire::marshal::traits::Signature;
 /// use rustbus::signature;
 /// use rustbus::wire::unmarshal;
-/// use rustbus::wire::unmarshal::UnmarshalContext;
+/// use rustbus::wire::unmarshal_context::UnmarshalContext;
 /// use rustbus::wire::unmarshal::traits::Unmarshal;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
 /// use rustbus::wire::marshal::traits::SignatureBuffer;
@@ -58,20 +58,17 @@ pub use container::*;
 ///
 /// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
 ///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-///         let start_offset = ctx.offset;
 ///         // check that we are aligned properly!
 ///         // This is necessary at the start of each struct! They need to be aligned to 8 bytes!
-///         let padding = ctx.align_to(Self::alignment())?;
+///         ctx.align_to(Self::alignment())?;
 ///
 ///         // decode some stuff and adjust offset
-///         let (bytes, mycoolint) = u64::unmarshal(ctx)?;
+///         let mycoolint = u64::unmarshal(ctx)?;
 ///         
 ///         // some more decoding if the struct had more fields
 ///         // ....
 ///         
-///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
-///         let total_bytes = ctx.offset - start_offset;
-///         Ok((total_bytes, MyStruct{mycoolint}))
+///         Ok(MyStruct{mycoolint})
 ///     }
 /// }
 /// ```
@@ -91,7 +88,7 @@ pub use container::*;
 /// ```rust
 /// use rustbus::Unmarshal;
 /// use rustbus::wire::unmarshal::UnmarshalResult;
-/// use rustbus::wire::unmarshal::UnmarshalContext;
+/// use rustbus::wire::unmarshal_context::UnmarshalContext;
 /// use rustbus::wire::marshal::traits::Signature;
 /// use rustbus::wire::marshal::traits::SignatureBuffer;
 /// use rustbus::signature;
@@ -119,17 +116,14 @@ pub use container::*;
 ///
 /// impl<'buf, 'fds> Unmarshal<'buf, 'fds> for MyStruct {
 ///    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> UnmarshalResult<Self> {
-///         let start_offset = ctx.offset;
 ///         // check that we are aligned properly
 ///         let padding = ctx.align_to(Self::alignment())?;
 ///
 ///         // get the slice that contains marshalled data, and unmarshal it directly here!
-///         let (bytes, raw_data) = <&[u8] as Unmarshal>::unmarshal(ctx)?;
+///         let raw_data = <&[u8] as Unmarshal>::unmarshal(ctx)?;
 ///         let unmarshalled_stuff = unmarshal_stuff_from_raw(&raw_data);
 ///
-///         //then report the total bytes used by unmarshalling this type (INCLUDING padding at the beginning!):
-///         let total_bytes = ctx.offset - start_offset;
-///         Ok((total_bytes, MyStruct{mycoolint: unmarshalled_stuff}))
+///         Ok(MyStruct{mycoolint: unmarshalled_stuff})
 ///     }
 /// }
 /// ```
@@ -146,15 +140,19 @@ pub fn unmarshal<'buf, 'fds, T: Unmarshal<'buf, 'fds>>(
 
 #[cfg(test)]
 mod test {
+    use std::fmt::Debug;
+
     use super::unmarshal;
     use super::Unmarshal;
     use super::UnmarshalContext;
     use super::Variant;
     use crate::wire::marshal::MarshalContext;
+    use crate::wire::UnixFd;
     use crate::ByteOrder;
     use crate::Marshal;
     use crate::Signature;
 
+    // TODO this is more of a doc test?
     #[test]
     fn test_generic_unmarshal() {
         let mut fds = Vec::new();
@@ -168,85 +166,88 @@ mod test {
 
         // annotate the receiver with a type &str to unmarshal a &str
         "ABCD".marshal(ctx).unwrap();
-        let _s: &str = unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
-        .unwrap()
-        .1;
+        let _s: &str = unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
+        .unwrap();
 
         // annotate the receiver with a type bool to unmarshal a bool
         ctx.buf.clear();
         true.marshal(ctx).unwrap();
-        let _b: bool = unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
-        .unwrap()
-        .1;
+        let _b: bool = unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
+        .unwrap();
 
         // can also use turbofish syntax
         ctx.buf.clear();
         0i32.marshal(ctx).unwrap();
-        let _i = unmarshal::<i32>(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
-        .unwrap()
-        .1;
+        let _i = unmarshal::<i32>(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
+        .unwrap();
 
         // No type info on let arg = unmarshal(...) is needed if it can be derived by other means
         ctx.buf.clear();
         fn x(_arg: (i32, i32, &str)) {}
         (0, 0, "ABCD").marshal(ctx).unwrap();
-        let arg = unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            byteorder: ctx.byteorder,
-            fds: ctx.fds,
-            offset: 0,
-        })
-        .unwrap()
-        .1;
+        let arg = unmarshal(&mut UnmarshalContext::new(
+            ctx.fds,
+            ctx.byteorder,
+            ctx.buf,
+            0,
+        ))
+        .unwrap();
         x(arg);
+    }
+
+    fn roundtrip<'a, T>(original: T, fds: &'a mut Vec<UnixFd>, buf: &'a mut Vec<u8>)
+    where
+        T: Unmarshal<'a, 'a>,
+        T: Marshal,
+        T: Debug,
+        T: Eq,
+    {
+        fds.clear();
+        buf.clear();
+        let byteorder = ByteOrder::LittleEndian;
+
+        original
+            .marshal(&mut MarshalContext {
+                buf,
+                fds,
+                byteorder,
+            })
+            .unwrap();
+
+        let unmarshalled =
+            T::unmarshal(&mut UnmarshalContext::new(fds, byteorder, buf, 0)).unwrap();
+        eprintln!("{fds:?}");
+        assert_eq!(original, unmarshalled);
     }
 
     #[test]
     fn test_unmarshal_byte_array() {
-        use crate::wire::marshal::MarshalContext;
-        use crate::Marshal;
+        let mut fds = vec![];
+        let mut buf = vec![];
 
         let mut orig = vec![];
         for x in 0..1024 {
             orig.push((x % 255) as u8);
         }
+        roundtrip(orig, &mut fds, &mut buf);
 
-        let mut fds = Vec::new();
-        let mut buf = Vec::new();
-        let mut ctx = MarshalContext {
-            buf: &mut buf,
-            fds: &mut fds,
-            byteorder: ByteOrder::LittleEndian,
-        };
-        let ctx = &mut ctx;
-
-        orig.marshal(ctx).unwrap();
-        assert_eq!(&ctx.buf[..4], &[0, 4, 0, 0]);
-        assert_eq!(ctx.buf.len(), 1028);
-        let (bytes, unorig) = <&[u8] as Unmarshal>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
-        .unwrap();
-        assert_eq!(bytes, orig.len() + 4);
-        assert_eq!(orig, unorig);
+        assert_eq!(&buf[..4], &[0, 4, 0, 0]);
+        assert_eq!(buf.len(), 1028);
 
         // even slices of slices of u8 work efficiently
         let mut orig1 = vec![];
@@ -259,112 +260,61 @@ mod test {
         }
 
         let orig = vec![orig1.as_slice(), orig2.as_slice()];
-
-        ctx.buf.clear();
-        orig.marshal(ctx).unwrap();
-
-        // unorig[x] points into the appropriate region in buf, and unorigs lifetime is bound to buf
-        let (_bytes, unorig) = <Vec<&[u8]> as Unmarshal>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
-        .unwrap();
-        assert_eq!(orig, unorig);
+        roundtrip(orig, &mut fds, &mut buf);
     }
 
     #[test]
     fn test_unmarshal_traits() {
-        use crate::wire::marshal::MarshalContext;
-        use crate::Marshal;
+        let mut fds = vec![];
+        let mut buf = vec![];
 
-        let mut fds = Vec::new();
-        let mut buf = Vec::new();
-        let mut ctx = MarshalContext {
-            buf: &mut buf,
-            fds: &mut fds,
-            byteorder: ByteOrder::LittleEndian,
-        };
-        let ctx = &mut ctx;
-
-        let original = &["a", "b"];
-        original.marshal(ctx).unwrap();
-
-        let (_, v) = Vec::<&str>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
-        .unwrap();
-
-        assert_eq!(original, v.as_slice());
-
-        ctx.buf.clear();
+        let original = vec!["a", "b"];
+        roundtrip(original, &mut fds, &mut buf);
 
         let mut original = std::collections::HashMap::new();
         original.insert(0u64, "abc");
         original.insert(1u64, "dce");
         original.insert(2u64, "fgh");
+        roundtrip(original, &mut fds, &mut buf);
 
-        original.marshal(ctx).unwrap();
+        let mut original = std::collections::HashMap::new();
+        original.insert(0u8, "abc");
+        original.insert(1u8, "dce");
+        original.insert(2u8, "fgh");
+        roundtrip(original, &mut fds, &mut buf);
 
-        let (_, map) = std::collections::HashMap::<u64, &str>::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
-        .unwrap();
-        assert_eq!(original, map);
-
-        ctx.buf.clear();
+        let mut original = std::collections::HashMap::new();
+        original.insert(0i16, "abc");
+        original.insert(1i16, "dce");
+        original.insert(2i16, "fgh");
+        roundtrip(original, &mut fds, &mut buf);
 
         let orig = (30u8, true, 100u8, -123i32);
-        orig.marshal(ctx).unwrap();
-        type ST = (u8, bool, u8, i32);
-        let s = ST::unmarshal(&mut UnmarshalContext {
-            buf: ctx.buf,
-            fds: ctx.fds,
-            byteorder: ctx.byteorder,
-            offset: 0,
-        })
-        .unwrap()
-        .1;
-        assert_eq!(orig, s);
+        roundtrip(orig, &mut fds, &mut buf);
 
-        ctx.buf.clear();
-
-        use crate::wire::UnixFd;
         use crate::wire::{ObjectPath, SignatureWrapper};
-        let orig_fd = UnixFd::new(nix::unistd::dup(1).unwrap());
         let orig = (
+            1u8,
             ObjectPath::new("/a/b/c").unwrap(),
             SignatureWrapper::new("ss(aiau)").unwrap(),
-            &orig_fd,
+            0u32,
         );
-        orig.marshal(ctx).unwrap();
+        roundtrip(orig, &mut fds, &mut buf);
         assert_eq!(
-            ctx.buf,
+            &buf,
             &[
-                6, 0, 0, 0, b'/', b'a', b'/', b'b', b'/', b'c', 0, 8, b's', b's', b'(', b'a', b'i',
-                b'a', b'u', b')', 0, 0, 0, 0, 0, 0, 0, 0
+                1, 0, 0, 0, 6, 0, 0, 0, b'/', b'a', b'/', b'b', b'/', b'c', 0, 8, b's', b's', b'(',
+                b'a', b'i', b'a', b'u', b')', 0, 0, 0, 0, 0, 0, 0, 0
             ]
         );
-        let (_, (p, s, _fd)) =
-            <(ObjectPath<String>, SignatureWrapper<&str>, UnixFd) as Unmarshal>::unmarshal(
-                &mut UnmarshalContext {
-                    buf: ctx.buf,
-                    fds: ctx.fds,
-                    byteorder: ctx.byteorder,
-                    offset: 0,
-                },
-            )
-            .unwrap();
 
-        assert_eq!(p.as_ref(), "/a/b/c");
-        assert_eq!(s.as_ref(), "ss(aiau)");
+        let orig = (
+            1u8,
+            ObjectPath::new("/a/b/c").unwrap(),
+            1u8,
+            0xFFFFFFFFFFFFFFFFu64,
+        );
+        roundtrip(orig, &mut fds, &mut buf);
     }
 
     #[test]
@@ -513,5 +463,27 @@ mod test {
             var_map["8"].get().unwrap()
         );
         assert!(var_map["9"].get::<bool>().unwrap());
+
+        let mut body = MarshalledMessageBody::new();
+        let orig = (10u8, 100u32, 20u8, 200u64);
+        body.push_variant(&orig).unwrap();
+        let unmarshalled = body
+            .parser()
+            .get::<Variant>()
+            .unwrap()
+            .get::<(u8, u32, u8, u64)>()
+            .unwrap();
+        assert_eq!(orig, unmarshalled);
+
+        let mut body = MarshalledMessageBody::new();
+        let orig = (10u8, 100u32, SignatureWrapper::new("").unwrap(), 200u64);
+        body.push_variant(&orig).unwrap();
+        let unmarshalled = body
+            .parser()
+            .get::<Variant>()
+            .unwrap()
+            .get::<(u8, u32, SignatureWrapper<&str>, u64)>()
+            .unwrap();
+        assert_eq!(orig, unmarshalled);
     }
 }

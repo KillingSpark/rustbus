@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 "rustbus" = {path = "../rustbus", version = "0.19.3"}
-"rustbus_derive" = {path = "../rustbus_derive", version = "0.5.0"}
+"rustbus_derive" = {path = "../rustbus_derive", version = "0.6.0"}

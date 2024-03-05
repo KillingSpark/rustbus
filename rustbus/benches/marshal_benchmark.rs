@@ -6,16 +6,19 @@ use rustbus::wire::marshal::marshal;
 use rustbus::wire::unmarshal::unmarshal_dynamic_header;
 use rustbus::wire::unmarshal::unmarshal_header;
 use rustbus::wire::unmarshal::unmarshal_next_message;
+use rustbus::wire::unmarshal_context::Cursor;
 
 fn marsh(msg: &rustbus::message_builder::MarshalledMessage, buf: &mut Vec<u8>) {
     marshal(msg, 0, buf).unwrap();
 }
 
 fn unmarshal(buf: &[u8]) {
-    let (hdrbytes, header) = unmarshal_header(buf, 0).unwrap();
-    let (dynhdrbytes, dynheader) = unmarshal_dynamic_header(&header, buf, hdrbytes).unwrap();
-    let (_, _unmarshed_msg) =
-        unmarshal_next_message(&header, dynheader, buf.to_vec(), hdrbytes + dynhdrbytes).unwrap();
+    let mut cursor = Cursor::new(buf);
+    let header = unmarshal_header(&mut cursor).unwrap();
+    let dynheader = unmarshal_dynamic_header(&header, &mut cursor).unwrap();
+    let _unmarshed_msg =
+        unmarshal_next_message(&header, dynheader, buf.to_vec(), cursor.consumed(), vec![])
+            .unwrap();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

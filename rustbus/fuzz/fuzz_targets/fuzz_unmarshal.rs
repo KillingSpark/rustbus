@@ -4,24 +4,22 @@ extern crate libfuzzer_sys;
 extern crate rustbus;
 
 fuzz_target!(|data: &[u8]| {
-    let (hdrbytes, header) = match rustbus::wire::unmarshal::unmarshal_header(data, 0) {
-        Ok(head) => head,
-        Err(_) => return,
+    let mut cursor = rustbus::wire::unmarshal_context::Cursor::new(data);
+    let Ok(header) = rustbus::wire::unmarshal::unmarshal_header(&mut cursor) else {
+        return;
     };
-    let (dynhdrbytes, dynheader) =
-        match rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, data, hdrbytes) {
-            Ok(head) => head,
-            Err(_) => return,
-        };
+    let Ok(dynheader) = rustbus::wire::unmarshal::unmarshal_dynamic_header(&header, &mut cursor) else {
+        return;
+    };
 
-    let (_bytes_used, msg) = match rustbus::wire::unmarshal::unmarshal_next_message(
+    let Ok(msg) = rustbus::wire::unmarshal::unmarshal_next_message(
         &header,
         dynheader,
         data.to_vec(),
-        hdrbytes + dynhdrbytes,
-    ) {
-        Ok(msg) => msg,
-        Err(_) => return,
+        cursor.consumed(),
+        vec![],
+    ) else {
+        return;
     };
     try_unmarhal_traits(&msg);
     msg.unmarshall_all().ok();

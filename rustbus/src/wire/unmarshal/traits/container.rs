@@ -4,9 +4,7 @@ use crate::signature;
 use crate::wire::errors::UnmarshalError;
 use crate::wire::marshal::traits::SignatureBuffer;
 use crate::wire::unmarshal;
-use crate::wire::unmarshal::UnmarshalContext;
-use crate::wire::util;
-use crate::ByteOrder;
+use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::Signature;
 use crate::Unmarshal;
 use std::borrow::Cow;
@@ -16,9 +14,9 @@ where
     E1: Unmarshal<'buf, 'fds> + Sized,
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(8)?;
-        let (bytes, val1) = E1::unmarshal(ctx)?;
-        Ok((bytes + padding, (val1,)))
+        ctx.align_to(8)?;
+        let val1 = E1::unmarshal(ctx)?;
+        Ok((val1,))
     }
 }
 
@@ -28,15 +26,13 @@ where
     E2: Unmarshal<'buf, 'fds> + Sized,
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let start_offset = ctx.offset;
         ctx.align_to(8)?;
-        let (_bytes, val1) = E1::unmarshal(ctx)?;
+        let val1 = E1::unmarshal(ctx)?;
 
         ctx.align_to(E2::alignment())?;
-        let (_bytes, val2) = E2::unmarshal(ctx)?;
+        let val2 = E2::unmarshal(ctx)?;
 
-        let total_bytes = ctx.offset - start_offset;
-        Ok((total_bytes, (val1, val2)))
+        Ok((val1, val2))
     }
 }
 
@@ -47,19 +43,16 @@ where
     E3: Unmarshal<'buf, 'fds> + Sized,
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let start_offset = ctx.offset;
-
         ctx.align_to(8)?;
-        let (_bytes, val1) = E1::unmarshal(ctx)?;
+        let val1 = E1::unmarshal(ctx)?;
 
         ctx.align_to(E2::alignment())?;
-        let (_bytes, val2) = E2::unmarshal(ctx)?;
+        let val2 = E2::unmarshal(ctx)?;
 
         ctx.align_to(E3::alignment())?;
-        let (_bytes, val3) = E3::unmarshal(ctx)?;
+        let val3 = E3::unmarshal(ctx)?;
 
-        let total_bytes = ctx.offset - start_offset;
-        Ok((total_bytes, (val1, val2, val3)))
+        Ok((val1, val2, val3))
     }
 }
 
@@ -71,22 +64,19 @@ where
     E4: Unmarshal<'buf, 'fds> + Sized,
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let start_offset = ctx.offset;
-
         ctx.align_to(8)?;
-        let (_bytes, val1) = E1::unmarshal(ctx)?;
+        let val1 = E1::unmarshal(ctx)?;
 
         ctx.align_to(E2::alignment())?;
-        let (_bytes, val2) = E2::unmarshal(ctx)?;
+        let val2 = E2::unmarshal(ctx)?;
 
         ctx.align_to(E3::alignment())?;
-        let (_bytes, val3) = E3::unmarshal(ctx)?;
+        let val3 = E3::unmarshal(ctx)?;
 
         ctx.align_to(E4::alignment())?;
-        let (_bytes, val4) = E4::unmarshal(ctx)?;
+        let val4 = E4::unmarshal(ctx)?;
 
-        let total_bytes = ctx.offset - start_offset;
-        Ok((total_bytes, (val1, val2, val3, val4)))
+        Ok((val1, val2, val3, val4))
     }
 }
 
@@ -126,18 +116,14 @@ impl<E: Signature + Clone> Signature for Cow<'_, [E]> {
         <[E]>::has_sig(sig)
     }
 }
+
 /// for byte arrays we can give an efficient method of decoding. This will bind the returned slice to the lifetime of the buffer.
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf [u8] {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (_, bytes_in_array) = u32::unmarshal(ctx)?;
+        ctx.align_to(Self::alignment())?;
+        let elements = ctx.read_u8_slice()?;
 
-        let elements = &ctx.buf[ctx.offset..ctx.offset + bytes_in_array as usize];
-        ctx.offset += bytes_in_array as usize;
-
-        let total_bytes_used = padding + 4 + bytes_in_array as usize;
-
-        Ok((total_bytes_used, elements))
+        Ok(elements)
     }
 }
 
@@ -147,10 +133,7 @@ unsafe fn unmarshal_slice<'a, 'buf, 'fds, E>(
 where
     E: Unmarshal<'buf, 'fds>, //+ 'fds + 'buf
 {
-    let start_offset = ctx.offset;
-    ctx.align_to(4)?;
-    let (_, bytes_in_array) = u32::unmarshal(ctx)?;
-    let bytes_in_array = bytes_in_array as usize;
+    let bytes_in_array = ctx.read_u32()? as usize;
     let alignment = E::alignment();
     ctx.align_to(alignment)?;
 
@@ -158,75 +141,57 @@ where
     if bytes_in_array % alignment != 0 {
         return Err(UnmarshalError::NotAllBytesUsed);
     }
-    // Start at offset
-    let start_slice = &ctx.buf[ctx.offset..];
-    // Check that the buffer contains enough bytes
-    if bytes_in_array > start_slice.len() {
-        return Err(UnmarshalError::NotEnoughBytes);
-    }
-    // limit the source slice to assert that the memory access will be valid
-    let content_slice = &start_slice[..bytes_in_array];
+    let content_slice = ctx.read_raw(bytes_in_array)?;
 
     // cast the slice from u8 to the target type
     let elem_cnt = bytes_in_array / alignment;
     let ptr = content_slice.as_ptr().cast::<E>();
     let slice = std::slice::from_raw_parts(ptr, elem_cnt);
 
-    ctx.offset += bytes_in_array;
-    Ok((ctx.offset - start_offset, slice))
+    Ok(slice)
 }
+
 impl<'buf, 'fds, E: Unmarshal<'buf, 'fds> + Clone> Unmarshal<'buf, 'fds> for Cow<'buf, [E]> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         unsafe {
             if E::valid_slice(ctx.byteorder) {
-                let (used, src): (_, &[E]) = unmarshal_slice(ctx)?;
+                let src: &[E] = unmarshal_slice(ctx)?;
                 // SAFETY: One of requirements is for valid_slice it is only valid for 'buf
                 // Thus this lifetime cast is always valid
                 let l_expand: &'buf [E] = std::mem::transmute(src);
-                return Ok((used, Cow::Borrowed(l_expand)));
+                return Ok(Cow::Borrowed(l_expand));
             }
         }
-        Vec::unmarshal(ctx).map(|o| (o.0, Cow::Owned(o.1)))
+        Vec::unmarshal(ctx).map(Cow::Owned)
     }
 }
+
 impl<'buf, 'fds, E: Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for Vec<E> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
         unsafe {
             if E::valid_slice(ctx.byteorder) {
-                let (used, src) = unmarshal_slice::<E>(ctx)?;
+                let src = unmarshal_slice::<E>(ctx)?;
                 let mut ret = Vec::with_capacity(src.len());
                 let dst = ret.as_mut_ptr();
                 std::ptr::copy_nonoverlapping(src.as_ptr(), dst, src.len());
                 ret.set_len(src.len());
-                return Ok((used, ret));
+                return Ok(ret);
             }
         }
-        let start_offset = ctx.offset;
         ctx.align_to(4)?;
-        let (_, bytes_in_array) = u32::unmarshal(ctx)?;
+        let bytes_in_array = u32::unmarshal(ctx)? as usize;
 
         ctx.align_to(E::alignment())?;
 
         let mut elements = Vec::new();
-        let mut bytes_used_counter = 0;
-        while bytes_used_counter < bytes_in_array as usize {
-            if ctx.offset >= ctx.buf.len() {
-                return Err(UnmarshalError::NotEnoughBytes);
-            }
-
-            let elem_padding = util::align_offset(E::alignment(), ctx.buf, ctx.offset)?;
-
-            bytes_used_counter += elem_padding;
-            ctx.offset += elem_padding;
-
-            let (bytes_used, element) = E::unmarshal(ctx)?;
+        let mut ctx = ctx.sub_context(bytes_in_array)?;
+        while !ctx.remainder().is_empty() {
+            ctx.align_to(E::alignment())?;
+            let element = E::unmarshal(&mut ctx)?;
             elements.push(element);
-            bytes_used_counter += bytes_used;
         }
 
-        let total_bytes_used = ctx.offset - start_offset;
-
-        Ok((total_bytes_used, elements))
+        Ok(elements)
     }
 }
 
@@ -234,51 +199,36 @@ impl<'buf, 'fds, K: Unmarshal<'buf, 'fds> + std::hash::Hash + Eq, V: Unmarshal<'
     Unmarshal<'buf, 'fds> for std::collections::HashMap<K, V>
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let start_offset = ctx.offset;
         ctx.align_to(4)?;
-        let (_, bytes_in_array) = u32::unmarshal(ctx)?;
+        let bytes_in_array = u32::unmarshal(ctx)? as usize;
 
         // align even if no elements are present
         ctx.align_to(8)?;
 
         let mut map = std::collections::HashMap::new();
-        let mut bytes_used_counter = 0;
-        while bytes_used_counter < bytes_in_array as usize {
-            if ctx.offset >= ctx.buf.len() {
-                return Err(UnmarshalError::NotEnoughBytes);
-            }
+        let mut ctx = ctx.sub_context(bytes_in_array)?;
+        while !ctx.remainder().is_empty() {
+            // Always align to 8
+            ctx.align_to(8)?;
+            let key = K::unmarshal(&mut ctx)?;
 
-            let elem_padding = util::align_offset(8, ctx.buf, ctx.offset)?;
-            bytes_used_counter += elem_padding;
-            ctx.offset += elem_padding;
-
-            let (key_bytes_used, key) = K::unmarshal(ctx)?;
-            bytes_used_counter += key_bytes_used;
-
-            let val_padding = util::align_offset(V::alignment(), ctx.buf, ctx.offset)?;
-            bytes_used_counter += val_padding;
-            ctx.offset += val_padding;
-
-            let (val_bytes_used, val) = V::unmarshal(ctx)?;
-            bytes_used_counter += val_bytes_used;
+            //Align to value
+            ctx.align_to(V::alignment())?;
+            let val = V::unmarshal(&mut ctx)?;
 
             map.insert(key, val);
         }
 
-        let total_bytes_used = ctx.offset - start_offset;
-
-        Ok((total_bytes_used, map))
+        Ok(map)
     }
 }
 
 #[derive(Debug)]
 pub struct Variant<'fds, 'buf> {
     pub(crate) sig: signature::Type,
-    pub(crate) byteorder: ByteOrder,
-    pub(crate) offset: usize,
-    pub(crate) buf: &'buf [u8],
-    pub(crate) fds: &'fds [crate::wire::UnixFd],
+    pub(crate) sub_ctx: UnmarshalContext<'fds, 'buf>,
 }
+
 impl<'buf, 'fds> Variant<'fds, 'buf> {
     /// Get the [`Type`] of the value contained by the variant.
     ///
@@ -294,15 +244,11 @@ impl<'buf, 'fds> Variant<'fds, 'buf> {
         if self.sig != T::signature() {
             return Err(UnmarshalError::WrongSignature);
         }
-        let mut ctx = UnmarshalContext {
-            byteorder: self.byteorder,
-            offset: self.offset,
-            buf: self.buf,
-            fds: self.fds,
-        };
-        T::unmarshal(&mut ctx).map(|r| r.1)
+        let mut ctx = self.sub_ctx;
+        T::unmarshal(&mut ctx)
     }
 }
+
 impl Signature for Variant<'_, '_> {
     fn signature() -> signature::Type {
         signature::Type::Container(signature::Container::Variant)
@@ -318,15 +264,13 @@ impl Signature for Variant<'_, '_> {
         sig.starts_with('v')
     }
 }
+
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let start_offset = ctx.offset;
-        let (sig_bytes, desc) = util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
-        ctx.offset += sig_bytes;
+        let desc = ctx.read_signature()?;
 
-        let mut sigs = match signature::Type::parse_description(desc) {
-            Ok(sigs) => sigs,
-            Err(_) => return Err(UnmarshalError::WrongSignature),
+        let Ok(mut sigs) = signature::Type::parse_description(desc) else {
+            return Err(UnmarshalError::WrongSignature);
         };
         if sigs.len() != 1 {
             return Err(UnmarshalError::WrongSignature);
@@ -335,27 +279,75 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for Variant<'fds, 'buf> {
 
         ctx.align_to(sig.get_alignment())?;
 
-        let start_loc = ctx.offset;
+        let val_bytes =
+            crate::wire::validate_raw::validate_marshalled(ctx.byteorder, 0, ctx.remainder(), &sig)
+                .map_err(|e| e.1)?;
 
-        let val_bytes = crate::wire::validate_raw::validate_marshalled(
-            ctx.byteorder,
-            ctx.offset,
-            ctx.buf,
-            &sig,
-        )
-        .map_err(|e| e.1)?;
-        ctx.offset += val_bytes;
+        Ok(Variant {
+            sig,
+            sub_ctx: ctx.sub_context(val_bytes)?,
+        })
+    }
+}
 
-        let total_bytes = ctx.offset - start_offset;
-        Ok((
-            total_bytes,
-            Variant {
-                sig,
-                buf: &ctx.buf[..ctx.offset],
-                offset: start_loc,
-                byteorder: ctx.byteorder,
-                fds: ctx.fds,
-            },
-        ))
+#[cfg(test)]
+mod tests {
+    use crate::{message_builder::MarshalledMessageBody, ByteOrder};
+    use std::borrow::Cow;
+
+    #[test]
+    fn variant_with_sig() {
+        let mut m = MarshalledMessageBody::new();
+        m.push_param("test.interface").unwrap();
+        m.push_param("test_property").unwrap();
+        m.push_param(crate::wire::marshal::traits::Variant(42u8))
+            .unwrap();
+
+        let mut parser = m.parser();
+        assert_eq!(parser.get::<&str>().unwrap(), "test.interface");
+        assert_eq!(parser.get::<&str>().unwrap(), "test_property");
+        assert_eq!(parser.get_next_sig().unwrap(), "v");
+        let variant = parser
+            .get::<crate::wire::unmarshal::traits::Variant>()
+            .unwrap();
+        assert_eq!(variant.get::<u8>().unwrap(), 42);
+    }
+
+    #[test]
+    fn array() {
+        let mut m = MarshalledMessageBody::new();
+        m.push_param([0u8, 1, 2, 3, 4, 5]).unwrap(); // Array by value
+        m.push_param(0u8).unwrap();
+        m.push_param(-10i16).unwrap();
+        m.push_param(&[0u8, 1, 2, 3, 4, 5, 6]).unwrap(); // Array as ref
+        m.push_param(-2000i16).unwrap();
+        m.push_param(&[0u8, 1, 2, 3, 4, 5, 6, 7][..]).unwrap(); // Slice
+        m.push_param([-100i16, -200, -300, -400, -500, -600])
+            .unwrap(); // Array by value
+
+        let mut parser = m.parser();
+        assert!(parser.get::<Cow<[i16]>>().is_err());
+        assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5]);
+        assert_eq!(parser.get::<u8>().unwrap(), 0);
+        assert_eq!(parser.get::<i16>().unwrap(), -10);
+        assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(parser.get::<i16>().unwrap(), -2000);
+        assert_eq!(parser.get::<&[u8]>().unwrap(), &[0, 1, 2, 3, 4, 5, 6, 7]);
+        assert!(matches!(
+            parser.get::<Cow<[i16]>>().unwrap(),
+            Cow::Borrowed(&[-100i16, -200, -300, -400, -500, -600])
+        ));
+
+        let non_native_byteorder = match cfg!(target_endian = "little") {
+            true => ByteOrder::BigEndian,
+            false => ByteOrder::LittleEndian,
+        };
+        let mut m = MarshalledMessageBody::with_byteorder(non_native_byteorder);
+        m.push_param([-100i16, -200, -300, -400, -500, -600])
+            .unwrap();
+        let mut parser = m.parser();
+        let unmarshalled = parser.get::<Cow<[i16]>>().unwrap();
+        assert!(matches!(unmarshalled, Cow::Owned(_)));
+        assert_eq!(unmarshalled, vec![-100i16, -200, -300, -400, -500, -600])
     }
 }

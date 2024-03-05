@@ -3,6 +3,7 @@
 pub mod errors;
 pub mod marshal;
 pub mod unmarshal;
+pub mod unmarshal_context;
 pub mod util;
 pub mod validate_raw;
 pub mod variant_macros;

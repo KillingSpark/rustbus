@@ -42,7 +42,7 @@ pub fn marshal(
 
     // set the correct message length
     insert_u32(
-        msg.body.byteorder,
+        msg.body.byteorder(),
         msg.get_buf().len() as u32,
         &mut buf[4..8],
     );
@@ -54,7 +54,7 @@ fn marshal_header(
     chosen_serial: u32,
     buf: &mut Vec<u8>,
 ) -> MarshalResult<()> {
-    let byteorder = msg.body.byteorder;
+    let byteorder = msg.body.byteorder();
 
     match byteorder {
         ByteOrder::BigEndian => {
@@ -105,10 +105,10 @@ fn marshal_header(
     if let Some(obj) = &msg.dynheader.object {
         marshal_header_field(byteorder, &HeaderField::Path(obj.clone()), buf)?;
     }
-    if !msg.body.raw_fds.is_empty() {
+    if !msg.body.get_fds().is_empty() {
         marshal_header_field(
             byteorder,
-            &HeaderField::UnixFds(msg.body.raw_fds.len() as u32),
+            &HeaderField::UnixFds(msg.body.get_fds().len() as u32),
             buf,
         )?;
     }

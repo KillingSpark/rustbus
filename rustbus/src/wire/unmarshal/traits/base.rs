@@ -2,84 +2,54 @@
 
 use crate::wire::errors::UnmarshalError;
 use crate::wire::unmarshal;
-use crate::wire::unmarshal::UnmarshalContext;
-use crate::wire::util;
+use crate::wire::unmarshal_context::UnmarshalContext;
 use crate::wire::ObjectPath;
 use crate::wire::SignatureWrapper;
-use crate::Signature;
 use crate::Unmarshal;
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for u64 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u64(&ctx.buf[ctx.offset..], ctx.byteorder)?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+        ctx.read_u64()
     }
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for u32 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+        ctx.read_u32()
     }
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for u16 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u16(&ctx.buf[ctx.offset..], ctx.byteorder)?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+        ctx.read_u16()
     }
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for i64 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u64(&ctx.buf[ctx.offset..], ctx.byteorder)
-            .map(|(bytes, val)| (bytes, val as i64))?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+        ctx.read_i64()
     }
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for i32 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)
-            .map(|(bytes, val)| (bytes, val as i32))?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+        ctx.read_i32()
     }
 }
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for i16 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u16(&ctx.buf[ctx.offset..], ctx.byteorder)
-            .map(|(bytes, val)| (bytes, val as i16))?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+        ctx.read_i16()
     }
 }
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for u8 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        if ctx.offset >= ctx.buf.len() {
-            return Err(UnmarshalError::NotEnoughBytes);
-        }
-        let val = ctx.buf[ctx.offset];
-        ctx.offset += 1;
-        Ok((1, val))
+        ctx.read_u8()
     }
 }
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for bool {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u32(&ctx.buf[ctx.offset..], ctx.byteorder)?;
-        ctx.offset += bytes;
+        let val = ctx.read_u32()?;
         match val {
-            0 => Ok((bytes + padding, false)),
-            1 => Ok((bytes + padding, true)),
+            0 => Ok(false),
+            1 => Ok(true),
             _ => Err(UnmarshalError::InvalidBoolean),
         }
     }
@@ -87,28 +57,20 @@ impl<'buf, 'fds> Unmarshal<'buf, 'fds> for bool {
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for f64 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::parse_u64(&ctx.buf[ctx.offset..], ctx.byteorder)?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, f64::from_bits(val)))
+        let val = ctx.read_u64()?;
+        Ok(f64::from_bits(val))
     }
 }
 
-impl<'buf, 'fds> Unmarshal<'buf, 'fds> for &'buf str {
-    fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::unmarshal_str(ctx.byteorder, &ctx.buf[ctx.offset..])?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+impl<'buf> Unmarshal<'buf, '_> for &'buf str {
+    fn unmarshal(ctx: &mut UnmarshalContext<'_, 'buf>) -> unmarshal::UnmarshalResult<Self> {
+        ctx.read_str()
     }
 }
 
 impl<'buf, 'fds> Unmarshal<'buf, 'fds> for String {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let padding = ctx.align_to(Self::alignment())?;
-        let (bytes, val) = util::unmarshal_string(ctx.byteorder, &ctx.buf[ctx.offset..])?;
-        ctx.offset += bytes;
-        Ok((bytes + padding, val))
+        ctx.read_str().map(|val| val.to_owned())
     }
 }
 
@@ -116,18 +78,16 @@ impl<'buf, 'fds, S: AsRef<str> + From<&'buf str> + Unmarshal<'buf, 'fds>> Unmars
     for SignatureWrapper<S>
 {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        // No alignment needed. Signature is aligned to 1
-        let (bytes, val) = util::unmarshal_signature(&ctx.buf[ctx.offset..])?;
-        ctx.offset += bytes;
+        let val = ctx.read_signature()?;
         let sig = SignatureWrapper::new(val.into())?;
-        Ok((bytes, sig))
+        Ok(sig)
     }
 }
 
 impl<'buf, 'fds, S: AsRef<str> + Unmarshal<'buf, 'fds>> Unmarshal<'buf, 'fds> for ObjectPath<S> {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self> {
-        let (bytes, val) = <S as Unmarshal>::unmarshal(ctx)?;
+        let val = <S as Unmarshal>::unmarshal(ctx)?;
         let path = ObjectPath::new(val)?;
-        Ok((bytes, path))
+        Ok(path)
     }
 }
