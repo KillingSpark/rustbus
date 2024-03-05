@@ -5,14 +5,13 @@
 ///
 /// This macro provides a convenient way to create enums to represent relatively simple Variants, with fitting marshal/unmarshal implementations.
 /// It can be used like this:
-/// ```rust, ignore
-///    type Map = std::collections::HashMap<String, (i32, u8, (u64, MyVariant))>;
-///    type Struct = (u32, u32, MyVariant);
+/// ```rust
+///    use rustbus::dbus_variant_sig;
+///    type Map = std::collections::HashMap<String, (i32, u8, (u64, String))>;
+///    type Struct = (u32, u32, String);
 ///    dbus_variant_sig!(MyVariant, CaseMap => Map; CaseStruct => Struct);
-/// ```
-/// And it will generate an enum like this:
-/// ```rust, ignore
-/// enum MyVariant {
+/// // Would generate an enum like this:
+/// enum _MyVariant {
 ///     CaseMap(Map),
 ///     CaseStruct(Struct),
 ///     Catchall(rustbus::signature::Type),   
@@ -249,17 +248,16 @@ fn test_variant_sig_macro() {
 #[macro_export(local_inner_macros)]
 /// This macro provides a convenient way to create enums to represent relatively simple Variants, with fitting marshal/unmarshal implementations.
 /// It can be used like this:
-/// ```rust, ignore
-///    type Map<'buf> = std::collections::HashMap<String, (i32, u8, (u64, MyVariant<'buf>))>;
-///    type Struct<'buf> = (u32, u32, MyVariant<'buf>);
-///    dbus_variant_var!(MyVariant2, CaseMap => Map<'buf>; CaseStruct => Struct<'buf>);
-/// ```
-/// And it will generate an enum like this:
-/// ```rust, ignore
-/// enum MyVariant<'buf> {
-///     CaseMap(Map<'buf>),
-///     CaseStruct(Struct<'buf>),
-///     Catchall(rustbus::wire::unmarshal::traits::Variant<'buf>),   
+/// ```rust
+///    use rustbus::dbus_variant_var;
+///    type Map = std::collections::HashMap<String, (i32, u8, (u64, String))>;
+///    type Struct = (u32, u32, String);
+///    dbus_variant_var!(MyVariant, CaseMap => Map; CaseStruct => Struct);
+/// // Would generate an enum like this:
+/// enum _MyVariant<'buf> {
+///     CaseMap(Map),
+///     CaseStruct(Struct),
+///     Catchall(rustbus::wire::unmarshal::traits::Variant<'buf, 'buf>),
 /// }
 /// ```
 /// The `Catchall` case is used for unmarshalling, when encountering a Value that did not match any of the other cases. **The generated marshal impl will
