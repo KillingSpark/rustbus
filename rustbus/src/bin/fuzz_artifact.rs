@@ -37,6 +37,7 @@ fn run_artifact(path: &str) {
         dynheader,
         data.clone(),
         cursor.consumed(),
+        vec![],
     ) else {
         return;
     };

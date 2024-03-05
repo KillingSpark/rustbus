@@ -52,7 +52,7 @@ fn test_marshal_unmarshal() {
     assert_eq!(headers_plus_padding, buf.len());
 
     let unmarshed_msg =
-        unmarshal_next_message(&header, dynheader, msg.get_buf().to_vec(), 0).unwrap();
+        unmarshal_next_message(&header, dynheader, msg.get_buf().to_vec(), 0, vec![]).unwrap();
 
     let msg = unmarshed_msg.unmarshall_all().unwrap();
 

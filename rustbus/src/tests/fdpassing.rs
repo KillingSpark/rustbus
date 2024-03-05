@@ -110,9 +110,9 @@ fn test_fd_marshalling() {
 
     // assert the correct representation, where fds have been put into the fd array and the index is marshalled in the message
     assert_eq!(sig.body.get_buf(), &[0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
-    assert_ne!(&sig.body.raw_fds[0], &test_fd1);
-    assert_ne!(&sig.body.raw_fds[1], &test_fd2);
-    assert_ne!(&sig.body.raw_fds[2], &test_fd3);
+    assert_ne!(&sig.body.get_fds()[0], &test_fd1);
+    assert_ne!(&sig.body.get_fds()[1], &test_fd2);
+    assert_ne!(&sig.body.get_fds()[2], &test_fd3);
 
     // assert that unmarshalling yields the correct fds
     let mut parser = sig.body.parser();

@@ -1,4 +1,6 @@
 //! Build new messages that you want to send over a connection
+use std::os::fd::RawFd;
+
 use crate::params::message;
 use crate::signature::SignatureIter;
 use crate::wire::errors::MarshalError;
@@ -294,10 +296,10 @@ pub struct MarshalledMessageBody {
     buf_offset: usize,
 
     // out of band data
-    pub(crate) raw_fds: Vec<crate::wire::UnixFd>,
+    raw_fds: Vec<crate::wire::UnixFd>,
 
     sig: SignatureBuffer,
-    pub(crate) byteorder: ByteOrder,
+    byteorder: ByteOrder,
 }
 
 impl Default for MarshalledMessageBody {
@@ -376,11 +378,22 @@ impl MarshalledMessageBody {
         &self.buf[self.buf_offset..]
     }
 
+    pub fn get_raw_fds(&self) -> Vec<RawFd> {
+        self.raw_fds
+            .iter()
+            .filter_map(|fd| fd.get_raw_fd())
+            .collect::<Vec<RawFd>>()
+    }
+
+    pub fn byteorder(&self) -> ByteOrder {
+        self.byteorder
+    }
+
     /// Get a clone of all the `UnixFd`s in the body.
     ///
     /// Some of the `UnixFd`s may already have their `RawFd`s taken.
-    pub fn get_fds(&self) -> Vec<UnixFd> {
-        self.raw_fds.clone()
+    pub fn get_fds(&self) -> &[UnixFd] {
+        &self.raw_fds
     }
     /// Clears the buffer and signature but holds on to the memory allocations. You can now start pushing new
     /// params as if this were a new message. This allows to reuse the OutMessage for the same dbus-message with different

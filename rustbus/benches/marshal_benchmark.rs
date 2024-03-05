@@ -17,7 +17,8 @@ fn unmarshal(buf: &[u8]) {
     let header = unmarshal_header(&mut cursor).unwrap();
     let dynheader = unmarshal_dynamic_header(&header, &mut cursor).unwrap();
     let _unmarshed_msg =
-        unmarshal_next_message(&header, dynheader, buf.to_vec(), cursor.consumed()).unwrap();
+        unmarshal_next_message(&header, dynheader, buf.to_vec(), cursor.consumed(), vec![])
+            .unwrap();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

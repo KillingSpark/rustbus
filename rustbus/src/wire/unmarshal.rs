@@ -24,6 +24,7 @@ pub mod traits;
 use container::*;
 
 use super::unmarshal_context::{Cursor, UnmarshalContext};
+use super::UnixFd;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Header {
@@ -120,6 +121,7 @@ pub fn unmarshal_next_message(
     dynheader: DynamicHeader,
     buf: Vec<u8>,
     offset: usize,
+    raw_fds: Vec<UnixFd>,
 ) -> UnmarshalResult<MarshalledMessage> {
     let sig = dynheader.signature.clone().unwrap_or_else(|| "".to_owned());
     let padding = align_offset(8, &buf, offset)?;
@@ -127,7 +129,7 @@ pub fn unmarshal_next_message(
     if header.body_len == 0 {
         let msg = MarshalledMessage {
             dynheader,
-            body: MarshalledMessageBody::from_parts(vec![], 0, vec![], sig, header.byteorder),
+            body: MarshalledMessageBody::from_parts(vec![], 0, raw_fds, sig, header.byteorder),
             typ: header.typ,
             flags: header.flags,
         };
@@ -144,7 +146,7 @@ pub fn unmarshal_next_message(
 
         let msg = MarshalledMessage {
             dynheader,
-            body: MarshalledMessageBody::from_parts(buf, offset, vec![], sig, header.byteorder),
+            body: MarshalledMessageBody::from_parts(buf, offset, raw_fds, sig, header.byteorder),
             typ: header.typ,
             flags: header.flags,
         };

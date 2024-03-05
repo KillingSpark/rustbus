@@ -234,13 +234,15 @@ impl RecvConn {
         let header_bytes_consumed = cursor.consumed();
 
         let buf = self.msg_buf_in.take();
+        let raw_fds = std::mem::take(&mut self.fds_in);
 
-        let mut msg =
-            unmarshal::unmarshal_next_message(&header, dynheader, buf, header_bytes_consumed)?;
-
-        msg.body.raw_fds = std::mem::take(&mut self.fds_in);
-
-        Ok(msg)
+        Ok(unmarshal::unmarshal_next_message(
+            &header,
+            dynheader,
+            buf,
+            header_bytes_consumed,
+            raw_fds,
+        )?)
     }
 }
 
@@ -454,12 +456,7 @@ impl SendMessageContext<'_> {
         // if this is not the first write for this message do not send the raw_fds again. This would lead to unexpected
         // duplicated FDs on the other end!
         let raw_fds = if self.state.bytes_sent == 0 {
-            self.msg
-                .body
-                .raw_fds
-                .iter()
-                .filter_map(|fd| fd.get_raw_fd())
-                .collect::<Vec<RawFd>>()
+            self.msg.body.get_raw_fds()
         } else {
             vec![]
         };
