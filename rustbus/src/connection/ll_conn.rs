@@ -1,11 +1,8 @@
-use super::Error;
-use super::Result;
-use super::Timeout;
+use super::{Error, Result, Timeout};
 use crate::auth;
 use crate::message_builder::MarshalledMessage;
 use crate::wire::errors::UnmarshalError;
-use crate::wire::marshal;
-use crate::wire::unmarshal;
+use crate::wire::{marshal, unmarshal, UnixFd};
 
 use std::io::{self, IoSlice, IoSliceMut};
 use std::os::fd::AsFd;
@@ -36,7 +33,7 @@ pub struct RecvConn {
     stream: UnixStream,
 
     msg_buf_in: IncomingBuffer,
-    cmsgs_in: Vec<ControlMessageOwned>,
+    fds_in: Vec<UnixFd>,
     cmsgspace: Vec<u8>,
 }
 
@@ -111,7 +108,7 @@ impl RecvConn {
         // Borrow all the fields because we can't use self in the closure...
         let cmsgspace = &mut self.cmsgspace;
         cmsgspace.clear();
-        let cmsgs_in = &mut self.cmsgs_in;
+        let fds_in = &mut self.fds_in;
         let stream = &mut self.stream;
 
         self.msg_buf_in.read(|buffer| {
@@ -148,7 +145,18 @@ impl RecvConn {
                 return Err(Error::ConnectionClosed);
             }
 
-            cmsgs_in.extend(msg.cmsgs());
+            for cmsg in msg.cmsgs() {
+                match cmsg {
+                    ControlMessageOwned::ScmRights(fds) => {
+                        fds_in.extend(fds.into_iter().map(UnixFd::new));
+                    }
+                    _ => {
+                        // TODO what to do?
+                        eprintln!("Cmsg other than ScmRights: {:?}", cmsg);
+                    }
+                }
+            }
+
             Ok(msg.bytes)
         })?;
 
@@ -226,23 +234,11 @@ impl RecvConn {
         let header_bytes_consumed = cursor.consumed();
 
         let buf = self.msg_buf_in.take();
+
         let mut msg =
             unmarshal::unmarshal_next_message(&header, dynheader, buf, header_bytes_consumed)?;
 
-        for cmsg in &self.cmsgs_in {
-            match cmsg {
-                ControlMessageOwned::ScmRights(fds) => {
-                    msg.body
-                        .raw_fds
-                        .extend(fds.iter().map(|fd| crate::wire::UnixFd::new(*fd)));
-                }
-                _ => {
-                    // TODO what to do?
-                    // eprintln!("Cmsg other than ScmRights: {:?}", cmsg);
-                }
-            }
-        }
-        self.cmsgs_in.clear();
+        msg.body.raw_fds = std::mem::take(&mut self.fds_in);
 
         Ok(msg)
     }
@@ -524,7 +520,7 @@ impl DuplexConn {
             },
             recv: RecvConn {
                 msg_buf_in: IncomingBuffer::new(),
-                cmsgs_in: Vec::new(),
+                fds_in: Vec::new(),
                 cmsgspace: cmsg_space!([RawFd; 10]),
                 stream,
             },
