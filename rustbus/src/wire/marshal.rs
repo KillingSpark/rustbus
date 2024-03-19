@@ -107,6 +107,9 @@ fn marshal_header(
     if let Some(obj) = &msg.dynheader.object {
         marshal_header_field(byteorder, &HeaderField::Path(obj.clone()), buf)?;
     }
+    if let Some(err_name) = &msg.dynheader.error_name {
+        marshal_header_field(byteorder, &HeaderField::ErrorName(err_name.clone()), buf)?;
+    }
     if !msg.body.get_fds().is_empty() {
         marshal_header_field(
             byteorder,
