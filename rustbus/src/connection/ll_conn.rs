@@ -5,6 +5,7 @@ use crate::wire::errors::UnmarshalError;
 use crate::wire::{marshal, unmarshal, UnixFd};
 
 use std::io::{self, IoSlice, IoSliceMut};
+use std::num::NonZeroU32;
 use std::os::fd::AsFd;
 use std::time;
 
@@ -26,7 +27,7 @@ pub struct SendConn {
     stream: UnixStream,
     header_buf: Vec<u8>,
 
-    serial_counter: u32,
+    serial_counter: NonZeroU32,
 }
 
 pub struct RecvConn {
@@ -248,9 +249,12 @@ impl RecvConn {
 
 impl SendConn {
     /// get the next new serial
-    pub fn alloc_serial(&mut self) -> u32 {
+    pub fn alloc_serial(&mut self) -> NonZeroU32 {
         let serial = self.serial_counter;
-        self.serial_counter += 1;
+        self.serial_counter = self
+            .serial_counter
+            .checked_add(1)
+            .expect("run out of serials");
         serial
     }
 
@@ -262,9 +266,7 @@ impl SendConn {
         let serial = if let Some(serial) = msg.dynheader.serial {
             serial
         } else {
-            let serial = self.serial_counter;
-            self.serial_counter += 1;
-            serial
+            self.alloc_serial()
         };
 
         // clear the buf before marshalling the new header
@@ -285,7 +287,7 @@ impl SendConn {
     }
 
     /// send a message and block until all bytes have been sent. Returns the serial of the message to match the response.
-    pub fn send_message_write_all(&mut self, msg: &MarshalledMessage) -> Result<u32> {
+    pub fn send_message_write_all(&mut self, msg: &MarshalledMessage) -> Result<NonZeroU32> {
         let ctx = self.send_message(msg)?;
         ctx.write_all().map_err(force_finish_on_error)
     }
@@ -317,7 +319,7 @@ pub struct SendMessageContext<'a> {
 #[derive(Debug, Copy, Clone)]
 pub struct SendMessageState {
     bytes_sent: usize,
-    serial: u32,
+    serial: NonZeroU32,
 }
 
 /// This panics if the SendMessageContext was dropped when it was not yet finished. Use force_finish / force_finish_on_error
@@ -333,7 +335,7 @@ impl Drop for SendMessageContext<'_> {
 }
 
 impl SendMessageContext<'_> {
-    pub fn serial(&self) -> u32 {
+    pub fn serial(&self) -> NonZeroU32 {
         self.state.serial
     }
 
@@ -384,7 +386,10 @@ impl SendMessageContext<'_> {
 
     /// Try writing as many bytes as possible until either no more bytes need to be written or
     /// the timeout is reached. For an infinite timeout there is write_all as a shortcut
-    pub fn write(mut self, timeout: Timeout) -> std::result::Result<u32, (Self, super::Error)> {
+    pub fn write(
+        mut self,
+        timeout: Timeout,
+    ) -> std::result::Result<NonZeroU32, (Self, super::Error)> {
         let start_time = std::time::Instant::now();
 
         // loop until either the time is up or all bytes have been written
@@ -409,7 +414,7 @@ impl SendMessageContext<'_> {
     }
 
     /// Block until all bytes have been written
-    pub fn write_all(self) -> std::result::Result<u32, (Self, super::Error)> {
+    pub fn write_all(self) -> std::result::Result<NonZeroU32, (Self, super::Error)> {
         self.write(Timeout::Infinite)
     }
 
@@ -513,7 +518,7 @@ impl DuplexConn {
             send: SendConn {
                 stream: stream.try_clone()?,
                 header_buf: Vec::new(),
-                serial_counter: 1,
+                serial_counter: NonZeroU32::MIN,
             },
             recv: RecvConn {
                 msg_buf_in: IncomingBuffer::new(),

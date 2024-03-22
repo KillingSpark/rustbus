@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use crate::params::Base;
 use crate::params::Param;
 use crate::wire::marshal::marshal;
@@ -40,9 +42,9 @@ fn test_marshal_unmarshal() {
     params.push(128u64.into());
     params.push(128i32.into());
 
-    msg.dynheader.serial = Some(1);
+    msg.dynheader.serial = Some(NonZeroU32::MIN);
     let mut buf = Vec::new();
-    marshal(&msg, 0, &mut buf).unwrap();
+    marshal(&msg, NonZeroU32::MIN, &mut buf).unwrap();
 
     let mut cursor = Cursor::new(&buf);
     let header = unmarshal_header(&mut cursor).unwrap();
@@ -97,13 +99,13 @@ fn test_invalid_stuff() {
     let mut msg = crate::message_builder::MessageBuilder::new()
         .signal(".......io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
-    msg.dynheader.serial = Some(1);
+    msg.dynheader.serial = Some(NonZeroU32::MIN);
     let mut buf = Vec::new();
     assert_eq!(
         Err(crate::wire::errors::MarshalError::Validation(
             crate::params::validation::Error::InvalidInterface
         )),
-        marshal(&msg, 0, &mut buf)
+        marshal(&msg, NonZeroU32::MIN, &mut buf)
     );
 
     // invalid member
@@ -114,12 +116,12 @@ fn test_invalid_stuff() {
             "/io/killing/spark",
         )
         .build();
-    msg.dynheader.serial = Some(1);
+    msg.dynheader.serial = Some(NonZeroU32::MIN);
     let mut buf = Vec::new();
     assert_eq!(
         Err(crate::wire::errors::MarshalError::Validation(
             crate::params::validation::Error::InvalidMembername
         )),
-        marshal(&msg, 0, &mut buf)
+        marshal(&msg, NonZeroU32::MIN, &mut buf)
     );
 }

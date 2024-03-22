@@ -5,6 +5,7 @@ use rustbus::message_builder::MessageBuilder;
 use rustbus::Marshal;
 
 use std::io::Write;
+use std::num::NonZeroU32;
 
 fn main() {
     make_and_dump(
@@ -60,7 +61,7 @@ fn make_message() -> MarshalledMessage {
 
 fn dump_message(path: &str, msg: &MarshalledMessage) {
     let mut hdrbuf = vec![];
-    rustbus::wire::marshal::marshal(msg, 0, &mut hdrbuf).unwrap();
+    rustbus::wire::marshal::marshal(msg, NonZeroU32::MIN, &mut hdrbuf).unwrap();
 
     let mut file = std::fs::File::create(path).unwrap();
     file.write_all(&hdrbuf).unwrap();

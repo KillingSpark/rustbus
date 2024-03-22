@@ -3,6 +3,8 @@
 //! * `base` and `container` are for the Param approach that map dbus concepts to enums/structs
 //! * `traits` is for the trait based approach
 
+use std::num::NonZeroU32;
+
 use crate::message_builder;
 use crate::params;
 use crate::wire::HeaderField;
@@ -34,7 +36,7 @@ impl MarshalContext<'_, '_> {
 /// and use get_buf() to get to the contents
 pub fn marshal(
     msg: &crate::message_builder::MarshalledMessage,
-    chosen_serial: u32,
+    chosen_serial: NonZeroU32,
     buf: &mut Vec<u8>,
 ) -> MarshalResult<()> {
     marshal_header(msg, chosen_serial, buf)?;
@@ -51,7 +53,7 @@ pub fn marshal(
 
 fn marshal_header(
     msg: &crate::message_builder::MarshalledMessage,
-    chosen_serial: u32,
+    chosen_serial: NonZeroU32,
     buf: &mut Vec<u8>,
 ) -> MarshalResult<()> {
     let byteorder = msg.body.byteorder();
@@ -84,7 +86,7 @@ fn marshal_header(
     // Zero bytes where the length of the message will be put
     buf.extend_from_slice(&[0, 0, 0, 0]);
 
-    write_u32(chosen_serial, byteorder, buf);
+    write_u32(chosen_serial.get(), byteorder, buf);
 
     // Zero bytes where the length of the header fields will be put
     let pos = buf.len();
@@ -172,7 +174,7 @@ fn marshal_header_field(
             buf.push(b'u');
             buf.push(0);
             pad_to_align(4, buf);
-            write_u32(*rs, byteorder, buf);
+            write_u32(rs.get(), byteorder, buf);
         }
         HeaderField::Destination(dest) => {
             params::validate_busname(dest)?;

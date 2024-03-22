@@ -45,6 +45,9 @@ pub enum UnmarshalError {
     /// A message indicated an invalid byteorder in the header
     #[error("A message indicated an invalid byteorder in the header")]
     InvalidByteOrder,
+    /// A message has an invalid (zero) serial in the header
+    #[error("A message has an invalid (zero) serial in the header")]
+    InvalidSerial,
     /// A message indicated an invalid message type
     #[error("A message indicated an invalid message type")]
     InvalidMessageType,
