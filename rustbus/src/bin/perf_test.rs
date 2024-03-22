@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use rustbus::connection::Timeout;
 use rustbus::MessageBuilder;
 use rustbus::RpcConn;
@@ -28,7 +30,7 @@ fn main() {
     let mut buf = Vec::new();
     for _ in 0..20000000 {
         buf.clear();
-        rustbus::wire::marshal::marshal(&sig, 1, &mut buf).unwrap();
+        rustbus::wire::marshal::marshal(&sig, NonZeroU32::MIN, &mut buf).unwrap();
     }
 
     // for _ in 0..50000000 {

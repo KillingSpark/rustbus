@@ -9,6 +9,9 @@ pub mod validate_raw;
 pub mod variant_macros;
 
 mod wrapper_types;
+
+use std::num::NonZeroU32;
+
 pub use wrapper_types::unixfd::UnixFd;
 pub use wrapper_types::ObjectPath;
 pub use wrapper_types::SignatureWrapper;
@@ -20,7 +23,7 @@ pub enum HeaderField {
     Interface(String),
     Member(String),
     ErrorName(String),
-    ReplySerial(u32),
+    ReplySerial(NonZeroU32),
     Destination(String),
     Sender(String),
     Signature(String),

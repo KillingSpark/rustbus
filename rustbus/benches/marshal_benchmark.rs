@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rustbus::params::Container;
 use rustbus::params::DictMap;
@@ -9,7 +11,7 @@ use rustbus::wire::unmarshal::unmarshal_next_message;
 use rustbus::wire::unmarshal_context::Cursor;
 
 fn marsh(msg: &rustbus::message_builder::MarshalledMessage, buf: &mut Vec<u8>) {
-    marshal(msg, 0, buf).unwrap();
+    marshal(msg, NonZeroU32::MIN, buf).unwrap();
 }
 
 fn unmarshal(buf: &[u8]) {
@@ -66,7 +68,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                 .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
                 .build();
             msg.body.push_old_params(&params).unwrap();
-            msg.dynheader.serial = Some(1);
+            msg.dynheader.serial = Some(NonZeroU32::MIN);
             buf.clear();
             marsh(black_box(&msg), &mut buf)
         })
@@ -76,7 +78,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         .signal("io.killing.spark", "TestSignal", "/io/killing/spark")
         .build();
     msg.body.push_old_params(&params).unwrap();
-    msg.dynheader.serial = Some(1);
+    msg.dynheader.serial = Some(NonZeroU32::MIN);
     buf.clear();
     marsh(&msg, &mut buf);
     buf.extend_from_slice(msg.get_buf());

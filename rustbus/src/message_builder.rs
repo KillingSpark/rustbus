@@ -1,4 +1,5 @@
 //! Build new messages that you want to send over a connection
+use std::num::NonZeroU32;
 use std::os::fd::RawFd;
 
 use crate::params::message;
@@ -66,11 +67,11 @@ pub struct DynamicHeader {
     pub member: Option<String>,
     pub object: Option<String>,
     pub destination: Option<String>,
-    pub serial: Option<u32>,
+    pub serial: Option<NonZeroU32>,
     pub sender: Option<String>,
     pub signature: Option<String>,
     pub error_name: Option<String>,
-    pub response_serial: Option<u32>,
+    pub response_serial: Option<NonZeroU32>,
     pub num_fds: Option<u32>,
 }
 

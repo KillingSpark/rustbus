@@ -4,6 +4,8 @@
 //! * `traits` is for the trait based approach
 //! * `iter` is an experimental approach to an libdbus-like iterator
 
+use std::num::NonZeroU32;
+
 use crate::message_builder::DynamicHeader;
 use crate::message_builder::MarshalledMessage;
 use crate::message_builder::MarshalledMessageBody;
@@ -33,7 +35,7 @@ pub struct Header {
     pub flags: u8,
     pub version: u8,
     pub body_len: u32,
-    pub serial: u32,
+    pub serial: NonZeroU32,
 }
 
 impl From<crate::signature::Error> for UnmarshalError {
@@ -75,7 +77,8 @@ pub fn unmarshal_header(cursor: &mut Cursor) -> UnmarshalResult<Header> {
     let flags = cursor.read_u8()?;
     let version = cursor.read_u8()?;
     let body_len = cursor.read_u32(byteorder)?;
-    let serial = cursor.read_u32(byteorder)?;
+    let serial =
+        NonZeroU32::new(cursor.read_u32(byteorder)?).ok_or(UnmarshalError::InvalidSerial)?;
 
     Ok(Header {
         byteorder,
@@ -242,7 +245,9 @@ fn unmarshal_header_field(header: &Header, cursor: &mut Cursor) -> UnmarshalResu
         },
         5 => match sig {
             signature::Type::Base(signature::Base::Uint32) => {
-                Ok(HeaderField::ReplySerial(cursor.read_u32(header.byteorder)?))
+                NonZeroU32::new(cursor.read_u32(header.byteorder)?)
+                    .ok_or(UnmarshalError::InvalidHeaderField)
+                    .map(HeaderField::ReplySerial)
             }
             _ => Err(UnmarshalError::WrongSignature),
         },

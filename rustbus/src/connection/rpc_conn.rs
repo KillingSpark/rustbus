@@ -5,6 +5,7 @@ use super::ll_conn::DuplexConn;
 use super::*;
 use crate::message_builder::{MarshalledMessage, MessageType};
 use std::collections::{HashMap, VecDeque};
+use std::num::NonZeroU32;
 
 /// Convenience wrapper around the lowlevel connection
 /// ```rust,no_run
@@ -32,7 +33,7 @@ use std::collections::{HashMap, VecDeque};
 pub struct RpcConn {
     signals: VecDeque<MarshalledMessage>,
     calls: VecDeque<MarshalledMessage>,
-    responses: HashMap<u32, MarshalledMessage>,
+    responses: HashMap<NonZeroU32, MarshalledMessage>,
     conn: DuplexConn,
     filter: MessageFilter,
 }
@@ -91,7 +92,7 @@ impl RpcConn {
     }
 
     /// get the next new serial
-    pub fn alloc_serial(&mut self) -> u32 {
+    pub fn alloc_serial(&mut self) -> NonZeroU32 {
         self.conn.send.alloc_serial()
     }
 
@@ -124,12 +125,16 @@ impl RpcConn {
     }
 
     /// Return a response if one is there but dont block
-    pub fn try_get_response(&mut self, serial: u32) -> Option<MarshalledMessage> {
+    pub fn try_get_response(&mut self, serial: NonZeroU32) -> Option<MarshalledMessage> {
         self.responses.remove(&serial)
     }
 
     /// Return a response if one is there or block until it arrives
-    pub fn wait_response(&mut self, serial: u32, timeout: Timeout) -> Result<MarshalledMessage> {
+    pub fn wait_response(
+        &mut self,
+        serial: NonZeroU32,
+        timeout: Timeout,
+    ) -> Result<MarshalledMessage> {
         let start_time = time::Instant::now();
         loop {
             if let Some(msg) = self.try_get_response(serial) {
