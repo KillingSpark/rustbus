@@ -7,7 +7,6 @@ use std::num::NonZeroU32;
 
 use crate::message_builder;
 use crate::params;
-use crate::wire::HeaderField;
 use crate::ByteOrder;
 
 use crate::wire::util::*;
@@ -92,35 +91,29 @@ fn marshal_header(
     let pos = buf.len();
     buf.extend_from_slice(&[0, 0, 0, 0]);
 
-    if let Some(serial) = &msg.dynheader.response_serial {
-        marshal_header_field(byteorder, &HeaderField::ReplySerial(*serial), buf)?;
+    if let Some(serial) = msg.dynheader.response_serial {
+        marshal_header_reply_serial(byteorder, serial, buf)?;
     }
     if let Some(int) = &msg.dynheader.interface {
-        marshal_header_field(byteorder, &HeaderField::Interface(int.clone()), buf)?;
+        marshal_header_interface(byteorder, int, buf)?;
     }
     if let Some(dest) = &msg.dynheader.destination {
-        marshal_header_field(byteorder, &HeaderField::Destination(dest.clone()), buf)?;
+        marshal_header_destination(byteorder, dest, buf)?;
     }
     if let Some(mem) = &msg.dynheader.member {
-        marshal_header_field(byteorder, &HeaderField::Member(mem.clone()), buf)?;
+        marshal_header_member(byteorder, mem, buf)?;
     }
     if let Some(obj) = &msg.dynheader.object {
-        marshal_header_field(byteorder, &HeaderField::Path(obj.clone()), buf)?;
+        marshal_header_path(byteorder, obj, buf)?;
     }
     if let Some(err_name) = &msg.dynheader.error_name {
-        marshal_header_field(byteorder, &HeaderField::ErrorName(err_name.clone()), buf)?;
+        marshal_header_errorname(byteorder, err_name, buf)?;
+    }
+    if !msg.get_buf().is_empty() {
+        marshal_header_signature(msg.get_sig(), buf)?;
     }
     if !msg.body.get_fds().is_empty() {
-        marshal_header_field(
-            byteorder,
-            &HeaderField::UnixFds(msg.body.get_fds().len() as u32),
-            buf,
-        )?;
-    }
-
-    if !msg.get_buf().is_empty() {
-        let sig_str = msg.get_sig().to_owned();
-        marshal_header_field(byteorder, &HeaderField::Signature(sig_str), buf)?;
+        marshal_header_unix_fds(byteorder, msg.body.get_fds().len() as u32, buf)?;
     }
     let len = buf.len() - pos - 4; // -4 the bytes for the length indicator do not count
     insert_u32(byteorder, len as u32, &mut buf[pos..pos + 4]);
@@ -128,92 +121,96 @@ fn marshal_header(
     Ok(())
 }
 
-fn marshal_header_field(
+fn marshal_header_field(field_no: u8, sig: &str, buf: &mut Vec<u8>) {
+    pad_to_align(8, buf);
+    buf.push(field_no);
+    buf.push(sig.len() as u8);
+    buf.extend_from_slice(sig.as_bytes());
+    buf.push(0);
+    pad_to_align(4, buf);
+}
+
+fn marshal_header_path(byteorder: ByteOrder, path: &str, buf: &mut Vec<u8>) -> MarshalResult<()> {
+    params::validate_object_path(path)?;
+    marshal_header_field(1, "o", buf);
+    write_string(path, byteorder, buf);
+    Ok(())
+}
+
+fn marshal_header_interface(
     byteorder: ByteOrder,
-    field: &HeaderField,
+    interface: &str,
     buf: &mut Vec<u8>,
 ) -> MarshalResult<()> {
-    pad_to_align(8, buf);
-    match field {
-        HeaderField::Path(path) => {
-            params::validate_object_path(path)?;
-            buf.push(1);
-            buf.push(1);
-            buf.push(b'o');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_string(path, byteorder, buf);
-        }
-        HeaderField::Interface(int) => {
-            params::validate_interface(int)?;
-            buf.push(2);
-            buf.push(1);
-            buf.push(b's');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_string(int, byteorder, buf);
-        }
-        HeaderField::Member(mem) => {
-            params::validate_membername(mem)?;
-            buf.push(3);
-            buf.push(1);
-            buf.push(b's');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_string(mem, byteorder, buf);
-        }
-        HeaderField::ErrorName(name) => {
-            params::validate_errorname(name)?;
-            buf.push(4);
-            buf.push(1);
-            buf.push(b's');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_string(name, byteorder, buf);
-        }
-        HeaderField::ReplySerial(rs) => {
-            buf.push(5);
-            buf.push(1);
-            buf.push(b'u');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_u32(rs.get(), byteorder, buf);
-        }
-        HeaderField::Destination(dest) => {
-            params::validate_busname(dest)?;
-            buf.push(6);
-            buf.push(1);
-            buf.push(b's');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_string(dest, byteorder, buf);
-        }
-        HeaderField::Sender(snd) => {
-            params::validate_busname(snd)?;
-            buf.push(7);
-            buf.push(1);
-            buf.push(b's');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_string(snd, byteorder, buf);
-        }
-        HeaderField::Signature(sig) => {
-            params::validate_signature(sig)?;
-            buf.push(8);
-            buf.push(1);
-            buf.push(b'g');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_signature(sig, buf);
-        }
-        HeaderField::UnixFds(fds) => {
-            buf.push(9);
-            buf.push(1);
-            buf.push(b'u');
-            buf.push(0);
-            pad_to_align(4, buf);
-            write_u32(*fds, byteorder, buf);
-        }
-    }
+    params::validate_interface(interface)?;
+    marshal_header_field(2, "s", buf);
+    write_string(interface, byteorder, buf);
+    Ok(())
+}
+
+fn marshal_header_member(
+    byteorder: ByteOrder,
+    member: &str,
+    buf: &mut Vec<u8>,
+) -> MarshalResult<()> {
+    params::validate_membername(member)?;
+    marshal_header_field(3, "s", buf);
+    write_string(member, byteorder, buf);
+    Ok(())
+}
+
+fn marshal_header_errorname(
+    byteorder: ByteOrder,
+    error: &str,
+    buf: &mut Vec<u8>,
+) -> MarshalResult<()> {
+    params::validate_errorname(error)?;
+    marshal_header_field(4, "s", buf);
+    write_string(error, byteorder, buf);
+    Ok(())
+}
+
+fn marshal_header_reply_serial(
+    byteorder: ByteOrder,
+    serial: NonZeroU32,
+    buf: &mut Vec<u8>,
+) -> MarshalResult<()> {
+    marshal_header_field(5, "u", buf);
+    write_u32(serial.get(), byteorder, buf);
+    Ok(())
+}
+
+fn marshal_header_destination(
+    byteorder: ByteOrder,
+    destination: &str,
+    buf: &mut Vec<u8>,
+) -> MarshalResult<()> {
+    params::validate_busname(destination)?;
+    marshal_header_field(6, "s", buf);
+    write_string(destination, byteorder, buf);
+    Ok(())
+}
+
+fn marshal_header_sender(
+    byteorder: ByteOrder,
+    sender: &str,
+    buf: &mut Vec<u8>,
+) -> MarshalResult<()> {
+    params::validate_busname(sender)?;
+    marshal_header_field(7, "s", buf);
+    write_string(sender, byteorder, buf);
+    Ok(())
+}
+
+fn marshal_header_signature(signature: &str, buf: &mut Vec<u8>) -> MarshalResult<()> {
+    params::validate_signature(signature)?;
+    marshal_header_field(8, "g", buf);
+    write_signature(signature, buf);
+    Ok(())
+}
+
+fn marshal_header_unix_fds(byteorder: ByteOrder, fds: u32, buf: &mut Vec<u8>) -> MarshalResult<()> {
+    marshal_header_field(9, "u", buf);
+    write_u32(fds, byteorder, buf);
     Ok(())
 }
