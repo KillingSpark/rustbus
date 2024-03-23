@@ -100,6 +100,9 @@ fn marshal_header(
     if let Some(dest) = &msg.dynheader.destination {
         marshal_header_destination(byteorder, dest, buf)?;
     }
+    if let Some(sender) = &msg.dynheader.sender {
+        marshal_header_sender(byteorder, sender, buf)?;
+    }
     if let Some(mem) = &msg.dynheader.member {
         marshal_header_member(byteorder, mem, buf)?;
     }
