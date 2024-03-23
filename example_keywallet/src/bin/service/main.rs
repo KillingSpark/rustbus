@@ -36,7 +36,7 @@ fn default_handler(
 enum ObjectType<'a> {
     Collection(&'a str),
     Item { col: &'a str, item: &'a str },
-    Session(&'a str),
+    Session(#[allow(dead_code)] &'a str),
 }
 
 fn get_object_type_and_id<'a>(path: &'a ObjectPath<&'a str>) -> Option<ObjectType<'a>> {
