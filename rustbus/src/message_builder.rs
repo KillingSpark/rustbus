@@ -83,7 +83,7 @@ impl DynamicHeader {
         error_msg: Option<String>,
     ) -> crate::message_builder::MarshalledMessage {
         let mut err_resp = crate::message_builder::MarshalledMessage {
-            typ: MessageType::Reply,
+            typ: MessageType::Error,
             dynheader: DynamicHeader {
                 interface: None,
                 member: None,
