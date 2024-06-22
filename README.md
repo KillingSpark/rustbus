@@ -8,7 +8,7 @@ This was created by only reading the spec at https://dbus.freedesktop.org/doc/db
 spec that was mostly my fault. The document seems to be enough to write a working implementation without looking at others code. 
 
 ## What does this provide?
-This libary provides the means to send and receive messages over a dbus bus. This means: signals, calls, and (error)replys. It also provides some standard messages
+This libary provides the means to send and receive messages over a dbus bus. This means: signals, calls, and (error)replies. It also provides some standard messages
 for convenience. There is also a MessageBuilder to help you conveniently build your own messages.
 
 Dbus does technically work over any transport but this currently only supports unix streaming sockets. Support for other transports should be rather simple, but 
