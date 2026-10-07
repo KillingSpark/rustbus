@@ -103,7 +103,7 @@ pub struct Cursor<'a> {
 }
 
 impl<'buf> Cursor<'buf> {
-    pub fn new(buf: &[u8]) -> Cursor {
+    pub fn new(buf: &[u8]) -> Cursor<'_> {
         Cursor { buf, offset: 0 }
     }
 
