@@ -54,7 +54,7 @@ pub fn validate_object_path(op: &str) -> Result<()> {
         // check path components
         op.split('/')
             .find_map(|elem| {
-                if elem.is_empty() || !elem.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                if elem.is_empty() || !elem.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
                     Some(Error::InvalidObjectPath)
                 } else {
                     None
@@ -69,6 +69,7 @@ pub fn validate_object_path(op: &str) -> Result<()> {
 fn test_validate_object_path() {
     assert!(validate_object_path("/").is_ok());
     assert!(validate_object_path("/foo_bar").is_ok());
+    assert!(validate_object_path("/foo_bär").is_err());
     assert!(validate_object_path("/foo_bar/foo_baz").is_ok());
 
     assert!(validate_object_path("").is_err());
