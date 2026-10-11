@@ -47,11 +47,7 @@ impl UnixFdInner {
                 std::sync::atomic::Ordering::SeqCst,
             );
             //  If swapped_fd == fd then we did a sucessful swap and we actually took the value
-            if let Ok(taken_fd) = swapped_fd {
-                Some(taken_fd)
-            } else {
-                None
-            }
+            swapped_fd.ok()
         }
     }
 
