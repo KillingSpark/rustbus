@@ -153,7 +153,7 @@ pub fn validate_marshalled_container(
             if elem_sig.bytes_always_valid() {
                 // bytes_always_valid() only returns true for types whose
                 // length is equal to their alignment
-                if bytes_in_array as usize % elem_sig.get_alignment() != 0 {
+                if !(bytes_in_array as usize).is_multiple_of(elem_sig.get_alignment()) {
                     // there is not a whole number of elements in the array.
                     return Err((offset, UnmarshalError::NotEnoughBytes));
                 }

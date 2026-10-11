@@ -139,7 +139,7 @@ where
     ctx.align_to(alignment)?;
 
     // Check that we will have a range of complete elements
-    if bytes_in_array % alignment != 0 {
+    if !bytes_in_array.is_multiple_of(alignment) {
         return Err(UnmarshalError::NotAllBytesUsed);
     }
     let content_slice = ctx.read_raw(bytes_in_array)?;
