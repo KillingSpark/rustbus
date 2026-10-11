@@ -131,7 +131,6 @@ pub use container::*;
 ///     }
 /// }
 /// ```
-
 pub trait Unmarshal<'buf, 'fds>: Sized + Signature {
     fn unmarshal(ctx: &mut UnmarshalContext<'fds, 'buf>) -> unmarshal::UnmarshalResult<Self>;
 }
