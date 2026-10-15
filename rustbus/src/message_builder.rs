@@ -427,7 +427,7 @@ impl MarshalledMessageBody {
         }
         Ok(())
     }
-    fn create_ctx(&mut self) -> MarshalContext {
+    fn create_ctx(&mut self) -> MarshalContext<'_, '_> {
         MarshalContext {
             buf: &mut self.buf,
             fds: &mut self.raw_fds,
@@ -558,7 +558,7 @@ impl MarshalledMessageBody {
     }
     /// Create a parser to retrieve parameters from the body.
     #[inline]
-    pub fn parser(&self) -> MessageBodyParser {
+    pub fn parser(&self) -> MessageBodyParser<'_> {
         MessageBodyParser::new(self)
     }
 }
@@ -915,7 +915,7 @@ impl<'fds, 'body: 'fds> MessageBodyParser<'body> {
 
     /// Get the next (old_style) param.
     /// This checks if there are params left in the message and if the type you requested fits the signature of the message.
-    pub fn get_param(&mut self) -> Result<crate::params::Param, UnmarshalError> {
+    pub fn get_param(&mut self) -> Result<crate::params::Param<'_, '_>, UnmarshalError> {
         if let Some(sig_str) = self.get_next_sig() {
             let mut ctx = UnmarshalContext::new(
                 &self.body.raw_fds,
