@@ -153,7 +153,7 @@ pub fn validate_membername(mem: &str) -> Result<()> {
         return Err(Error::InvalidMembername);
     }
 
-    let alphanum_or_underscore = mem.chars().all(|c| c.is_alphanumeric() || c == '_');
+    let alphanum_or_underscore = mem.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
     if !alphanum_or_underscore {
         return Err(Error::InvalidMembername);
     }
