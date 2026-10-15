@@ -135,7 +135,7 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         }
         let alphanum_or_underscore_or_dash = element
             .chars()
-            .all(|c| c.is_alphanumeric() || c == '_' || c == '-');
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
         if !alphanum_or_underscore_or_dash {
             return Err(Error::InvalidBusname);
         }
@@ -434,6 +434,11 @@ fn test_busname_constraints() {
     assert_eq!(
         Err(Error::InvalidBusname),
         crate::params::validate_busname(invalid_chars)
+    );
+    let unicode_chars = "däs.busname";
+    assert_eq!(
+        Err(Error::InvalidBusname),
+        crate::params::validate_busname(unicode_chars)
     );
     let empty = "";
     assert_eq!(
