@@ -54,7 +54,7 @@ pub fn validate_object_path(op: &str) -> Result<()> {
         // check path components
         op.split('/')
             .find_map(|elem| {
-                if elem.is_empty() || !elem.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                if elem.is_empty() || !elem.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
                     Some(Error::InvalidObjectPath)
                 } else {
                     None
@@ -69,6 +69,7 @@ pub fn validate_object_path(op: &str) -> Result<()> {
 fn test_validate_object_path() {
     assert!(validate_object_path("/").is_ok());
     assert!(validate_object_path("/foo_bar").is_ok());
+    assert!(validate_object_path("/foo_bär").is_err());
     assert!(validate_object_path("/foo_bar/foo_baz").is_ok());
 
     assert!(validate_object_path("").is_err());
@@ -93,7 +94,9 @@ pub fn validate_interface(int: &str) -> Result<()> {
         {
             return Err(Error::InvalidInterface);
         }
-        let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
+        let alphanum_or_underscore = element
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_');
         if !alphanum_or_underscore {
             return Err(Error::InvalidInterface);
         }
@@ -132,7 +135,7 @@ pub fn validate_busname(bn: &str) -> Result<()> {
         }
         let alphanum_or_underscore_or_dash = element
             .chars()
-            .all(|c| c.is_alphanumeric() || c == '_' || c == '-');
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
         if !alphanum_or_underscore_or_dash {
             return Err(Error::InvalidBusname);
         }
@@ -150,7 +153,7 @@ pub fn validate_membername(mem: &str) -> Result<()> {
         return Err(Error::InvalidMembername);
     }
 
-    let alphanum_or_underscore = mem.chars().all(|c| c.is_alphanumeric() || c == '_');
+    let alphanum_or_underscore = mem.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
     if !alphanum_or_underscore {
         return Err(Error::InvalidMembername);
     }
@@ -400,6 +403,11 @@ fn test_interface_constraints() {
         Err(Error::InvalidInterface),
         crate::params::validate_interface(invalid_chars)
     );
+    let unicode_chars = "org.freedesktop.DBüs.java";
+    assert_eq!(
+        Err(Error::InvalidInterface),
+        crate::params::validate_interface(unicode_chars)
+    );
     let leading_digits = "1leading.digits";
     assert_eq!(
         Err(Error::InvalidInterface),
@@ -426,6 +434,11 @@ fn test_busname_constraints() {
     assert_eq!(
         Err(Error::InvalidBusname),
         crate::params::validate_busname(invalid_chars)
+    );
+    let unicode_chars = "däs.busname";
+    assert_eq!(
+        Err(Error::InvalidBusname),
+        crate::params::validate_busname(unicode_chars)
     );
     let empty = "";
     assert_eq!(
