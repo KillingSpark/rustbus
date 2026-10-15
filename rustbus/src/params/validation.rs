@@ -94,7 +94,9 @@ pub fn validate_interface(int: &str) -> Result<()> {
         {
             return Err(Error::InvalidInterface);
         }
-        let alphanum_or_underscore = element.chars().all(|c| c.is_alphanumeric() || c == '_');
+        let alphanum_or_underscore = element
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_');
         if !alphanum_or_underscore {
             return Err(Error::InvalidInterface);
         }
@@ -400,6 +402,11 @@ fn test_interface_constraints() {
     assert_eq!(
         Err(Error::InvalidInterface),
         crate::params::validate_interface(invalid_chars)
+    );
+    let unicode_chars = "org.freedesktop.DBüs.java";
+    assert_eq!(
+        Err(Error::InvalidInterface),
+        crate::params::validate_interface(unicode_chars)
     );
     let leading_digits = "1leading.digits";
     assert_eq!(
